@@ -14,3 +14,6 @@ llama.cpp is from [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) (M
 
 ## Model storage
 All three notebooks mount Google Drive and keep models in `MyDrive/llm_models`, so a model is downloaded once and reused in later sessions (a 27B Q4 file needs about 17 GB of Drive space). The first run asks you to authorize Drive access.
+
+## Remote access
+`llama_cpp_t4.ipynb` and `vllm_tpu.ipynb` can open a free Cloudflare tunnel to their OpenAI-compatible server, protected by a random API key printed in the notebook. llama.cpp also serves its own chat web UI; the vLLM notebook adds a Gradio chat UI. The URL and key last for one session.
