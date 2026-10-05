@@ -11,3 +11,6 @@ Notebooks for running LLM tooling on a free Colab **T4** GPU. Set Runtime → Ch
 ## Credit and license
 The Studio notebook is from [unslothai/unsloth](https://github.com/unslothai/unsloth); Unsloth Studio is licensed under AGPL-3.0.
 llama.cpp is from [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) (MIT).
+
+## Model storage
+All three notebooks mount Google Drive and keep models in `MyDrive/llm_models`, so a model is downloaded once and reused in later sessions (a 27B Q4 file needs about 17 GB of Drive space). The first run asks you to authorize Drive access.
