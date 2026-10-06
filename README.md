@@ -16,6 +16,6 @@ llama.cpp is from [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) (M
 All three notebooks mount Google Drive and keep models in `MyDrive/llm_models`, so a model is downloaded once and reused in later sessions (a 27B Q4 file needs about 17 GB of Drive space). The first run asks you to authorize Drive access.
 
 ## Remote access
-`llama_cpp_t4.ipynb` and `vllm_tpu.ipynb` can open a free Cloudflare tunnel to their OpenAI-compatible server, protected by a random API key printed in the notebook. llama.cpp also serves its own chat web UI; the vLLM notebook adds a Gradio chat UI. The URL and key last for one session.
+`llama_cpp_t4.ipynb` and `vllm_tpu.ipynb` can open a free Cloudflare tunnel to their OpenAI-compatible server, protected by a random API key printed in the notebook. Both also open a Plotly Dash chat page (login: any username, the API key as password); llama.cpp additionally serves its own web UI. The URL and key last for one session.
 
 Builds are cached too, in `MyDrive/llm_models/builds`: the Unsloth Studio install, the compiled llama.cpp binaries, and the vLLM packages. The first run builds and saves them; later runs restore them. Set the `REBUILD`, `REBUILD_LLAMA`, or `REFRESH_WHEELS` flag in the notebook to update to the latest versions. A cache is tied to the Python version (and, for llama.cpp, the T4), so if Colab changes its image the notebook rebuilds automatically.
