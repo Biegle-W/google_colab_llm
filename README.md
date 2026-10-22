@@ -1,6 +1,6 @@
-# Google Colab LLM notebooks (T4)
+# Google Colab LLM notebooks
 
-Notebooks for running LLM tooling on a free Colab **T4** GPU. Set Runtime → Change runtime type → **T4 GPU**, then Run all.
+Notebooks for running LLM tooling on Colab GPUs and TPUs. Set Runtime → Change runtime type to the hardware named for the notebook (T4, L4, A100, G4 or a TPU), then Run all.
 
 | Notebook | What it does |
 |---|---|
