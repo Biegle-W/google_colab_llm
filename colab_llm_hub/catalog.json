@@ -1,0 +1,173 @@
+[
+  {
+    "id": "qwen3.8-27b-q4",
+    "name": "Qwen3.8-27B UD-Q4_K_M (llama.cpp)",
+    "backend": "llama",
+    "repo": "unsloth/Qwen3.8-27B-GGUF",
+    "files": ["Qwen3.8-27B-UD-Q4_K_M.gguf"],
+    "model_file": "Qwen3.8-27B-UD-Q4_K_M.gguf",
+    "size_gb": 16.46,
+    "contexts": [[22, 16384], [30, 32768], [45, 65536], [80, 131072]]
+  },
+  {
+    "id": "qwen3.8-27b-q8",
+    "name": "Qwen3.8-27B Q8_0 (llama.cpp)",
+    "backend": "llama",
+    "repo": "unsloth/Qwen3.8-27B-GGUF",
+    "files": ["Qwen3.8-27B-Q8_0.gguf"],
+    "model_file": "Qwen3.8-27B-Q8_0.gguf",
+    "size_gb": 29.05,
+    "contexts": [[34, 16384], [40, 32768], [70, 65536]]
+  },
+  {
+    "id": "qwen3.8-27b-bf16",
+    "name": "Qwen3.8-27B BF16 (llama.cpp)",
+    "backend": "llama",
+    "repo": "unsloth/Qwen3.8-27B-GGUF",
+    "files": ["BF16/*.gguf"],
+    "model_file": "BF16/Qwen3.8-27B-BF16-00001-of-00002.gguf",
+    "size_gb": 54.66,
+    "contexts": [[62, 16384], [75, 32768], [95, 65536]]
+  },
+  {
+    "id": "qwen3.6-35b-a3b-iq4",
+    "name": "Qwen3.6-35B-A3B UD-IQ4_XS (llama.cpp)",
+    "backend": "llama",
+    "repo": "unsloth/Qwen3.6-35B-A3B-GGUF",
+    "files": ["Qwen3.6-35B-A3B-UD-IQ4_XS.gguf"],
+    "model_file": "Qwen3.6-35B-A3B-UD-IQ4_XS.gguf",
+    "size_gb": 17.7,
+    "contexts": [[23, 16384], [32, 65536]]
+  },
+  {
+    "id": "qwen3.6-35b-a3b-q8",
+    "name": "Qwen3.6-35B-A3B Q8_0 (llama.cpp)",
+    "backend": "llama",
+    "repo": "unsloth/Qwen3.6-35B-A3B-GGUF",
+    "files": ["Qwen3.6-35B-A3B-Q8_0.gguf"],
+    "model_file": "Qwen3.6-35B-A3B-Q8_0.gguf",
+    "size_gb": 36.9,
+    "contexts": [[42, 16384], [50, 32768], [80, 65536]]
+  },
+  {
+    "id": "sage-a1.5-q4",
+    "name": "Sage-A1.5 Q4_K_M (llama.cpp)",
+    "backend": "llama",
+    "repo": "InternScience/Sage-A1.5-Q4_K_M-GGUF",
+    "files": ["Sage-A1.5-Q4_K_M.gguf"],
+    "model_file": "Sage-A1.5-Q4_K_M.gguf",
+    "size_gb": 21.71,
+    "contexts": [[27, 16384], [40, 32768]]
+  },
+  {
+    "id": "nemotron-3.5-super-120b-q3",
+    "name": "Nemotron-3.5-Super-VL-120B-A12B UD-Q3_K_XL (llama.cpp, text)",
+    "backend": "llama",
+    "repo": "unsloth/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-GGUF",
+    "files": ["UD-Q3_K_XL/*.gguf"],
+    "model_file": "UD-Q3_K_XL/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-UD-Q3_K_XL-00001-of-00003.gguf",
+    "size_gb": 65.8,
+    "contexts": [[72, 16384], [85, 32768]]
+  },
+  {
+    "id": "nemotron-3.5-super-120b-q4",
+    "name": "Nemotron-3.5-Super-VL-120B-A12B UD-Q4_K_XL (llama.cpp, text)",
+    "backend": "llama",
+    "repo": "unsloth/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-GGUF",
+    "files": ["UD-Q4_K_XL/*.gguf"],
+    "model_file": "UD-Q4_K_XL/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-UD-Q4_K_XL-00001-of-00003.gguf",
+    "size_gb": 86.9,
+    "contexts": [[96, 8192]]
+  },
+  {
+    "id": "ornith-1.5-122b-q4",
+    "name": "Ornith-1.5-122B Q4_K_M (llama.cpp)",
+    "backend": "llama",
+    "repo": "ornith-ai/Ornith-1.5-122B-GGUF",
+    "files": ["Ornith-1.5-122B-Q4_K_M.gguf"],
+    "model_file": "Ornith-1.5-122B-Q4_K_M.gguf",
+    "size_gb": 75.84,
+    "contexts": [[82, 16384], [92, 32768]]
+  },
+  {
+    "id": "ornith-1.5-122b-q5",
+    "name": "Ornith-1.5-122B Q5_K_M (llama.cpp)",
+    "backend": "llama",
+    "repo": "ornith-ai/Ornith-1.5-122B-GGUF",
+    "files": ["Ornith-1.5-122B-Q5_K_M.gguf"],
+    "model_file": "Ornith-1.5-122B-Q5_K_M.gguf",
+    "size_gb": 88.71,
+    "contexts": [[96, 8192]]
+  },
+  {
+    "id": "qwen3-14b-fp8",
+    "name": "Qwen3-14B FP8 (vLLM)",
+    "backend": "vllm",
+    "repo": "Qwen/Qwen3-14B-FP8",
+    "files": ["*"],
+    "size_gb": 16.34,
+    "contexts": [[22, 16384], [30, 32768]],
+    "tool_parser": "hermes",
+    "reasoning_parser": "qwen3",
+    "language_model_only": false
+  },
+  {
+    "id": "qwen3.8-27b-fp8",
+    "name": "Qwen3.8-27B FP8 (vLLM)",
+    "backend": "vllm",
+    "repo": "Qwen/Qwen3.8-27B-FP8",
+    "files": ["*"],
+    "size_gb": 30.88,
+    "contexts": [[38, 16384], [48, 32768], [80, 65536]],
+    "tool_parser": "qwen3_coder",
+    "reasoning_parser": "qwen3",
+    "language_model_only": true
+  },
+  {
+    "id": "qwen3.8-27b-bf16-vllm",
+    "name": "Qwen3.8-27B BF16 (vLLM)",
+    "backend": "vllm",
+    "repo": "Qwen/Qwen3.8-27B",
+    "files": ["*"],
+    "size_gb": 55.6,
+    "contexts": [[64, 16384], [75, 32768], [95, 65536]],
+    "tool_parser": "qwen3_coder",
+    "reasoning_parser": "qwen3",
+    "language_model_only": true
+  },
+  {
+    "id": "qwen3.6-35b-a3b-fp8",
+    "name": "Qwen3.6-35B-A3B FP8 (vLLM)",
+    "backend": "vllm",
+    "repo": "Qwen/Qwen3.6-35B-A3B-FP8",
+    "files": ["*"],
+    "size_gb": 37.5,
+    "contexts": [[44, 16384], [55, 32768], [85, 65536]],
+    "tool_parser": "qwen3_coder",
+    "reasoning_parser": "qwen3",
+    "language_model_only": true
+  },
+  {
+    "id": "sage-a1.5-fp8",
+    "name": "Sage-A1.5 FP8 (vLLM)",
+    "backend": "vllm",
+    "repo": "InternScience/Sage-A1.5-FP8",
+    "files": ["*"],
+    "size_gb": 39.4,
+    "contexts": [[46, 16384], [56, 32768]],
+    "tool_parser": "qwen3_coder",
+    "reasoning_parser": "qwen3",
+    "language_model_only": true
+  },
+  {
+    "id": "nemotron-3.5-bolt-74b-w4a16",
+    "name": "Nemotron-3.5-Bolt-74B-A9B AutoRound W4A16 (vLLM, experimental)",
+    "backend": "vllm",
+    "repo": "SergiioB/Nemotron-3.5-Bolt-74B-A9B-AutoRound-W4A16-G128-sym",
+    "files": ["*"],
+    "size_gb": 43.6,
+    "contexts": [[52, 16384], [64, 32768], [90, 65536]],
+    "language_model_only": false,
+    "experimental": true
+  }
+]

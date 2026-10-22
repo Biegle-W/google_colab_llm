@@ -8,7 +8,11 @@ Notebooks for running LLM tooling on Colab GPUs and TPUs. Set Runtime → Change
 | `llama_cpp_t4.ipynb` | Build llama.cpp with CUDA, run Qwen3.8-27B Q4_K_M (partial GPU offload on a T4), chat via llama-server |
 | `llama_cpp_gpu.ipynb` | llama.cpp on an L4, A100 or G4: detects the GPU, builds for it, and picks a Qwen3.8-27B GGUF that fits its memory |
 | `vllm_gpu.ipynb` | vLLM on an L4, A100 or G4: picks Qwen3.8-27B FP8 (A100, G4) or Qwen3-14B FP8 (L4), with tool calling |
+| `llm_hub_colab.ipynb` | **Inference hub for your own harness**: one authenticated OpenAI-compatible endpoint on an L4, A100 or G4 that loads llama.cpp or vLLM models on demand from Google Drive; see [`colab_llm_hub/`](colab_llm_hub/README.md) |
 | `vllm_tpu.ipynb` | vLLM on a v5e-1 TPU; checks whether the model fits in 16 GB HBM and falls back to Qwen3-4B (the 27B does not fit) |
+
+## Code
+`colab_llm_hub/` is the Python package behind `llm_hub_colab.ipynb` (hub server, Drive model store, catalog, tests). The notebook fetches it from this repository each run.
 
 ## Credit and license
 The Studio notebook is from [unslothai/unsloth](https://github.com/unslothai/unsloth); Unsloth Studio is licensed under AGPL-3.0.
