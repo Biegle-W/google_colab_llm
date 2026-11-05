@@ -70,6 +70,10 @@ class Catalog(unittest.TestCase):
         self.assertEqual(catalog.kind_for(by["minimax-h3"]), "video")
         self.assertTrue(catalog.fits(by["flash-next-q3"], 102.6))
         self.assertFalse(catalog.fits(by["flash-next-q3"], 42.9))
+        self.assertIn("glm-5.3-flash-iq1s", by)
+        self.assertIn("deepseek-v4.1-flash-1017-iq1s", by)
+        self.assertTrue(catalog.fits(by["glm-5.3-flash-iq1s"], 102.6))
+        self.assertTrue(by["deepseek-v4.1-flash-1017-iq1s"].get("offload"))
 
     def test_recommend_for_gpu_bands(self):
         from colab_llm_hub import recommend
@@ -77,8 +81,11 @@ class Catalog(unittest.TestCase):
         self.assertEqual(l4["band"], "l4")
         self.assertIn("vllm", l4["engines"])
         self.assertTrue(any(x.startswith("qwen3.8-27b") for x in l4["prefetch"]))
+        self.assertNotIn("deepseek-v4.1-flash-1017-iq1s", l4["prefetch"])
         g4 = recommend.for_gpu(102.6)
         self.assertIn("flash-next-q3", g4["prefetch"])
+        self.assertIn("glm-5.3-flash-iq1s", g4["prefetch"])
+        self.assertIn("deepseek-v4.1-flash-1017-iq1s", g4["prefetch"])
         self.assertIn("llama", g4["engines"])
 
 

@@ -32,7 +32,7 @@ later sessions: Drive ──copy──> local ──> engine   (wheels/builds/hu
 | llama.cpp / vLLM / SGLang / Diffusers command lines and process control | `backends.py` |
 | Diffusers OpenAI images server (incl. Qwen-Image-2.1 / NF4) | `diffusers_server.py` |
 | Model list, what fits which GPU, context / max edge | `catalog.json`, `catalog.py` |
-| Per-GPU engine recommendations for the four targets | `recommend.py`, `ENGINE_MATRIX.md` |
+| Per-GPU engine recommendations for the LLM + image targets | `recommend.py`, `ENGINE_MATRIX.md` |
 | Drive layout: settings, HF cache, logs, outputs, tool caches | `workspace.py` |
 | GPU detection (including Blackwell/CUDA handling) | `gpu.py` |
 | Engine builds and wheels cached on Drive | `install.py` |

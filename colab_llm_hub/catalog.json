@@ -320,5 +320,47 @@
     "experimental": true,
     "kind": "video",
     "notes": "Not an LLM. Prefer ComfyUI (your minimax-h3 workflows) or SGLang diffusion with layerwise offload. Prefetch stores weights on Drive; the Diffusers hub server will refuse to start this id."
+  },
+  {
+    "id": "glm-5.3-flash-iq1s",
+    "name": "GLM-5.3-Flash UD-IQ1_S (llama.cpp; ~93 GB)",
+    "backend": "llama",
+    "repo": "unsloth/GLM-5.3-Flash-GGUF",
+    "files": ["UD-IQ1_S/*.gguf"],
+    "model_file": "UD-IQ1_S/GLM-5.3-Flash-UD-IQ1_S-00001-of-00003.gguf",
+    "size_gb": 93.1,
+    "contexts": [[40, 8192], [70, 16384], [90, 32768]],
+    "offload": true,
+    "experimental": true,
+    "extra_args": ["--fit", "on", "--fit-target", "2048"],
+    "notes": "320B-A18B MoE. Your NVIDIA registry selects Maya-S24 for this model; on Colab use Unsloth GGUF + llama.cpp with ~100 GB combined RAM/VRAM (A100 high-RAM or G4). Needs a llama.cpp build with GLM-5.3 / ox-alpha support (Unsloth fork or recent upstream)."
+  },
+  {
+    "id": "glm-5.3-flash-iq3",
+    "name": "GLM-5.3-Flash UD-IQ3_XXS (llama.cpp; ~120 GB)",
+    "backend": "llama",
+    "repo": "unsloth/GLM-5.3-Flash-GGUF",
+    "files": ["UD-IQ3_XXS/*.gguf"],
+    "model_file": "UD-IQ3_XXS/GLM-5.3-Flash-UD-IQ3_XXS-00001-of-00004.gguf",
+    "size_gb": 120.0,
+    "contexts": [[90, 16384]],
+    "offload": true,
+    "experimental": true,
+    "extra_args": ["--fit", "on", "--fit-target", "2048"],
+    "notes": "Higher-quality GLM-5.3-Flash quant (~128 GB combined memory). Prefer G4 + high host RAM; Maya remains the workstation engine."
+  },
+  {
+    "id": "deepseek-v4.1-flash-1017-iq1s",
+    "name": "DeepSeek-V4.1-Flash-1017 UD-IQ1_S (llama.cpp; ~233 GB)",
+    "backend": "llama",
+    "repo": "unsloth/DeepSeek-V4.1-Flash-1017-GGUF",
+    "files": ["UD-IQ1_S/*.gguf", "engram/*"],
+    "model_file": "UD-IQ1_S/DeepSeek-V4.1-Flash-1017-UD-IQ1_S-00001-of-00005.gguf",
+    "size_gb": 233.0,
+    "contexts": [[70, 8192], [90, 16384]],
+    "offload": true,
+    "experimental": true,
+    "extra_args": ["--fit", "on", "--fit-target", "2048", "--cache-type-k", "q4_0", "--cache-type-v", "q4_0"],
+    "notes": "Your NVIDIA registry selects Maya / Strata + Unsloth UD-IQ1_S for this model. On Colab: huge Drive download (~233 GB); needs high host RAM and Engram mmap/lazy offload (Unsloth llama.cpp deepseek41). Prefer workstation Maya/Strata when available."
   }
 ]

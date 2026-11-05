@@ -4,7 +4,7 @@ Notebooks for running **LLM and text-to-image** tooling on Colab GPUs (including
 
 | Notebook | What it does |
 |---|---|
-| `llm_hub_colab.ipynb` | **Main hub:** OpenAI-compatible chat + images for **Qwen3.8-27B**, **Flash-Next**, **Qwen-Image-2.1** (MiniMax-H3 notes); engines auto-picked per GPU (llama.cpp / vLLM / SGLang / Diffusers); Drive-backed; see [`colab_llm_hub/ENGINE_MATRIX.md`](colab_llm_hub/ENGINE_MATRIX.md) |
+| `llm_hub_colab.ipynb` | **Main hub:** OpenAI-compatible chat + images for **Qwen3.8-27B**, **Flash-Next**, **GLM-5.3-Flash**, **DeepSeek-V4.1-Flash-1017**, **Qwen-Image-2.1** (MiniMax-H3 notes); engines auto-picked per GPU (llama.cpp / vLLM / SGLang / Diffusers); Drive-backed; see [`colab_llm_hub/ENGINE_MATRIX.md`](colab_llm_hub/ENGINE_MATRIX.md) |
 | `Unsloth_Studio_Colab.ipynb` | Official Unsloth Studio (web UI for training and chat) |
 | `llama_cpp_t4.ipynb` | Build llama.cpp with CUDA, run Qwen3.8-27B Q4_K_M (partial GPU offload on a T4), chat via llama-server |
 | `llama_cpp_gpu.ipynb` | llama.cpp on an L4, A100 or G4: detects the GPU, builds for it, and picks a Qwen3.8-27B GGUF that fits its memory |

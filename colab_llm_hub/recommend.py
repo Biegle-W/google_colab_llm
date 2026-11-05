@@ -1,4 +1,4 @@
-"""Pick engines and catalog ids for the four target models on a Colab GPU.
+"""Pick engines and catalog ids for the target models on a Colab GPU.
 
 Recommendations follow ENGINE_MATRIX.md (your NVIDIA/AMD registries + community reports).
 Strata / Maya / HyperQwen-container are documented there but not launched from Colab.
@@ -6,7 +6,10 @@ Strata / Maya / HyperQwen-container are documented there but not launched from C
 from . import catalog
 
 # Preferred catalog ids per model family, ordered best-first for each VRAM band.
-TARGET_FAMILIES = ("qwen3.8-27b", "flash-next", "qwen-image-2.1", "minimax-h3")
+TARGET_FAMILIES = (
+    "qwen3.8-27b", "flash-next", "glm-5.3-flash", "deepseek-v4.1-flash-1017",
+    "qwen-image-2.1", "minimax-h3",
+)
 
 
 def band(vram_gb):
@@ -27,8 +30,8 @@ _PLANS = {
         "engines": ["diffusers"],
         "prefetch": ["qwen-image-2.1-nf4"],
         "notes": [
-            "T4: only Qwen-Image-2.1 NF4 is practical among the four targets.",
-            "Qwen3.8-27B / Flash-Next / MiniMax-H3 need L4+ (AI Pro / Colab Pro).",
+            "T4: only Qwen-Image-2.1 NF4 is practical among the targets.",
+            "LLMs (27B / Flash-Next / GLM-5.3 / DeepSeek-V4.1) need L4+ (AI Pro / Colab Pro).",
         ],
     },
     "l4": {
@@ -36,36 +39,41 @@ _PLANS = {
         "prefetch": ["qwen3.8-27b-w4a16", "qwen3.8-27b-q4", "qwen-image-2.1-nf4"],
         "notes": [
             "L4 (24 GB): vLLM W4A16 for Qwen3.8-27B (same AutoRound class as HyperQwen); "
-            "llama.cpp Q4 as fallback; Qwen-Image NF4 or BF16 if VRAM allows.",
-            "Flash-Next and MiniMax-H3 need more combined RAM/VRAM than a typical L4 VM.",
+            "llama.cpp Q4 as fallback; Qwen-Image NF4.",
+            "GLM-5.3-Flash (~93 GB+) and DeepSeek-V4.1-Flash-1017 (~233 GB) need far more "
+            "combined RAM/VRAM than an L4 VM — use A100 high-RAM or G4, or your Maya/Strata workstation.",
             "Optional: add 'sglang' and prefetch qwen3.8-27b-w4a16-sglang for SGLang.",
         ],
     },
     "a100_40": {
         "engines": ["llama", "vllm", "sglang", "diffusers"],
-        "prefetch": ["qwen3.8-27b-fp8", "qwen3.8-27b-w4a16-sglang", "flash-next-iq1s", "qwen-image-2.1"],
+        "prefetch": ["qwen3.8-27b-fp8", "qwen3.8-27b-w4a16-sglang", "flash-next-iq1s",
+                     "glm-5.3-flash-iq1s", "qwen-image-2.1"],
         "notes": [
-            "A100 40 GB: vLLM FP8 or SGLang W4A16 for 27B; Flash-Next IQ1_S via llama.cpp "
-            "with n-gram on CPU (needs the ~80 GB host RAM Colab often gives with A100).",
-            "Qwen-Image-2.1 BF16. MiniMax-H3 remains experimental (ComfyUI / SGLang diffusion offload).",
-            "Workstation Strata/Maya for Flash-Next are not Colab-portable.",
+            "A100 40 GB (+ ~80 GB host): vLLM FP8 / SGLang for 27B; Flash-Next IQ1_S; "
+            "GLM-5.3-Flash IQ1_S is experimental (needs ~100 GB combined + GLM-capable llama.cpp).",
+            "DeepSeek-V4.1-Flash-1017 IQ1_S (~233 GB on Drive) is usually too large for this VM; "
+            "use G4 with mmap or your Maya/Strata workstation.",
+            "Workstation: GLM → Maya-S24; DeepSeek → Maya / Strata (not Colab-portable).",
         ],
     },
     "a100_80": {
         "engines": ["llama", "vllm", "sglang", "diffusers"],
-        "prefetch": ["qwen3.8-27b-fp8", "flash-next-q3", "qwen-image-2.1", "minimax-h3"],
+        "prefetch": ["qwen3.8-27b-fp8", "flash-next-q3", "glm-5.3-flash-iq1s", "qwen-image-2.1"],
         "notes": [
-            "A100 80 GB: vLLM FP8 for 27B; Flash-Next Q3 GGUF with n-gram CPU offload; "
-            "Qwen-Image BF16; MiniMax-H3 experimental with heavy offload.",
+            "A100 80 GB: vLLM FP8 for 27B; Flash-Next Q3; GLM-5.3-Flash IQ1_S (experimental). "
+            "Add deepseek-v4.1-flash-1017-iq1s manually if you accept a ~233 GB Drive download + Engram mmap.",
         ],
     },
     "g4": {
         "engines": ["llama", "vllm", "sglang", "diffusers"],
-        "prefetch": ["qwen3.8-27b-fp8", "flash-next-q3", "qwen-image-2.1", "minimax-h3"],
+        "prefetch": ["qwen3.8-27b-fp8", "flash-next-q3", "glm-5.3-flash-iq1s",
+                     "deepseek-v4.1-flash-1017-iq1s", "qwen-image-2.1"],
         "notes": [
-            "G4 (~96 GB): best single-GPU Colab for Flash-Next (llama.cpp UD-Q3_K_XL + n-gram CPU; "
-            "community ~63 GB VRAM @ 131K). vLLM FP8/NVFP4 or SGLang for 27B. Qwen-Image BF16.",
-            "MiniMax-H3: ComfyUI or SGLang diffusion still preferred over fitting full BF16 resident.",
+            "G4 (~96 GB): best single-GPU Colab band for large MoEs. Flash-Next Q3; GLM-5.3 IQ1_S; "
+            "DeepSeek-V4.1-Flash-1017 IQ1_S (~233 GB Drive, Engram mmap/lazy — Unsloth llama.cpp).",
+            "Your workstation still prefers Maya (GLM) and Maya/Strata (DeepSeek) when dual-GPU SSD streaming is available.",
+            "Qwen3.8-27B: vLLM FP8/NVFP4 or SGLang. Qwen-Image BF16.",
         ],
     },
 }
@@ -77,7 +85,6 @@ def for_gpu(vram_gb, entries=None):
     by = catalog.by_id(entries)
     plan = _PLANS[band(vram_gb)]
     prefetch = [m for m in plan["prefetch"] if m in by and catalog.fits(by[m], vram_gb)]
-    # Drop experimental video unless explicitly still listed and fitting.
     return {
         "band": band(vram_gb),
         "engines": list(plan["engines"]),

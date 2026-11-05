@@ -19,6 +19,8 @@ checkpoint through stock vLLM / SGLang instead of shipping the HyperQwen contain
 |---|---|---|---|
 | **Qwen3.8-27B** | **vLLM W4A16** (or llama.cpp UD-Q4) | **vLLM FP8** or **SGLang W4A16** | **vLLM FP8/NVFP4** or **SGLang**; HyperQwen-class INT4 for max context on 24–32 GB cards |
 | **Qwen3.8-Flash-Next** | Not practical | **llama.cpp UD-IQ1_S** with n-gram table on CPU/SSD (needs high host RAM) | **llama.cpp UD-Q3_K_XL** + `-ot per_layer_token_embd.weight=CPU` (Colab G4 community ~63 GB VRAM @ 131K). Official vLLM/SGLang want multi-GPU (e.g. TP4). Workstation: **Strata** IQ3_XXS |
+| **GLM-5.3-Flash** | Not practical (~100 GB+ combined) | Experimental **llama.cpp UD-IQ1_S** (~93 GB) if host RAM is high | **llama.cpp UD-IQ1_S** (or IQ3_XXS ~120 GB). Workstation: **Maya-S24** (selected). Official vLLM/SGLang want multi-GPU FP8 |
+| **DeepSeek-V4.1-Flash-1017** | Not practical (~233 GB+) | Usually too large | Experimental **llama.cpp UD-IQ1_S** + Engram mmap/lazy (Unsloth). Workstation: **Maya** / **Strata** + UD-IQ1_S (selected) |
 | **MiniMax-H3** | Experimental only | Experimental **ComfyUI** / **SGLang diffusion** layerwise offload (weights ~108 GB; host RAM bound) | Same; full-resident BF16 wants multi-GPU (SGLang Ulysses). **Not an LLM** — joint video+audio |
 | **Qwen-Image-2.1** | **Diffusers NF4** (transformer+text encoder) or Turbo | **Diffusers BF16** / ComfyUI Turbo (your workflows) | Diffusers BF16, **SGLang** image, or **vLLM-Omni** |
 
@@ -44,6 +46,16 @@ checkpoint through stock vLLM / SGLang instead of shipping the HyperQwen contain
   **vLLM-Omni**. Single Colab GPU implies layerwise/CPU offload and lots of host RAM —
   treat as experimental.
 
+### GLM-5.3-Flash
+- Your NVIDIA registry: **Maya-S24** selected (~95 GB Maya quant, 64K context on the workstation).
+- Colab path: Unsloth `GLM-5.3-Flash-GGUF` **UD-IQ1_S** (~93 GB) via llama.cpp with `--fit`; needs ~100 GB combined RAM/VRAM and a build that understands GLM-5.3 / ox-alpha (Unsloth llama.cpp PR).
+- Official **vLLM** / **SGLang** FP8 recipes are multi-GPU (e.g. TP8 H200).
+
+### DeepSeek-V4.1-Flash-1017
+- Your NVIDIA registry: **Maya** and **Strata** + Unsloth **UD-IQ1_S** (~233 GB) selected.
+- Colab path: same Unsloth GGUF with Engram on Drive + mmap/lazy; expect a very large download and slow first load. Prefer the workstation unless you have G4 + lots of host RAM/disk.
+- Needs Unsloth/deepseek41 llama.cpp (not the older Qwen-only pin alone).
+
 ### Qwen-Image-2.1
 - Official: Diffusers `QwenImage21Pipeline` (BF16). Your repos: ComfyUI Turbo workflows.
 - Colab T4 community: NF4 on transformer+text encoder ≈ 10.7 GiB, 512² in ~22 s.
@@ -59,6 +71,9 @@ checkpoint through stock vLLM / SGLang instead of shipping the HyperQwen contain
 | `qwen3.8-27b-fp8` | vLLM | A100/G4 FP8 |
 | `flash-next-iq1s` | llama.cpp | Flash-Next on A100-class + high RAM |
 | `flash-next-q3` | llama.cpp | Flash-Next on G4 / 80 GB+ |
+| `glm-5.3-flash-iq1s` | llama.cpp | GLM-5.3-Flash (~93 GB); Maya on workstation |
+| `glm-5.3-flash-iq3` | llama.cpp | Higher-quality GLM quant (~120 GB) |
+| `deepseek-v4.1-flash-1017-iq1s` | llama.cpp | DeepSeek-V4.1-Flash-1017 (~233 GB); Maya/Strata on workstation |
 | `qwen-image-2.1` | Diffusers | Image BF16 |
 | `qwen-image-2.1-nf4` | Diffusers | Image NF4 for ≤24 GB |
 | `minimax-h3` | (experimental) | Video; see notebook Comfy/SGLang notes |
