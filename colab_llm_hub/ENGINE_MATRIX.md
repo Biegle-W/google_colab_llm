@@ -1,4 +1,4 @@
-# Colab engine matrix for the four target models
+# Colab engine matrix for the target models
 
 Research synthesis for Google AI Pro / Colab Pro single-GPU runtimes (L4 ≈ 24 GB,
 A100 ≈ 40/80 GB, G4 ≈ 96 GB). Sources: this user's
@@ -6,6 +6,10 @@ A100 ≈ 40/80 GB, G4 ≈ 96 GB). Sources: this user's
 [`linux-llm-amd-public`](https://github.com/Biegle-W/linux-llm-amd-public) maintained
 profiles, plus community/vendor reports (Winder.ai, ComputingForGeeks, Unsloth, hi5.sh
 Colab G4 recipe, SGLang/vLLM cookbooks, Diffusers Colab NF4 writeups).
+
+**Colab layout:** one notebook per engine — `llama_hub_colab.ipynb`, `vllm_hub_colab.ipynb`,
+`sglang_hub_colab.ipynb`, `diffusers_hub_colab.ipynb`. Each installs only that engine and
+lists only its supported catalog models. Settings: `config/settings_<engine>.json`.
 
 **Not portable to Colab (document only):** Strata and Maya are selected on the dual-GPU
 AMD/NVIDIA workstations for Flash-Next / DeepSeek / GLM with SSD expert streaming. They
@@ -78,4 +82,5 @@ checkpoint through stock vLLM / SGLang instead of shipping the HyperQwen contain
 | `qwen-image-2.1-nf4` | Diffusers | Image NF4 for ≤24 GB |
 | `minimax-h3` | (experimental) | Video; see notebook Comfy/SGLang notes |
 
-`recommend.for_gpu(vram_gb)` returns the preferred prefetch list and engines for a runtime.
+`recommend.for_engine(engine, vram_gb)` returns the preferred prefetch list for one notebook.
+`recommend.for_gpu(vram_gb)` is a multi-engine overview for docs / the index notebook.

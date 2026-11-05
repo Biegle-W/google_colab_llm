@@ -88,6 +88,23 @@ class Catalog(unittest.TestCase):
         self.assertIn("deepseek-v4.1-flash-1017-iq1s", g4["prefetch"])
         self.assertIn("llama", g4["engines"])
 
+    def test_recommend_for_engine(self):
+        from colab_llm_hub import recommend
+        llama = recommend.for_engine("llama", 102.6)
+        self.assertEqual(llama["engines"], ["llama"])
+        self.assertIn("glm-5.3-flash-iq1s", llama["prefetch"])
+        self.assertTrue(all(not x.startswith("qwen-image") for x in llama["prefetch"]))
+        vllm = recommend.for_engine("vllm", 24.2)
+        self.assertEqual(vllm["engines"], ["vllm"])
+        self.assertIn("qwen3.8-27b-w4a16", vllm["prefetch"])
+        self.assertNotIn("qwen3.8-27b-q4", vllm["prefetch"])
+        sgl = recommend.for_engine("sglang", 42.9)
+        self.assertEqual(sgl["prefetch"], ["qwen3.8-27b-w4a16-sglang"])
+        img = recommend.for_engine("diffusers", 16.1)
+        self.assertIn("qwen-image-2.1-nf4", img["prefetch"])
+        with self.assertRaises(ValueError):
+            recommend.for_engine("tgi", 24.2)
+
 
 class Gpu(unittest.TestCase):
     def test_parse_smi(self):
@@ -271,6 +288,17 @@ class WorkspaceDrive(unittest.TestCase):
             "sdxl", prompt="x")
         self.assertTrue(img.is_file())
         self.assertTrue(img.with_suffix(img.suffix + ".json").is_file())
+
+    def test_per_engine_settings_file(self):
+        from colab_llm_hub.workspace import open_workspace
+        llama = open_workspace(self.tmp, os.path.join(self.tmp, "local-l"), engine="llama")
+        vllm = open_workspace(self.tmp, os.path.join(self.tmp, "local-v"), engine="vllm")
+        self.assertTrue(str(llama.settings_path).endswith("settings_llama.json"))
+        self.assertTrue(str(vllm.settings_path).endswith("settings_vllm.json"))
+        llama.save_settings({"prefetch": ["qwen3.8-27b-q4"], "engines": ["llama"]})
+        vllm.save_settings({"prefetch": ["qwen3.8-27b-w4a16"], "engines": ["vllm"]})
+        self.assertEqual(llama.load_settings()["prefetch"], ["qwen3.8-27b-q4"])
+        self.assertEqual(vllm.load_settings()["prefetch"], ["qwen3.8-27b-w4a16"])
 
     def test_hub_package_cache_roundtrip(self):
         from colab_llm_hub import install

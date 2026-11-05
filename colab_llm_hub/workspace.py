@@ -26,9 +26,10 @@ DEFAULT_SETTINGS = {
 
 
 class Workspace:
-    def __init__(self, drive_dir=None, local_models=None):
+    def __init__(self, drive_dir=None, local_models=None, settings_name=None, engine=None):
         self.drive = Path(drive_dir or os.environ.get("COLAB_LLM_DRIVE", DEFAULT_DRIVE))
         self.local_models = Path(local_models or DEFAULT_LOCAL_MODELS)
+        self.engine = engine
         self.models = self.drive / "models"
         self.builds = self.drive / "builds"
         self.config = self.drive / "config"
@@ -42,7 +43,13 @@ class Workspace:
         self.hf_cache = self.drive / "hf_cache"
         self.tools = self.builds / "tools"
         self.hub_pkg = self.builds / "hub_pkg"
-        self.settings_path = self.config / SETTINGS_NAME
+        if settings_name:
+            name = settings_name
+        elif engine:
+            name = f"settings_{engine}.json"
+        else:
+            name = SETTINGS_NAME
+        self.settings_path = self.config / name
 
     def ensure(self):
         for p in (self.models, self.builds, self.config, self.hub, self.logs, self.engine_logs,
@@ -152,5 +159,5 @@ class Workspace:
         }
 
 
-def open_workspace(drive_dir=None, local_models=None):
-    return Workspace(drive_dir, local_models).ensure().apply_env()
+def open_workspace(drive_dir=None, local_models=None, settings_name=None, engine=None):
+    return Workspace(drive_dir, local_models, settings_name=settings_name, engine=engine).ensure().apply_env()

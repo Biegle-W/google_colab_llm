@@ -1,14 +1,21 @@
 # Colab LLM + diffusion hub
 
-One authenticated, OpenAI-compatible endpoint in front of llama.cpp, vLLM, SGLang, and Diffusers on a Colab GPU
+One authenticated, OpenAI-compatible endpoint in front of **one** inference engine on a Colab GPU
 (Google AI Pro / Colab Pro L4, A100, or G4), so a harness on your own computer can use Colab's GPUs for
-**chat** and **text-to-image**. Model files live on Google Drive and are downloaded only once.
+**chat** or **text-to-image**. Model files live on Google Drive and are downloaded only once.
 
-Target models and per-GPU engine picks (including why Strata / Maya / HyperQwen-container stay off Colab)
-are documented in [`ENGINE_MATRIX.md`](ENGINE_MATRIX.md). `recommend.for_gpu(vram_gb)` drives the notebook defaults.
+**One notebook per engine** (each installs only that engine and advertises only its catalog models):
 
-Run it with [`llm_hub_colab.ipynb`](../llm_hub_colab.ipynb). The notebook only fetches this package and calls it,
-so changes pushed here take effect the next time the notebook runs.
+| Notebook | Engine |
+|---|---|
+| [`llama_hub_colab.ipynb`](../llama_hub_colab.ipynb) | llama.cpp |
+| [`vllm_hub_colab.ipynb`](../vllm_hub_colab.ipynb) | vLLM |
+| [`sglang_hub_colab.ipynb`](../sglang_hub_colab.ipynb) | SGLang |
+| [`diffusers_hub_colab.ipynb`](../diffusers_hub_colab.ipynb) | Diffusers |
+
+[`llm_hub_colab.ipynb`](../llm_hub_colab.ipynb) is an index. Target models and per-GPU picks are in
+[`ENGINE_MATRIX.md`](ENGINE_MATRIX.md). Defaults come from `recommend.for_engine(engine, vram_gb)`.
+Regenerate notebooks with `python3 -m colab_llm_hub.make_engine_notebooks`.
 
 ## How it works
 
@@ -32,8 +39,9 @@ later sessions: Drive ──copy──> local ──> engine   (wheels/builds/hu
 | llama.cpp / vLLM / SGLang / Diffusers command lines and process control | `backends.py` |
 | Diffusers OpenAI images server (incl. Qwen-Image-2.1 / NF4) | `diffusers_server.py` |
 | Model list, what fits which GPU, context / max edge | `catalog.json`, `catalog.py` |
-| Per-GPU engine recommendations for the LLM + image targets | `recommend.py`, `ENGINE_MATRIX.md` |
-| Drive layout: settings, HF cache, logs, outputs, tool caches | `workspace.py` |
+| Per-engine × GPU recommendations | `recommend.py`, `ENGINE_MATRIX.md` |
+| Generate the four `*_hub_colab.ipynb` notebooks | `make_engine_notebooks.py` |
+| Drive layout: per-engine settings, HF cache, logs, outputs | `workspace.py` |
 | GPU detection (including Blackwell/CUDA handling) | `gpu.py` |
 | Engine builds and wheels cached on Drive | `install.py` |
 | Cloudflare quick or named tunnel | `tunnel.py` |
