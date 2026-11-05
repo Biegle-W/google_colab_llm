@@ -11,7 +11,7 @@ from pathlib import Path
 from .recommend import ENGINE_META, ENGINES
 
 REPO = "https://github.com/Biegle-W/google_colab_llm"
-BRANCH = "cursor/colab-llm-diffusion-drive-e32d"
+BRANCH = "main"
 ROOT = Path(__file__).resolve().parents[1]
 
 
