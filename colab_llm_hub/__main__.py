@@ -4,7 +4,7 @@ import os
 import signal
 import sys
 
-from . import catalog, gpu, hub, keyfile
+from . import catalog, gpu, hub, keyfile, install
 from .store import ModelStore
 
 
@@ -23,10 +23,14 @@ def parse(argv=None):
     s.add_argument("--strata-data", default=None, help="Strata --data-dir (default: <drive>/builds/strata_data)")
     s.add_argument("--maya-root", default=None, help="Project Maya checkout (from ensure_maya)")
     s.add_argument("--maya-models", default=None, help="Maya --models-dir (default: <drive>/builds/maya_models)")
-    s.add_argument("--python", default=sys.executable, help="Python used to launch the Diffusers server")
+    s.add_argument("--tensorfold-bin", default=None, help="tensorfold-native binary (from ensure_tensorfold)")
+    s.add_argument("--comfyui-root", default=None, help="ComfyUI checkout (from ensure_comfyui)")
+    s.add_argument("--sparsa-root", default=None, help="Sparsa checkout (from ensure_sparsa)")
+    s.add_argument("--python", default=sys.executable, help="Python used to launch Diffusers / ComfyUI / Sparsa")
     s.add_argument("--catalog", default=None)
-    s.add_argument("--engines", default="llama,vllm,sglang,diffusers,strata,maya",
-                   help="comma-separated engines (llama,vllm,sglang,diffusers,strata,maya)")
+    s.add_argument("--engines",
+                   default="llama,vllm,sglang,diffusers,strata,maya,tensorfold,comfyui,sparsa",
+                   help="comma-separated engines")
     s.add_argument("--vram-gb", type=float, default=None, help="override the detected VRAM (testing)")
     s.add_argument("--ctx", action="append", default=[], metavar="MODEL=TOKENS",
                    help="override a model's context tokens (chat) or max edge px (image)")
@@ -60,6 +64,10 @@ def main(argv=None):
         "strata_data": a.strata_data or os.path.join(builds, "strata_data"),
         "maya": a.maya_root or os.path.join(builds, "project-maya"),
         "maya_models": a.maya_models or os.path.join(builds, "maya_models"),
+        "tensorfold": a.tensorfold_bin or os.path.join(
+            builds, f"tensorfold-{install.TENSORFOLD_VERSION}", "bin", "tensorfold-native"),
+        "comfyui": a.comfyui_root or os.path.join(builds, "ComfyUI"),
+        "sparsa": a.sparsa_root or os.path.join(builds, "Sparsa"),
     }
     h = hub.Hub(entries, vram, store, bins, a.log_dir,
                 ctx_overrides={k: int(v) for k, v in overrides.items()}, gpu_name=name)

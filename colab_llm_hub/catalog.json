@@ -4,109 +4,242 @@
     "name": "Qwen3.8-27B UD-Q4_K_M (llama.cpp)",
     "backend": "llama",
     "repo": "unsloth/Qwen3.8-27B-GGUF",
-    "files": ["Qwen3.8-27B-UD-Q4_K_M.gguf"],
+    "files": [
+      "Qwen3.8-27B-UD-Q4_K_M.gguf"
+    ],
     "model_file": "Qwen3.8-27B-UD-Q4_K_M.gguf",
     "size_gb": 16.46,
-    "contexts": [[22, 16384], [30, 32768], [45, 65536], [80, 131072]]
+    "contexts": [
+      [
+        22,
+        16384
+      ],
+      [
+        30,
+        32768
+      ],
+      [
+        45,
+        65536
+      ],
+      [
+        80,
+        131072
+      ]
+    ]
   },
   {
     "id": "qwen3.8-27b-q8",
     "name": "Qwen3.8-27B Q8_0 (llama.cpp)",
     "backend": "llama",
     "repo": "unsloth/Qwen3.8-27B-GGUF",
-    "files": ["Qwen3.8-27B-Q8_0.gguf"],
+    "files": [
+      "Qwen3.8-27B-Q8_0.gguf"
+    ],
     "model_file": "Qwen3.8-27B-Q8_0.gguf",
     "size_gb": 29.05,
-    "contexts": [[34, 16384], [40, 32768], [70, 65536]]
+    "contexts": [
+      [
+        34,
+        16384
+      ],
+      [
+        40,
+        32768
+      ],
+      [
+        70,
+        65536
+      ]
+    ]
   },
   {
     "id": "qwen3.8-27b-bf16",
     "name": "Qwen3.8-27B BF16 (llama.cpp)",
     "backend": "llama",
     "repo": "unsloth/Qwen3.8-27B-GGUF",
-    "files": ["BF16/*.gguf"],
+    "files": [
+      "BF16/*.gguf"
+    ],
     "model_file": "BF16/Qwen3.8-27B-BF16-00001-of-00002.gguf",
     "size_gb": 54.66,
-    "contexts": [[62, 16384], [75, 32768], [95, 65536]]
+    "contexts": [
+      [
+        62,
+        16384
+      ],
+      [
+        75,
+        32768
+      ],
+      [
+        95,
+        65536
+      ]
+    ]
   },
   {
     "id": "qwen3.6-35b-a3b-iq4",
     "name": "Qwen3.6-35B-A3B UD-IQ4_XS (llama.cpp)",
     "backend": "llama",
     "repo": "unsloth/Qwen3.6-35B-A3B-GGUF",
-    "files": ["Qwen3.6-35B-A3B-UD-IQ4_XS.gguf"],
+    "files": [
+      "Qwen3.6-35B-A3B-UD-IQ4_XS.gguf"
+    ],
     "model_file": "Qwen3.6-35B-A3B-UD-IQ4_XS.gguf",
     "size_gb": 17.7,
-    "contexts": [[23, 16384], [32, 65536]]
+    "contexts": [
+      [
+        23,
+        16384
+      ],
+      [
+        32,
+        65536
+      ]
+    ]
   },
   {
     "id": "qwen3.6-35b-a3b-q8",
     "name": "Qwen3.6-35B-A3B Q8_0 (llama.cpp)",
     "backend": "llama",
     "repo": "unsloth/Qwen3.6-35B-A3B-GGUF",
-    "files": ["Qwen3.6-35B-A3B-Q8_0.gguf"],
+    "files": [
+      "Qwen3.6-35B-A3B-Q8_0.gguf"
+    ],
     "model_file": "Qwen3.6-35B-A3B-Q8_0.gguf",
     "size_gb": 36.9,
-    "contexts": [[42, 16384], [50, 32768], [80, 65536]]
+    "contexts": [
+      [
+        42,
+        16384
+      ],
+      [
+        50,
+        32768
+      ],
+      [
+        80,
+        65536
+      ]
+    ]
   },
   {
     "id": "sage-a1.5-q4",
     "name": "Sage-A1.5 Q4_K_M (llama.cpp)",
     "backend": "llama",
     "repo": "InternScience/Sage-A1.5-Q4_K_M-GGUF",
-    "files": ["Sage-A1.5-Q4_K_M.gguf"],
+    "files": [
+      "Sage-A1.5-Q4_K_M.gguf"
+    ],
     "model_file": "Sage-A1.5-Q4_K_M.gguf",
     "size_gb": 21.71,
-    "contexts": [[27, 16384], [40, 32768]]
+    "contexts": [
+      [
+        27,
+        16384
+      ],
+      [
+        40,
+        32768
+      ]
+    ]
   },
   {
     "id": "nemotron-3.5-super-120b-q3",
     "name": "Nemotron-3.5-Super-VL-120B-A12B UD-Q3_K_XL (llama.cpp, text)",
     "backend": "llama",
     "repo": "unsloth/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-GGUF",
-    "files": ["UD-Q3_K_XL/*.gguf"],
+    "files": [
+      "UD-Q3_K_XL/*.gguf"
+    ],
     "model_file": "UD-Q3_K_XL/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-UD-Q3_K_XL-00001-of-00003.gguf",
     "size_gb": 65.8,
-    "contexts": [[72, 16384], [85, 32768]]
+    "contexts": [
+      [
+        72,
+        16384
+      ],
+      [
+        85,
+        32768
+      ]
+    ]
   },
   {
     "id": "nemotron-3.5-super-120b-q4",
     "name": "Nemotron-3.5-Super-VL-120B-A12B UD-Q4_K_XL (llama.cpp, text)",
     "backend": "llama",
     "repo": "unsloth/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-GGUF",
-    "files": ["UD-Q4_K_XL/*.gguf"],
+    "files": [
+      "UD-Q4_K_XL/*.gguf"
+    ],
     "model_file": "UD-Q4_K_XL/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-UD-Q4_K_XL-00001-of-00003.gguf",
     "size_gb": 86.9,
-    "contexts": [[96, 8192]]
+    "contexts": [
+      [
+        96,
+        8192
+      ]
+    ]
   },
   {
     "id": "ornith-1.5-122b-q4",
     "name": "Ornith-1.5-122B Q4_K_M (llama.cpp)",
     "backend": "llama",
     "repo": "ornith-ai/Ornith-1.5-122B-GGUF",
-    "files": ["Ornith-1.5-122B-Q4_K_M.gguf"],
+    "files": [
+      "Ornith-1.5-122B-Q4_K_M.gguf"
+    ],
     "model_file": "Ornith-1.5-122B-Q4_K_M.gguf",
     "size_gb": 75.84,
-    "contexts": [[82, 16384], [92, 32768]]
+    "contexts": [
+      [
+        82,
+        16384
+      ],
+      [
+        92,
+        32768
+      ]
+    ]
   },
   {
     "id": "ornith-1.5-122b-q5",
     "name": "Ornith-1.5-122B Q5_K_M (llama.cpp)",
     "backend": "llama",
     "repo": "ornith-ai/Ornith-1.5-122B-GGUF",
-    "files": ["Ornith-1.5-122B-Q5_K_M.gguf"],
+    "files": [
+      "Ornith-1.5-122B-Q5_K_M.gguf"
+    ],
     "model_file": "Ornith-1.5-122B-Q5_K_M.gguf",
     "size_gb": 88.71,
-    "contexts": [[96, 8192]]
+    "contexts": [
+      [
+        96,
+        8192
+      ]
+    ]
   },
   {
     "id": "qwen3-14b-fp8",
     "name": "Qwen3-14B FP8 (vLLM)",
     "backend": "vllm",
     "repo": "Qwen/Qwen3-14B-FP8",
-    "files": ["*"],
+    "files": [
+      "*"
+    ],
     "size_gb": 16.34,
-    "contexts": [[22, 16384], [30, 32768]],
+    "contexts": [
+      [
+        22,
+        16384
+      ],
+      [
+        30,
+        32768
+      ]
+    ],
     "tool_parser": "hermes",
     "reasoning_parser": "qwen3",
     "language_model_only": false
@@ -116,9 +249,24 @@
     "name": "Qwen3.8-27B FP8 (vLLM)",
     "backend": "vllm",
     "repo": "Qwen/Qwen3.8-27B-FP8",
-    "files": ["*"],
+    "files": [
+      "*"
+    ],
     "size_gb": 30.88,
-    "contexts": [[38, 16384], [48, 32768], [80, 65536]],
+    "contexts": [
+      [
+        38,
+        16384
+      ],
+      [
+        48,
+        32768
+      ],
+      [
+        80,
+        65536
+      ]
+    ],
     "tool_parser": "qwen3_coder",
     "reasoning_parser": "qwen3",
     "language_model_only": true
@@ -128,9 +276,24 @@
     "name": "Qwen3.8-27B BF16 (vLLM)",
     "backend": "vllm",
     "repo": "Qwen/Qwen3.8-27B",
-    "files": ["*"],
+    "files": [
+      "*"
+    ],
     "size_gb": 55.6,
-    "contexts": [[64, 16384], [75, 32768], [95, 65536]],
+    "contexts": [
+      [
+        64,
+        16384
+      ],
+      [
+        75,
+        32768
+      ],
+      [
+        95,
+        65536
+      ]
+    ],
     "tool_parser": "qwen3_coder",
     "reasoning_parser": "qwen3",
     "language_model_only": true
@@ -140,9 +303,24 @@
     "name": "Qwen3.6-35B-A3B FP8 (vLLM)",
     "backend": "vllm",
     "repo": "Qwen/Qwen3.6-35B-A3B-FP8",
-    "files": ["*"],
+    "files": [
+      "*"
+    ],
     "size_gb": 37.5,
-    "contexts": [[44, 16384], [55, 32768], [85, 65536]],
+    "contexts": [
+      [
+        44,
+        16384
+      ],
+      [
+        55,
+        32768
+      ],
+      [
+        85,
+        65536
+      ]
+    ],
     "tool_parser": "qwen3_coder",
     "reasoning_parser": "qwen3",
     "language_model_only": true
@@ -152,9 +330,20 @@
     "name": "Sage-A1.5 FP8 (vLLM)",
     "backend": "vllm",
     "repo": "InternScience/Sage-A1.5-FP8",
-    "files": ["*"],
+    "files": [
+      "*"
+    ],
     "size_gb": 39.4,
-    "contexts": [[46, 16384], [56, 32768]],
+    "contexts": [
+      [
+        46,
+        16384
+      ],
+      [
+        56,
+        32768
+      ]
+    ],
     "tool_parser": "qwen3_coder",
     "reasoning_parser": "qwen3",
     "language_model_only": true
@@ -164,9 +353,24 @@
     "name": "Nemotron-3.5-Bolt-74B-A9B AutoRound W4A16 (vLLM, experimental)",
     "backend": "vllm",
     "repo": "SergiioB/Nemotron-3.5-Bolt-74B-A9B-AutoRound-W4A16-G128-sym",
-    "files": ["*"],
+    "files": [
+      "*"
+    ],
     "size_gb": 43.6,
-    "contexts": [[52, 16384], [64, 32768], [90, 65536]],
+    "contexts": [
+      [
+        52,
+        16384
+      ],
+      [
+        64,
+        32768
+      ],
+      [
+        90,
+        65536
+      ]
+    ],
     "language_model_only": false,
     "experimental": true
   },
@@ -175,9 +379,24 @@
     "name": "Stable Diffusion 1.5 (diffusers)",
     "backend": "diffusers",
     "repo": "stable-diffusion-v1-5/stable-diffusion-v1-5",
-    "files": ["*"],
+    "files": [
+      "*"
+    ],
     "size_gb": 5.1,
-    "contexts": [[6, 512], [10, 768], [16, 1024]],
+    "contexts": [
+      [
+        6,
+        512
+      ],
+      [
+        10,
+        768
+      ],
+      [
+        16,
+        1024
+      ]
+    ],
     "pipeline": "AutoPipelineForText2Image",
     "dtype": "float16",
     "default_steps": 30,
@@ -188,9 +407,24 @@
     "name": "Stable Diffusion XL Base 1.0 (diffusers)",
     "backend": "diffusers",
     "repo": "stabilityai/stable-diffusion-xl-base-1.0",
-    "files": ["*"],
+    "files": [
+      "*"
+    ],
     "size_gb": 13.0,
-    "contexts": [[14, 768], [18, 1024], [30, 1280]],
+    "contexts": [
+      [
+        14,
+        768
+      ],
+      [
+        18,
+        1024
+      ],
+      [
+        30,
+        1280
+      ]
+    ],
     "pipeline": "AutoPipelineForText2Image",
     "dtype": "float16",
     "default_steps": 30,
@@ -201,9 +435,24 @@
     "name": "SDXL Turbo (diffusers, few-step)",
     "backend": "diffusers",
     "repo": "stabilityai/sdxl-turbo",
-    "files": ["*"],
+    "files": [
+      "*"
+    ],
     "size_gb": 13.0,
-    "contexts": [[14, 512], [18, 768], [24, 1024]],
+    "contexts": [
+      [
+        14,
+        512
+      ],
+      [
+        18,
+        768
+      ],
+      [
+        24,
+        1024
+      ]
+    ],
     "pipeline": "AutoPipelineForText2Image",
     "dtype": "float16",
     "default_steps": 4,
@@ -214,9 +463,24 @@
     "name": "FLUX.1 Schnell (diffusers)",
     "backend": "diffusers",
     "repo": "black-forest-labs/FLUX.1-schnell",
-    "files": ["*"],
+    "files": [
+      "*"
+    ],
     "size_gb": 32.0,
-    "contexts": [[36, 768], [42, 1024], [70, 1280]],
+    "contexts": [
+      [
+        36,
+        768
+      ],
+      [
+        42,
+        1024
+      ],
+      [
+        70,
+        1280
+      ]
+    ],
     "pipeline": "AutoPipelineForText2Image",
     "dtype": "bfloat16",
     "default_steps": 4,
@@ -227,9 +491,28 @@
     "name": "Qwen3.8-27B W4A16 AutoRound (vLLM; HyperQwen-compatible)",
     "backend": "vllm",
     "repo": "dbirks/Qwen3.8-27B-W4A16-AutoRound",
-    "files": ["*"],
+    "files": [
+      "*"
+    ],
     "size_gb": 19.5,
-    "contexts": [[22, 16384], [28, 32768], [40, 65536], [80, 131072]],
+    "contexts": [
+      [
+        22,
+        16384
+      ],
+      [
+        28,
+        32768
+      ],
+      [
+        40,
+        65536
+      ],
+      [
+        80,
+        131072
+      ]
+    ],
     "tool_parser": "qwen3_coder",
     "reasoning_parser": "qwen3",
     "language_model_only": true,
@@ -240,9 +523,28 @@
     "name": "Qwen3.8-27B W4A16 AutoRound (SGLang)",
     "backend": "sglang",
     "repo": "dbirks/Qwen3.8-27B-W4A16-AutoRound",
-    "files": ["*"],
+    "files": [
+      "*"
+    ],
     "size_gb": 19.5,
-    "contexts": [[22, 16384], [28, 32768], [40, 65536], [80, 131072]],
+    "contexts": [
+      [
+        22,
+        16384
+      ],
+      [
+        28,
+        32768
+      ],
+      [
+        40,
+        65536
+      ],
+      [
+        80,
+        131072
+      ]
+    ],
     "tool_parser": "qwen3_coder",
     "reasoning_parser": "qwen3",
     "notes": "SGLang path matching the maintained qwen27b-sglang profile class on the NVIDIA host."
@@ -252,12 +554,34 @@
     "name": "Qwen3.8-Flash-Next UD-IQ1_S (llama.cpp, n-gram CPU)",
     "backend": "llama",
     "repo": "unsloth/Qwen3.8-Flash-Next-GGUF",
-    "files": ["UD-IQ1_S/*.gguf"],
+    "files": [
+      "UD-IQ1_S/*.gguf"
+    ],
     "model_file": "UD-IQ1_S/Qwen3.8-Flash-Next-UD-IQ1_S-00001-of-00003.gguf",
     "size_gb": 66.4,
-    "contexts": [[36, 12288], [42, 32768], [80, 65536]],
+    "contexts": [
+      [
+        36,
+        12288
+      ],
+      [
+        42,
+        32768
+      ],
+      [
+        80,
+        65536
+      ]
+    ],
     "offload": true,
-    "extra_args": ["-ot", "per_layer_token_embd.weight=CPU", "--fit", "on", "--fit-target", "2048"],
+    "extra_args": [
+      "-ot",
+      "per_layer_token_embd.weight=CPU",
+      "--fit",
+      "on",
+      "--fit-target",
+      "2048"
+    ],
     "notes": "Matches flash-next-iq1s-llamacpp on the NVIDIA registry; needs high host RAM. Strata is preferred on the workstation, not on Colab."
   },
   {
@@ -265,12 +589,30 @@
     "name": "Qwen3.8-Flash-Next UD-Q3_K_XL (llama.cpp, n-gram CPU)",
     "backend": "llama",
     "repo": "unsloth/Qwen3.8-Flash-Next-GGUF",
-    "files": ["UD-Q3_K_XL/*.gguf"],
+    "files": [
+      "UD-Q3_K_XL/*.gguf"
+    ],
     "model_file": "UD-Q3_K_XL/Qwen3.8-Flash-Next-UD-Q3_K_XL-00001-of-00004.gguf",
     "size_gb": 90.0,
-    "contexts": [[70, 32768], [90, 131072]],
+    "contexts": [
+      [
+        70,
+        32768
+      ],
+      [
+        90,
+        131072
+      ]
+    ],
     "offload": true,
-    "extra_args": ["-ot", "per_layer_token_embd.weight=CPU", "--fit", "on", "--fit-target", "4096"],
+    "extra_args": [
+      "-ot",
+      "per_layer_token_embd.weight=CPU",
+      "--fit",
+      "on",
+      "--fit-target",
+      "4096"
+    ],
     "notes": "Colab G4 community recipe (~63 GB VRAM @ 131K). Official vLLM/SGLang Flash-Next recipes are multi-GPU."
   },
   {
@@ -278,9 +620,28 @@
     "name": "Qwen-Image-2.1 (Diffusers BF16)",
     "backend": "diffusers",
     "repo": "Qwen/Qwen-Image-2.1",
-    "files": ["*"],
+    "files": [
+      "*"
+    ],
     "size_gb": 33.0,
-    "contexts": [[18, 768], [24, 1024], [40, 1536], [70, 2048]],
+    "contexts": [
+      [
+        18,
+        768
+      ],
+      [
+        24,
+        1024
+      ],
+      [
+        40,
+        1536
+      ],
+      [
+        70,
+        2048
+      ]
+    ],
     "pipeline": "QwenImage21Pipeline",
     "dtype": "bfloat16",
     "default_steps": 40,
@@ -293,9 +654,24 @@
     "name": "Qwen-Image-2.1 (Diffusers NF4)",
     "backend": "diffusers",
     "repo": "Qwen/Qwen-Image-2.1",
-    "files": ["*"],
+    "files": [
+      "*"
+    ],
     "size_gb": 33.0,
-    "contexts": [[10, 512], [14, 768], [22, 1024]],
+    "contexts": [
+      [
+        10,
+        512
+      ],
+      [
+        14,
+        768
+      ],
+      [
+        22,
+        1024
+      ]
+    ],
     "pipeline": "QwenImage21Pipeline",
     "dtype": "float16",
     "quantization": "nf4",
@@ -309,9 +685,20 @@
     "name": "MiniMax-H3 (video+audio; experimental on Colab)",
     "backend": "diffusers",
     "repo": "MiniMaxAI/MiniMax-H3",
-    "files": ["*"],
+    "files": [
+      "*"
+    ],
     "size_gb": 108.0,
-    "contexts": [[70, 480], [90, 768]],
+    "contexts": [
+      [
+        70,
+        480
+      ],
+      [
+        90,
+        768
+      ]
+    ],
     "pipeline": "unsupported_use_comfy_or_sglang",
     "dtype": "bfloat16",
     "default_steps": 20,
@@ -319,20 +706,40 @@
     "offload": true,
     "experimental": true,
     "kind": "video",
-    "notes": "Not an LLM. Prefer ComfyUI (your minimax-h3 workflows) or SGLang diffusion with layerwise offload. Prefetch stores weights on Drive; the Diffusers hub server will refuse to start this id."
+    "notes": "Not an LLM. Prefer the ComfyUI notebook (`minimax-h3-comfy`) or SGLang diffusion with layerwise offload. Prefetch stores weights on Drive; the Diffusers hub server will refuse to start this id."
   },
   {
     "id": "glm-5.3-flash-iq1s",
     "name": "GLM-5.3-Flash UD-IQ1_S (llama.cpp; ~93 GB)",
     "backend": "llama",
     "repo": "unsloth/GLM-5.3-Flash-GGUF",
-    "files": ["UD-IQ1_S/*.gguf"],
+    "files": [
+      "UD-IQ1_S/*.gguf"
+    ],
     "model_file": "UD-IQ1_S/GLM-5.3-Flash-UD-IQ1_S-00001-of-00003.gguf",
     "size_gb": 93.1,
-    "contexts": [[40, 8192], [70, 16384], [90, 32768]],
+    "contexts": [
+      [
+        40,
+        8192
+      ],
+      [
+        70,
+        16384
+      ],
+      [
+        90,
+        32768
+      ]
+    ],
     "offload": true,
     "experimental": true,
-    "extra_args": ["--fit", "on", "--fit-target", "2048"],
+    "extra_args": [
+      "--fit",
+      "on",
+      "--fit-target",
+      "2048"
+    ],
     "notes": "320B-A18B MoE. Your NVIDIA registry selects Maya-S24 for this model; on Colab use Unsloth GGUF + llama.cpp with ~100 GB combined RAM/VRAM (A100 high-RAM or G4). Needs a llama.cpp build with GLM-5.3 / ox-alpha support (Unsloth fork or recent upstream)."
   },
   {
@@ -340,13 +747,25 @@
     "name": "GLM-5.3-Flash UD-IQ3_XXS (llama.cpp; ~120 GB)",
     "backend": "llama",
     "repo": "unsloth/GLM-5.3-Flash-GGUF",
-    "files": ["UD-IQ3_XXS/*.gguf"],
+    "files": [
+      "UD-IQ3_XXS/*.gguf"
+    ],
     "model_file": "UD-IQ3_XXS/GLM-5.3-Flash-UD-IQ3_XXS-00001-of-00004.gguf",
     "size_gb": 120.0,
-    "contexts": [[90, 16384]],
+    "contexts": [
+      [
+        90,
+        16384
+      ]
+    ],
     "offload": true,
     "experimental": true,
-    "extra_args": ["--fit", "on", "--fit-target", "2048"],
+    "extra_args": [
+      "--fit",
+      "on",
+      "--fit-target",
+      "2048"
+    ],
     "notes": "Higher-quality GLM-5.3-Flash quant (~128 GB combined memory). Prefer G4 + high host RAM; Maya remains the workstation engine."
   },
   {
@@ -354,13 +773,34 @@
     "name": "DeepSeek-V4.1-Flash-1017 UD-IQ1_S (llama.cpp; ~233 GB)",
     "backend": "llama",
     "repo": "unsloth/DeepSeek-V4.1-Flash-1017-GGUF",
-    "files": ["UD-IQ1_S/*.gguf", "engram/*"],
+    "files": [
+      "UD-IQ1_S/*.gguf",
+      "engram/*"
+    ],
     "model_file": "UD-IQ1_S/DeepSeek-V4.1-Flash-1017-UD-IQ1_S-00001-of-00005.gguf",
     "size_gb": 233.0,
-    "contexts": [[70, 8192], [90, 16384]],
+    "contexts": [
+      [
+        70,
+        8192
+      ],
+      [
+        90,
+        16384
+      ]
+    ],
     "offload": true,
     "experimental": true,
-    "extra_args": ["--fit", "on", "--fit-target", "2048", "--cache-type-k", "q4_0", "--cache-type-v", "q4_0"],
+    "extra_args": [
+      "--fit",
+      "on",
+      "--fit-target",
+      "2048",
+      "--cache-type-k",
+      "q4_0",
+      "--cache-type-v",
+      "q4_0"
+    ],
     "notes": "Fallback llama.cpp path. Prefer Strata (deepseek41) or Maya (maya-ds4) notebooks when possible."
   },
   {
@@ -368,9 +808,24 @@
     "name": "Qwen3.8-Flash-Next Q2_0 (Strata; ISTA-DASLab)",
     "backend": "strata",
     "repo": "ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-GGUF",
-    "files": ["Q2_0/*.gguf"],
+    "files": [
+      "Q2_0/*.gguf"
+    ],
     "size_gb": 66.4,
-    "contexts": [[20, 32768], [40, 65536], [70, 131072]],
+    "contexts": [
+      [
+        20,
+        32768
+      ],
+      [
+        40,
+        65536
+      ],
+      [
+        70,
+        131072
+      ]
+    ],
     "offload": true,
     "strata_family": "qwen",
     "strata_model": "q2_0",
@@ -382,9 +837,24 @@
     "name": "Qwen3.8-Flash-Next IQ3_XXS (Strata; ISTA-DASLab)",
     "backend": "strata",
     "repo": "ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-GGUF",
-    "files": ["IQ3_XXS/*.gguf"],
+    "files": [
+      "IQ3_XXS/*.gguf"
+    ],
     "size_gb": 75.8,
-    "contexts": [[24, 32768], [40, 65536], [70, 131072]],
+    "contexts": [
+      [
+        24,
+        32768
+      ],
+      [
+        40,
+        65536
+      ],
+      [
+        70,
+        131072
+      ]
+    ],
     "offload": true,
     "strata_family": "qwen",
     "strata_model": "iq3_xxs",
@@ -396,9 +866,24 @@
     "name": "Qwen3.8-Flash-Next IQ3_S (Strata; ISTA-DASLab)",
     "backend": "strata",
     "repo": "ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-GGUF",
-    "files": ["IQ3_S/*.gguf"],
+    "files": [
+      "IQ3_S/*.gguf"
+    ],
     "size_gb": 83.6,
-    "contexts": [[40, 32768], [70, 65536], [90, 131072]],
+    "contexts": [
+      [
+        40,
+        32768
+      ],
+      [
+        70,
+        65536
+      ],
+      [
+        90,
+        131072
+      ]
+    ],
     "offload": true,
     "strata_family": "qwen",
     "strata_model": "iq3_s",
@@ -410,9 +895,16 @@
     "name": "DeepSeek-V4.1-Flash-1017 ISTA 2.00bpw (Strata strata-dsv41)",
     "backend": "strata",
     "repo": "ISTA-DASLab/DeepSeek-V4.1-Flash-1017-GSQ-RCO-GGUF",
-    "files": ["*"],
+    "files": [
+      "*"
+    ],
     "size_gb": 257.0,
-    "contexts": [[40, 8192]],
+    "contexts": [
+      [
+        40,
+        8192
+      ]
+    ],
     "offload": true,
     "experimental": true,
     "strata_family": "deepseek41",
@@ -426,21 +918,53 @@
     "name": "GLM-5.3-Flash Maya-S24 (Project Maya)",
     "backend": "maya",
     "repo": "peasantsmith/GLM-5.3-Flash-Maya-GGUF",
-    "files": ["Maya-S24/*.gguf", "vision/*"],
+    "files": [
+      "Maya-S24/*.gguf",
+      "vision/*"
+    ],
     "size_gb": 95.8,
-    "contexts": [[20, 32768], [40, 65536], [80, 131072]],
+    "contexts": [
+      [
+        20,
+        32768
+      ],
+      [
+        40,
+        65536
+      ],
+      [
+        80,
+        131072
+      ]
+    ],
     "offload": true,
     "maya_model": "glm-maya-s24",
-    "notes": "Official Maya quant for ≤24 GB cards (+14% decode vs Maya-S). OpenAI API via ./setup.sh. Colab needs high host RAM + Drive for the ~95 GB pack."
+    "notes": "Official Maya quant for \u226424 GB cards (+14% decode vs Maya-S). OpenAI API via ./setup.sh. Colab needs high host RAM + Drive for the ~95 GB pack."
   },
   {
     "id": "glm-maya-s",
     "name": "GLM-5.3-Flash Maya-S (Project Maya)",
     "backend": "maya",
     "repo": "peasantsmith/GLM-5.3-Flash-Maya-GGUF",
-    "files": ["Maya-S-v2-IQ2_XXS/*.gguf", "vision/*"],
+    "files": [
+      "Maya-S-v2-IQ2_XXS/*.gguf",
+      "vision/*"
+    ],
     "size_gb": 96.5,
-    "contexts": [[24, 32768], [40, 65536], [80, 131072]],
+    "contexts": [
+      [
+        24,
+        32768
+      ],
+      [
+        40,
+        65536
+      ],
+      [
+        80,
+        131072
+      ]
+    ],
     "offload": true,
     "maya_model": "glm-maya-s",
     "notes": "Default Maya GLM quant (96.5 GB). Prefer Maya-S24 on 24 GB-class VRAM."
@@ -450,9 +974,21 @@
     "name": "GLM-5.3-Flash Maya-XS (Project Maya)",
     "backend": "maya",
     "repo": "peasantsmith/GLM-5.3-Flash-Maya-GGUF",
-    "files": ["Maya-XS/*.gguf", "vision/*"],
+    "files": [
+      "Maya-XS/*.gguf",
+      "vision/*"
+    ],
     "size_gb": 73.4,
-    "contexts": [[20, 32768], [40, 65536]],
+    "contexts": [
+      [
+        20,
+        32768
+      ],
+      [
+        40,
+        65536
+      ]
+    ],
     "offload": true,
     "maya_model": "glm-maya-xs",
     "notes": "Smallest official Maya GLM pack (~73 GB) for ~64 GB RAM + 24 GB GPU at 128K."
@@ -462,9 +998,21 @@
     "name": "DeepSeek-V4.1-Flash-1017 Maya-XS (Project Maya maya-ds4)",
     "backend": "maya",
     "repo": "peasantsmith/DeepSeek-V4.1-Flash-1017-Maya-GGUF",
-    "files": ["Maya-XS/*.gguf", "dspark/*"],
+    "files": [
+      "Maya-XS/*.gguf",
+      "dspark/*"
+    ],
     "size_gb": 280.9,
-    "contexts": [[40, 8192], [70, 32768]],
+    "contexts": [
+      [
+        40,
+        8192
+      ],
+      [
+        70,
+        32768
+      ]
+    ],
     "offload": true,
     "experimental": true,
     "maya_model": "deepseek-maya-xs",
@@ -476,13 +1024,450 @@
     "name": "DeepSeek-V4.1-Flash-1017 Maya-S (Project Maya maya-ds4)",
     "backend": "maya",
     "repo": "peasantsmith/DeepSeek-V4.1-Flash-1017-Maya-GGUF",
-    "files": ["Maya-S/*.gguf", "dspark/*"],
+    "files": [
+      "Maya-S/*.gguf",
+      "dspark/*"
+    ],
     "size_gb": 347.5,
-    "contexts": [[40, 8192], [70, 32768]],
+    "contexts": [
+      [
+        40,
+        8192
+      ],
+      [
+        70,
+        32768
+      ]
+    ],
     "offload": true,
     "experimental": true,
     "maya_model": "deepseek-maya-s",
     "ds4_quant": "maya-s",
     "notes": "Closer-to-original Maya DeepSeek quant (~340 GB). Prefer workstation unless Colab G4 + large disk."
+  },
+  {
+    "id": "qwen3.8-27b-exl3-2bpw",
+    "name": "Qwen3.8-27B EXL3 2.0bpw + DFlash2-4bit (TensorFold)",
+    "backend": "tensorfold",
+    "repo": "Mia-AiLab/Qwen3.8-27B-EXL3-2.0bpw",
+    "files": [
+      "*"
+    ],
+    "size_gb": 13.5,
+    "contexts": [
+      [
+        18,
+        8192
+      ],
+      [
+        20,
+        12288
+      ],
+      [
+        24,
+        16384
+      ]
+    ],
+    "drafter_bits": 4,
+    "drafter_subdir": "drafter",
+    "parallel": 1,
+    "extra_downloads": [
+      {
+        "repo": "z-lab/Qwen3.8-27B-DFlash2",
+        "files": [
+          "*"
+        ],
+        "subdir": "drafter"
+      }
+    ],
+    "notes": "Matches workstation qwen27b-tensorfold (TensorFold 1.2.2, 12K + DFlash2 4-bit). Lower precision than AutoRound W4A16."
+  },
+  {
+    "id": "qwen-image-2.1-turbo-comfy",
+    "name": "Qwen-Image-2.1 Turbo (ComfyUI)",
+    "backend": "comfyui",
+    "repo": "Comfy-Org/Qwen-Image-2.1",
+    "files": [
+      "diffusion_models/qwen_image_2.1_turbo_int8_convrot.safetensors",
+      "text_encoders/qwen3vl_8b_w4a8.safetensors",
+      "vae/qwen_image_2.1_vae_bf16.safetensors"
+    ],
+    "size_gb": 14.3,
+    "contexts": [
+      [
+        12,
+        768
+      ],
+      [
+        16,
+        1024
+      ],
+      [
+        24,
+        2048
+      ]
+    ],
+    "kind": "image",
+    "workflow": "qwen-image-2.1-turbo.api.json",
+    "default_steps": 8,
+    "default_guidance": 1.0,
+    "notes": "Workstation comfy-runtime qwen-image-2.1-turbo weights via Comfy-Org. OpenAI image API through comfyui_server.",
+    "offload": true
+  },
+  {
+    "id": "flux3-klein-comfy",
+    "name": "FLUX.3 Klein (ComfyUI)",
+    "backend": "comfyui",
+    "repo": "black-forest-labs/flux-3-image-klein-comfy",
+    "files": [
+      "diffusion_models/flux3-image-klein-int8-convrot.safetensors",
+      "text_encoders/qwen3vl_4b_int8_convrot.safetensors",
+      "vae/flux2-vae.safetensors"
+    ],
+    "size_gb": 11.0,
+    "contexts": [
+      [
+        12,
+        768
+      ],
+      [
+        16,
+        1024
+      ],
+      [
+        24,
+        2048
+      ]
+    ],
+    "kind": "image",
+    "workflow": "flux3-klein.api.json",
+    "default_steps": 16,
+    "default_guidance": 1.0,
+    "notes": "Workstation flux3-klein ComfyUI entry. Gated BFL weights may need HF_TOKEN."
+  },
+  {
+    "id": "wan22-5b-comfy",
+    "name": "Wan 2.2 5B (ComfyUI video; prefetch)",
+    "backend": "comfyui",
+    "repo": "Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
+    "files": [
+      "*"
+    ],
+    "size_gb": 20.0,
+    "contexts": [
+      [
+        18,
+        512
+      ],
+      [
+        24,
+        720
+      ],
+      [
+        40,
+        1080
+      ]
+    ],
+    "kind": "video",
+    "workflow": "qwen-image-2.1-turbo.api.json",
+    "default_steps": 20,
+    "default_guidance": 1.0,
+    "experimental": true,
+    "offload": true,
+    "notes": "Video entry from workstation comfy-video-entries. Prefetch + UI workflows; OpenAI image route returns 501 for kind=video."
+  },
+  {
+    "id": "minimax-h3-comfy",
+    "name": "MiniMax-H3 (ComfyUI video; prefetch)",
+    "backend": "comfyui",
+    "repo": "MiniMaxAI/MiniMax-H3",
+    "files": [
+      "*"
+    ],
+    "size_gb": 108.0,
+    "contexts": [
+      [
+        70,
+        480
+      ],
+      [
+        90,
+        768
+      ]
+    ],
+    "kind": "video",
+    "workflow": "qwen-image-2.1-turbo.api.json",
+    "default_steps": 20,
+    "default_guidance": 1.0,
+    "experimental": true,
+    "offload": true,
+    "notes": "Large video/audio pack. Prefer ComfyUI UI after prefetch; Diffusers hub refuses this family."
+  },
+  {
+    "id": "flash-next-gyro-s",
+    "name": "Qwen3.8-Flash-Next Gyro-S (Strata)",
+    "backend": "strata",
+    "repo": "agentionai/Qwen3.8-Flash-Next-Gyro-GGUF",
+    "files": [
+      "*Gyro-S*",
+      "*gyro-s*",
+      "*TQ1*"
+    ],
+    "size_gb": 58.5,
+    "contexts": [
+      [
+        20,
+        32768
+      ],
+      [
+        28,
+        65536
+      ],
+      [
+        40,
+        131072
+      ]
+    ],
+    "offload": true,
+    "strata_family": "gyro",
+    "strata_model": "Gyro-S",
+    "vision": "off",
+    "notes": "Smallest Strata Flash-Next option (~27.6 GB VRAM+RAM). Official: strata launch --family gyro --model Gyro-S."
+  },
+  {
+    "id": "flash-next-gyro-m",
+    "name": "Qwen3.8-Flash-Next Gyro-M (Strata)",
+    "backend": "strata",
+    "repo": "agentionai/Qwen3.8-Flash-Next-Gyro-GGUF",
+    "files": [
+      "*Gyro-M*",
+      "*gyro-m*",
+      "*TQ2*"
+    ],
+    "size_gb": 92.0,
+    "contexts": [
+      [
+        20,
+        32768
+      ],
+      [
+        35,
+        65536
+      ],
+      [
+        70,
+        131072
+      ]
+    ],
+    "offload": true,
+    "strata_family": "gyro",
+    "strata_model": "Gyro-M",
+    "vision": "off",
+    "notes": "Gyro-M ~IQ3_XXS quality with less GPU memory; slower decode than ISTA Q2_0."
+  },
+  {
+    "id": "flash-next-swift-iq2-xs",
+    "name": "Swift 1.5 Flash-Next IQ2_XS (Strata)",
+    "backend": "strata",
+    "repo": "ukisai/Swift-1.5-Qwen3.8-Flash-Next-GSQ-RCO-GGUF",
+    "files": [
+      "IQ2_XS/*",
+      "*IQ2_XS*"
+    ],
+    "size_gb": 55.0,
+    "contexts": [
+      [
+        20,
+        32768
+      ],
+      [
+        28,
+        65536
+      ],
+      [
+        40,
+        131072
+      ]
+    ],
+    "offload": true,
+    "strata_family": "swift",
+    "strata_model": "IQ2_XS",
+    "vision": "off",
+    "notes": "UkisAI Swift 1.5 fine-tune (shorter thinking). strata launch --family swift --model IQ2_XS."
+  },
+  {
+    "id": "flash-next-swift-iq3-xxs",
+    "name": "Swift 1.5 Flash-Next IQ3_XXS (Strata)",
+    "backend": "strata",
+    "repo": "ukisai/Swift-1.5-Qwen3.8-Flash-Next-GSQ-RCO-GGUF",
+    "files": [
+      "IQ3_XXS/*",
+      "*IQ3_XXS*"
+    ],
+    "size_gb": 70.0,
+    "contexts": [
+      [
+        24,
+        32768
+      ],
+      [
+        40,
+        65536
+      ],
+      [
+        70,
+        131072
+      ]
+    ],
+    "offload": true,
+    "strata_family": "swift",
+    "strata_model": "IQ3_XXS",
+    "vision": "off",
+    "notes": "Swift 1.5 mid quality. Prefer ISTA packs when you want the original Flash-Next."
+  },
+  {
+    "id": "qwen36-strata-q4",
+    "name": "Qwen3.6-35B-A3B UD-Q4_K_XL (Strata qwen36)",
+    "backend": "strata",
+    "repo": "unsloth/Qwen3.6-35B-A3B-GGUF",
+    "files": [
+      "*UD-Q4_K_XL*",
+      "Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf"
+    ],
+    "size_gb": 22.9,
+    "contexts": [
+      [
+        20,
+        32768
+      ],
+      [
+        24,
+        65536
+      ],
+      [
+        40,
+        131072
+      ]
+    ],
+    "offload": true,
+    "strata_family": "qwen36",
+    "strata_model": "UD-Q4_K_XL",
+    "vision": "off",
+    "notes": "Strata own-path for Qwen3.6 (docs/QWEN36.md). Smaller dense MoE than Flash-Next."
+  },
+  {
+    "id": "qwen36-strata-q6",
+    "name": "Qwen3.6-35B-A3B UD-Q6_K_XL (Strata qwen36)",
+    "backend": "strata",
+    "repo": "unsloth/Qwen3.6-35B-A3B-GGUF",
+    "files": [
+      "*UD-Q6_K_XL*",
+      "Qwen3.6-35B-A3B-UD-Q6_K_XL.gguf"
+    ],
+    "size_gb": 32.6,
+    "contexts": [
+      [
+        24,
+        32768
+      ],
+      [
+        40,
+        65536
+      ],
+      [
+        70,
+        131072
+      ]
+    ],
+    "offload": true,
+    "strata_family": "qwen36",
+    "strata_model": "UD-Q6_K_XL",
+    "vision": "off",
+    "notes": "Higher-quality Strata Qwen3.6 pack (~44 GB RAM plan)."
+  },
+  {
+    "id": "minimax-m3.1-flash-iq2-xs-d3",
+    "name": "MiniMax-M3.1-Flash IQ2_XS-D3 (Sparsa)",
+    "backend": "sparsa",
+    "repo": "LyJonathan/MiniMax-M3.1-Flash-GGUF",
+    "files": [
+      "MiniMax-M3.1-Flash-IQ2_XS-D3/*",
+      "tokenizer/*"
+    ],
+    "size_gb": 146.1,
+    "contexts": [
+      [
+        40,
+        8192
+      ],
+      [
+        70,
+        16384
+      ],
+      [
+        90,
+        32768
+      ]
+    ],
+    "offload": true,
+    "experimental": true,
+    "notes": "Official Sparsa default 2-bit pick (~128 GB RAM+VRAM class). python sparsa.py serve. Not stock llama.cpp."
+  },
+  {
+    "id": "minimax-m3.1-flash-iq2-kt",
+    "name": "MiniMax-M3.1-Flash IQ2_KT (Sparsa)",
+    "backend": "sparsa",
+    "repo": "LyJonathan/MiniMax-M3.1-Flash-GGUF",
+    "files": [
+      "MiniMax-M3.1-Flash-IQ2_KT/*",
+      "tokenizer/*"
+    ],
+    "size_gb": 123.8,
+    "contexts": [
+      [
+        40,
+        8192
+      ],
+      [
+        70,
+        16384
+      ]
+    ],
+    "offload": true,
+    "experimental": true,
+    "notes": "Sparsa-only 2-bit tier; best measured 2-bit per byte on publisher card."
+  },
+  {
+    "id": "nemotron-3.5-bolt-74b-iq2",
+    "name": "Nemotron-3.5-Bolt-74B-A9B native IQ2 (llama.cpp)",
+    "backend": "llama",
+    "repo": "nvidia/NVIDIA-Nemotron-3.5-Bolt-74B-A9B-24GB-GGUF",
+    "files": [
+      "NVIDIA-Nemotron-3.5-Bolt-74B-A9B-24GB.gguf"
+    ],
+    "model_file": "NVIDIA-Nemotron-3.5-Bolt-74B-A9B-24GB.gguf",
+    "size_gb": 22.02,
+    "contexts": [
+      [
+        24,
+        16384
+      ],
+      [
+        40,
+        65536
+      ],
+      [
+        70,
+        163840
+      ]
+    ],
+    "offload": true,
+    "extra_args": [
+      "--fit",
+      "on",
+      "--fit-target",
+      "384"
+    ],
+    "notes": "Workstation bolt-vllm selected entry (native IQ2 on llama.cpp). Dual-GPU host used 384 MiB fit targets; Colab single-GPU uses --fit."
   }
 ]

@@ -33,7 +33,7 @@ class Catalog(unittest.TestCase):
         with self.assertRaises(catalog.CatalogError):
             catalog.context_for(e, 24.2)
         t4 = catalog.visible(catalog.load(), 16.1)                            # T4: image models fit; hub LLMs mostly do not
-        self.assertTrue(all(e["backend"] == "diffusers" for e in t4))
+        self.assertTrue(all(e["backend"] in catalog.IMAGE_BACKENDS for e in t4))
         self.assertIn("sd15", {e["id"] for e in t4})
         self.assertFalse(any(e["backend"] in ("llama", "vllm") for e in t4))
         self.assertTrue(any(e["id"] == "ornith-1.5-122b-q4" for e in catalog.visible(catalog.load(), 102.6)))
@@ -44,13 +44,16 @@ class Catalog(unittest.TestCase):
         llama = catalog.for_engines(entries, ["llama"])
         self.assertTrue(llama and all(e["backend"] == "llama" for e in llama))
         self.assertEqual(
-            len(catalog.for_engines(entries, ["llama", "vllm", "sglang", "diffusers", "strata", "maya"])),
+            len(catalog.for_engines(entries, list(catalog.BACKENDS))),
             len(entries))
         self.assertTrue(catalog.image_entries(entries))
-        self.assertTrue(all(e["backend"] == "diffusers" for e in catalog.image_entries(entries)))
+        self.assertTrue(all(e["backend"] in catalog.IMAGE_BACKENDS for e in catalog.image_entries(entries)))
         self.assertIn("qwen3.8-27b-w4a16-sglang", catalog.by_id(entries))
         self.assertTrue(catalog.for_engines(entries, ["strata"]))
         self.assertTrue(catalog.for_engines(entries, ["maya"]))
+        self.assertTrue(catalog.for_engines(entries, ["tensorfold"]))
+        self.assertTrue(catalog.for_engines(entries, ["comfyui"]))
+        self.assertTrue(catalog.for_engines(entries, ["sparsa"]))
         self.assertEqual(catalog.for_engines(entries, []), [])
 
     def test_validation_rejects_bad_entries(self):
@@ -90,14 +93,22 @@ class Catalog(unittest.TestCase):
         self.assertIn("flash-next-strata-iq3-s", g4["prefetch"])
         self.assertIn("glm-maya-s", g4["prefetch"])
         self.assertIn("deepseek-maya-xs", g4["prefetch"])
+        self.assertIn("nemotron-3.5-bolt-74b-iq2", g4["prefetch"])
+        self.assertIn("qwen3.8-27b-exl3-2bpw", g4["prefetch"])
+        self.assertIn("minimax-m3.1-flash-iq2-xs-d3", g4["prefetch"])
         self.assertIn("strata", g4["engines"])
         self.assertIn("maya", g4["engines"])
+        self.assertIn("tensorfold", g4["engines"])
+        self.assertIn("comfyui", g4["engines"])
+        self.assertIn("sparsa", g4["engines"])
 
     def test_recommend_for_engine(self):
         from colab_llm_hub import recommend
         llama = recommend.for_engine("llama", 102.6)
         self.assertEqual(llama["engines"], ["llama"])
         self.assertTrue(all(not x.startswith("qwen-image") for x in llama["prefetch"]))
+        self.assertIn("nemotron-3.5-bolt-74b-iq2", llama["prefetch"])
+        self.assertIn("ornith-1.5-122b-q4", llama["prefetch"])
         vllm = recommend.for_engine("vllm", 24.2)
         self.assertEqual(vllm["engines"], ["vllm"])
         self.assertIn("qwen3.8-27b-w4a16", vllm["prefetch"])
@@ -109,8 +120,15 @@ class Catalog(unittest.TestCase):
         strata = recommend.for_engine("strata", 42.9)
         self.assertEqual(strata["engines"], ["strata"])
         self.assertIn("flash-next-strata-iq3-xxs", strata["prefetch"])
+        self.assertIn("flash-next-gyro-m", strata["prefetch"])
         maya = recommend.for_engine("maya", 24.2)
         self.assertIn("glm-maya-s24", maya["prefetch"])
+        tf = recommend.for_engine("tensorfold", 24.2)
+        self.assertEqual(tf["prefetch"], ["qwen3.8-27b-exl3-2bpw"])
+        comfy = recommend.for_engine("comfyui", 24.2)
+        self.assertIn("qwen-image-2.1-turbo-comfy", comfy["prefetch"])
+        sparsa = recommend.for_engine("sparsa", 102.6)
+        self.assertIn("minimax-m3.1-flash-iq2-xs-d3", sparsa["prefetch"])
         with self.assertRaises(ValueError):
             recommend.for_engine("tgi", 24.2)
 
@@ -127,6 +145,33 @@ class Catalog(unittest.TestCase):
         self.assertEqual(mcmd[0], "bash")
         self.assertIn("--model", mcmd)
         self.assertIn("glm-maya-s24", mcmd)
+
+    def test_tensorfold_comfy_sparsa_commands(self):
+        from colab_llm_hub import backends
+        by = catalog.by_id(catalog.load())
+        self.assertEqual(by["qwen3.8-27b-exl3-2bpw"]["backend"], "tensorfold")
+        self.assertEqual(by["qwen-image-2.1-turbo-comfy"]["backend"], "comfyui")
+        self.assertEqual(by["minimax-m3.1-flash-iq2-xs-d3"]["backend"], "sparsa")
+        self.assertIn("nemotron-3.5-bolt-74b-iq2", by)
+        tf = backends.tensorfold_command(by["qwen3.8-27b-exl3-2bpw"], "/tmp/tf-model", 12288,
+                                         "/bin/tensorfold-native", port=30070)
+        self.assertEqual(tf[0], "/bin/tensorfold-native")
+        self.assertIn("serve", tf)
+        self.assertIn("--no-thinking", tf)
+        self.assertEqual(tf[tf.index("--name") + 1], "qwen3.8-27b-exl3-2bpw")
+        comfy = backends.comfyui_command(by["qwen-image-2.1-turbo-comfy"], "/tmp/comfy-model", 1024,
+                                         "/content/ComfyUI", python="/usr/bin/python3", port=30095)
+        self.assertEqual(comfy[:3], ["/usr/bin/python3", "-m", "colab_llm_hub.comfyui_server"])
+        self.assertIn("qwen-image-2.1-turbo.api.json", comfy)
+        sparsa = backends.sparsa_command(by["minimax-m3.1-flash-iq2-xs-d3"], "/tmp/mm", 8192,
+                                         "/tmp/Sparsa", python="/usr/bin/python3", port=30065)
+        self.assertEqual(sparsa[0], "/usr/bin/python3")
+        self.assertTrue(sparsa[1].endswith("sparsa.py"))
+        self.assertIn("serve", sparsa)
+        self.assertIn("--no-api-key", sparsa)
+        gyro = backends.strata_command(by["flash-next-gyro-s"], "/tmp/missing", 32768, "strata")
+        self.assertIn("gyro", gyro)
+        self.assertIn("Gyro-S", gyro)
 
 
 class Gpu(unittest.TestCase):

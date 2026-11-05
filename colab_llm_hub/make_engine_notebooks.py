@@ -41,12 +41,21 @@ def _badge(notebook):
     )
 
 
+SIBLING_NOTEBOOKS = (
+    "`llama_hub_colab.ipynb`, `vllm_hub_colab.ipynb`, `sglang_hub_colab.ipynb`, "
+    "`diffusers_hub_colab.ipynb`, `strata_hub_colab.ipynb`, `maya_hub_colab.ipynb`, "
+    "`tensorfold_hub_colab.ipynb`, `comfyui_hub_colab.ipynb`, `sparsa_hub_colab.ipynb`"
+)
+
+
 def _model_table(engine):
     if engine == "llama":
         return [
             "| Catalog id | Notes |",
             "|---|---|",
             "| `qwen3.8-27b-q4` / `q8` / `bf16` | Qwen3.8-27B GGUF |",
+            "| `nemotron-3.5-bolt-74b-iq2` | Native IQ2 Bolt (workstation selected) |",
+            "| `sage-a1.5-q4`, `ornith-1.5-122b-q4` | Sage / Ornith on A100–G4 |",
             "| `flash-next-iq1s` / `flash-next-q3` | Flash-Next fallback (prefer **Strata**) |",
             "| `glm-5.3-flash-iq1s` / `iq3` | GLM fallback (prefer **Maya**) |",
             "| `deepseek-v4.1-flash-1017-iq1s` | DeepSeek fallback (prefer **Maya** / **Strata**) |",
@@ -57,8 +66,8 @@ def _model_table(engine):
             "|---|---|",
             "| `qwen3.8-27b-w4a16` | HyperQwen-compatible AutoRound (L4+) |",
             "| `qwen3.8-27b-fp8` / `bf16-vllm` | Dense FP8 / BF16 |",
-            "| `qwen3-14b-fp8` | Fits tighter GPUs |",
-            "| `sage-a1.5-fp8`, `qwen3.6-35b-a3b-fp8`, … | Other vLLM catalog entries |",
+            "| `sage-a1.5-fp8`, `nemotron-3.5-bolt-74b-w4a16` | Sage + experimental Bolt |",
+            "| `qwen3-14b-fp8`, `qwen3.6-35b-a3b-fp8` | Other vLLM catalog entries |",
         ]
     if engine == "sglang":
         return [
@@ -72,9 +81,10 @@ def _model_table(engine):
         return [
             "| Catalog id | Notes |",
             "|---|---|",
-            "| `flash-next-strata-q2` | ISTA Q2_0 — Colab L4 forum path |",
-            "| `flash-next-strata-iq3-xxs` | ISTA IQ3_XXS — Colab A100 path |",
-            "| `flash-next-strata-iq3-s` | ISTA IQ3_S — quality pick |",
+            "| `flash-next-strata-q2` / `iq3-xxs` / `iq3-s` | ISTA Flash-Next packs |",
+            "| `flash-next-gyro-s` / `gyro-m` | agentionai Gyro (smallest memory) |",
+            "| `flash-next-swift-iq2-xs` / `iq3-xxs` | UkisAI Swift 1.5 fine-tune |",
+            "| `qwen36-strata-q4` / `q6` | Qwen3.6-35B-A3B via `--family qwen36` |",
             "| `deepseek-strata-ist-2.00` | DeepSeek via `strata-dsv41` (~257 GB) |",
             "",
             "Official: [Niko1221/Strata](https://github.com/Niko1221/Strata) `strata launch --family … --yes --no-tui`.",
@@ -89,13 +99,42 @@ def _model_table(engine):
             "",
             "Official: [mw00/project-maya](https://github.com/mw00/project-maya) `./setup.sh --model glm-maya-s24 --yes`.",
         ]
+    if engine == "tensorfold":
+        return [
+            "| Catalog id | Notes |",
+            "|---|---|",
+            "| `qwen3.8-27b-exl3-2bpw` | Mia EXL3 2.0bpw + DFlash2 4-bit (12K default) |",
+            "",
+            "Official: [ashhart/TensorFold](https://github.com/ashhart/TensorFold) "
+            "`tensorfold-native serve … --drafter … --drafter-bits 4`.",
+        ]
+    if engine == "comfyui":
+        return [
+            "| Catalog id | Notes |",
+            "|---|---|",
+            "| `qwen-image-2.1-turbo-comfy` | Workstation Comfy image entry |",
+            "| `flux3-klein-comfy` | FLUX.3 Klein |",
+            "| `wan22-5b-comfy`, `minimax-h3-comfy` | Video prefetch (OpenAI image route returns 501) |",
+            "",
+            "UI graphs under `colab_llm_hub/workflows/*.ui.json` (custom NvidiaResident nodes are optional).",
+        ]
+    if engine == "sparsa":
+        return [
+            "| Catalog id | Notes |",
+            "|---|---|",
+            "| `minimax-m3.1-flash-iq2-xs-d3` | Default Sparsa 2-bit pick (~146 GB) |",
+            "| `minimax-m3.1-flash-iq2-kt` | Sparsa-only IQ2_KT (~124 GB) |",
+            "",
+            "Official: [LyJonathan/Sparsa](https://github.com/LyJonathan/Sparsa) "
+            "`python sparsa.py serve --model … --no-api-key`.",
+        ]
     return [
         "| Catalog id | Notes |",
         "|---|---|",
         "| `qwen-image-2.1-nf4` | ≤24 GB |",
         "| `qwen-image-2.1` | BF16 on A100/G4 |",
         "| `flux-schnell`, `sdxl-*`, `sd15` | Other Diffusers entries |",
-        "| `minimax-h3` | Prefetch only (video); ComfyUI / SGLang diffusion |",
+        "| `minimax-h3` | Prefetch only (video); prefer **ComfyUI** notebook |",
     ]
 
 
@@ -103,7 +142,7 @@ def build_notebook(engine: str) -> dict:
     meta = ENGINE_META[engine]
     notebook = meta["notebook"]
     title = meta["title"]
-    is_image = engine == "diffusers"
+    is_image = engine in ("diffusers", "comfyui")
     kind_label = "image" if is_image else "chat"
 
     cells = [
@@ -117,9 +156,7 @@ def build_notebook(engine: str) -> dict:
             f"**This notebook installs only `{engine}`** and advertises only that engine's catalog ids.",
             "",
             f"- Supported models: {meta['summary']}",
-            "- Sibling notebooks: `llama_hub_colab.ipynb`, `vllm_hub_colab.ipynb`, "
-            "`sglang_hub_colab.ipynb`, `diffusers_hub_colab.ipynb`, `strata_hub_colab.ipynb`, "
-            "`maya_hub_colab.ipynb`",
+            f"- Sibling notebooks: {SIBLING_NOTEBOOKS}",
             "- Drive root: `MyDrive/llm_models/` (shared weights/builds; settings file is "
             f"`config/settings_{engine}.json`)",
             "- Engine matrix: `colab_llm_hub/ENGINE_MATRIX.md`",
@@ -257,6 +294,9 @@ def build_notebook(engine: str) -> dict:
             "LLAMA_BIN = \"llama-server\"",
             "STRATA_BIN = \"strata\"",
             "MAYA_ROOT = str(WS.builds / \"project-maya\")",
+            "TENSORFOLD_BIN = \"tensorfold-native\"",
+            "COMFYUI_ROOT = str(WS.builds / \"ComfyUI\")",
+            "SPARSA_ROOT = str(WS.builds / \"Sparsa\")",
             "install.ensure_hub_deps(BUILDS, refresh=REFRESH_WHEELS)",
             f'if ENGINE == "llama":',
             "    LLAMA_BIN = install.ensure_llama(BUILDS, G[\"arch\"], ref=LLAMA_CPP_REF, rebuild=REBUILD_LLAMA)",
@@ -273,6 +313,15 @@ def build_notebook(engine: str) -> dict:
             f'elif ENGINE == "maya":',
             "    MAYA_ROOT = install.ensure_maya(BUILDS, refresh=REFRESH_WHEELS)",
             "    print(\"maya:\", MAYA_ROOT)",
+            f'elif ENGINE == "tensorfold":',
+            "    TENSORFOLD_BIN = install.ensure_tensorfold(BUILDS, refresh=REFRESH_WHEELS)",
+            "    print(\"tensorfold:\", TENSORFOLD_BIN)",
+            f'elif ENGINE == "comfyui":',
+            "    COMFYUI_ROOT = install.ensure_comfyui(BUILDS, refresh=REFRESH_WHEELS)",
+            "    print(\"comfyui:\", COMFYUI_ROOT)",
+            f'elif ENGINE == "sparsa":',
+            "    SPARSA_ROOT = install.ensure_sparsa(BUILDS, refresh=REFRESH_WHEELS)",
+            "    print(\"sparsa:\", SPARSA_ROOT)",
             "print(\"Install log →\", WS.logs / \"install.log\")",
         ]),
         _md([
@@ -326,6 +375,8 @@ def build_notebook(engine: str) -> dict:
             "        \"--local-dir\", str(WS.local_models), \"--log-dir\", str(WS.engine_logs),",
             "        \"--port\", str(PORT), \"--llama-bin\", LLAMA_BIN,",
             "        \"--strata-bin\", STRATA_BIN, \"--maya-root\", MAYA_ROOT,",
+            "        \"--tensorfold-bin\", TENSORFOLD_BIN, \"--comfyui-root\", COMFYUI_ROOT,",
+            "        \"--sparsa-root\", SPARSA_ROOT,",
             "        \"--engines\", ENGINE]",
             "for k, v in CTX_OVERRIDE.items():",
             "    args += [\"--ctx\", f\"{k}={v}\"]",

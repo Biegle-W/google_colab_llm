@@ -192,6 +192,12 @@ class ModelStore:
         try:
             local.mkdir(parents=True, exist_ok=True)
             self.downloader(entry["repo"], entry["files"], local, self.token)
+            # Optional companion packs (e.g. TensorFold DFlash2 drafter) land in a subdirectory.
+            for extra in entry.get("extra_downloads") or []:
+                dest = local / extra.get("subdir", "extra")
+                dest.mkdir(parents=True, exist_ok=True)
+                self.log(f"[store] {entry['id']}: also downloading {extra['repo']} → {dest.name}/")
+                self.downloader(extra["repo"], extra.get("files") or ["*"], dest, self.token)
         finally:
             stop.set()
         write_marker(local, entry["repo"])

@@ -1,27 +1,30 @@
 """Pick catalog ids for one Colab engine (or a multi-engine overview).
 
 Each hub notebook locks to a single engine. Recommendations follow ENGINE_MATRIX.md
-plus official Strata / Project Maya docs and Colab forum recipes.
+plus official Strata / Project Maya / TensorFold / Sparsa / ComfyUI docs and Colab forum recipes.
 """
 from . import catalog
 
-ENGINES = ("llama", "vllm", "sglang", "diffusers", "strata", "maya")
+ENGINES = ("llama", "vllm", "sglang", "diffusers", "strata", "maya", "tensorfold", "comfyui", "sparsa")
 
 # Preferred catalog ids per engine × GPU band (best-first).
 _ENGINE_PREFETCH = {
     "llama": {
         "t4": [],
-        "l4": ["qwen3.8-27b-q4"],
-        "a100_40": ["qwen3.8-27b-q8", "flash-next-iq1s"],
-        "a100_80": ["qwen3.8-27b-q8", "flash-next-q3"],
-        "g4": ["flash-next-q3", "qwen3.8-27b-bf16", "glm-5.3-flash-iq1s"],
+        "l4": ["qwen3.8-27b-q4", "nemotron-3.5-bolt-74b-iq2"],
+        "a100_40": ["qwen3.8-27b-q8", "nemotron-3.5-bolt-74b-iq2", "sage-a1.5-q4", "flash-next-iq1s"],
+        "a100_80": ["qwen3.8-27b-q8", "nemotron-3.5-bolt-74b-iq2", "sage-a1.5-q4", "flash-next-q3"],
+        "g4": ["nemotron-3.5-bolt-74b-iq2", "flash-next-q3", "ornith-1.5-122b-q4", "sage-a1.5-q4",
+               "qwen3.8-27b-bf16", "glm-5.3-flash-iq1s"],
     },
     "vllm": {
         "t4": [],
         "l4": ["qwen3.8-27b-w4a16", "qwen3-14b-fp8"],
         "a100_40": ["qwen3.8-27b-fp8", "qwen3.8-27b-w4a16", "qwen3.6-35b-a3b-fp8"],
-        "a100_80": ["qwen3.8-27b-fp8", "sage-a1.5-fp8", "qwen3.8-27b-bf16-vllm"],
-        "g4": ["qwen3.8-27b-fp8", "qwen3.8-27b-bf16-vllm", "sage-a1.5-fp8"],
+        "a100_80": ["qwen3.8-27b-fp8", "sage-a1.5-fp8", "nemotron-3.5-bolt-74b-w4a16",
+                    "qwen3.8-27b-bf16-vllm"],
+        "g4": ["qwen3.8-27b-fp8", "sage-a1.5-fp8", "nemotron-3.5-bolt-74b-w4a16",
+               "qwen3.8-27b-bf16-vllm"],
     },
     "sglang": {
         "t4": [],
@@ -39,10 +42,13 @@ _ENGINE_PREFETCH = {
     },
     "strata": {
         "t4": [],
-        "l4": ["flash-next-strata-q2"],
-        "a100_40": ["flash-next-strata-iq3-xxs", "flash-next-strata-q2"],
-        "a100_80": ["flash-next-strata-iq3-s", "flash-next-strata-iq3-xxs"],
-        "g4": ["flash-next-strata-iq3-s", "flash-next-strata-iq3-xxs", "deepseek-strata-ist-2.00"],
+        "l4": ["flash-next-gyro-s", "flash-next-strata-q2", "flash-next-swift-iq2-xs", "qwen36-strata-q4"],
+        "a100_40": ["flash-next-strata-iq3-xxs", "flash-next-gyro-m", "flash-next-swift-iq3-xxs",
+                    "qwen36-strata-q4", "flash-next-strata-q2"],
+        "a100_80": ["flash-next-strata-iq3-s", "flash-next-strata-iq3-xxs", "flash-next-gyro-m",
+                    "qwen36-strata-q6"],
+        "g4": ["flash-next-strata-iq3-s", "flash-next-strata-iq3-xxs", "qwen36-strata-q6",
+               "deepseek-strata-ist-2.00"],
     },
     "maya": {
         "t4": [],
@@ -51,36 +57,58 @@ _ENGINE_PREFETCH = {
         "a100_80": ["glm-maya-s", "glm-maya-s24", "deepseek-maya-xs"],
         "g4": ["glm-maya-s", "glm-maya-s24", "deepseek-maya-xs", "deepseek-maya-s"],
     },
+    "tensorfold": {
+        "t4": [],
+        "l4": ["qwen3.8-27b-exl3-2bpw"],
+        "a100_40": ["qwen3.8-27b-exl3-2bpw"],
+        "a100_80": ["qwen3.8-27b-exl3-2bpw"],
+        "g4": ["qwen3.8-27b-exl3-2bpw"],
+    },
+    "comfyui": {
+        "t4": ["qwen-image-2.1-turbo-comfy"],
+        "l4": ["qwen-image-2.1-turbo-comfy", "flux3-klein-comfy"],
+        "a100_40": ["qwen-image-2.1-turbo-comfy", "flux3-klein-comfy", "wan22-5b-comfy"],
+        "a100_80": ["qwen-image-2.1-turbo-comfy", "flux3-klein-comfy", "wan22-5b-comfy"],
+        "g4": ["qwen-image-2.1-turbo-comfy", "flux3-klein-comfy", "wan22-5b-comfy", "minimax-h3-comfy"],
+    },
+    "sparsa": {
+        "t4": [],
+        "l4": [],
+        "a100_40": [],
+        "a100_80": ["minimax-m3.1-flash-iq2-kt"],
+        "g4": ["minimax-m3.1-flash-iq2-xs-d3", "minimax-m3.1-flash-iq2-kt"],
+    },
 }
 
 _ENGINE_NOTES = {
     "llama": {
         "t4": [
             "T4: llama.cpp chat targets need L4+ (AI Pro / Colab Pro).",
-            "Use Diffusers for NF4 images; Strata/Maya for Flash-Next / GLM / DeepSeek.",
+            "Use Diffusers/ComfyUI for images; Strata/Maya/Sparsa for huge MoEs.",
         ],
         "l4": [
-            "L4: UD-Q4 Qwen3.8-27B. For Flash-Next prefer the Strata notebook; for GLM prefer Maya.",
+            "L4: UD-Q4 Qwen3.8-27B and native IQ2 Nemotron Bolt (fit/offload).",
+            "For Flash-Next prefer Strata; for GLM prefer Maya.",
         ],
         "a100_40": [
-            "A100 40 GB: llama.cpp Flash-Next IQ1_S is a fallback; Strata IQ3_XXS is the researched Colab path.",
+            "A100 40 GB: Qwen Q8, Bolt IQ2, Sage-A1.5 Q4; Flash-Next IQ1_S is a fallback vs Strata.",
         ],
         "a100_80": [
-            "A100 80 GB: Flash-Next Q3 via llama.cpp, or Strata IQ3_S / Maya for GLM.",
+            "A100 80 GB: Bolt + Sage + Flash-Next Q3; Ornith needs G4-class VRAM.",
         ],
         "g4": [
-            "G4: large MoE GGUFs. Prefer Strata (Flash-Next / DeepSeek) and Maya (GLM / DeepSeek) notebooks.",
+            "G4: Bolt IQ2, Ornith-1.5-122B Q4, Sage, large MoE GGUFs. Prefer Strata/Maya/Sparsa notebooks for streaming MoEs.",
         ],
     },
     "vllm": {
         "t4": ["T4: vLLM targets need L4+."],
         "l4": [
             "L4: W4A16 AutoRound Qwen3.8-27B or Qwen3-14B FP8.",
-            "Flash-Next / GLM / DeepSeek official vLLM recipes are multi-GPU — use Strata/Maya.",
+            "Flash-Next / GLM / DeepSeek / MiniMax-M3.1 official vLLM recipes are multi-GPU — use Strata/Maya/Sparsa.",
         ],
         "a100_40": ["A100 40 GB: Qwen3.8-27B FP8 or W4A16; Qwen3.6-35B-A3B FP8."],
-        "a100_80": ["A100 80 GB: FP8 / BF16 dense chat; Sage A1.5 FP8."],
-        "g4": ["G4: Qwen3.8-27B FP8 or BF16; Sage A1.5 FP8."],
+        "a100_80": ["A100 80 GB: FP8 / BF16 dense chat; Sage A1.5 FP8; experimental Bolt W4A16."],
+        "g4": ["G4: Qwen3.8-27B FP8 or BF16; Sage A1.5 FP8; experimental Bolt W4A16."],
     },
     "sglang": {
         "t4": ["T4: SGLang targets need L4+."],
@@ -93,25 +121,25 @@ _ENGINE_NOTES = {
         "g4": ["G4: Qwen3.8-27B W4A16 via SGLang."],
     },
     "diffusers": {
-        "t4": ["T4: Qwen-Image-2.1 NF4 or SD 1.5.", "MiniMax-H3 is video — prefetch only."],
-        "l4": ["L4: Qwen-Image-2.1 NF4, SDXL Turbo / base."],
+        "t4": ["T4: Qwen-Image-2.1 NF4 or SD 1.5.", "MiniMax-H3 is video — prefer ComfyUI notebook."],
+        "l4": ["L4: Qwen-Image-2.1 NF4, SDXL Turbo / base. Interactive editing → ComfyUI."],
         "a100_40": ["A100 40 GB: Qwen-Image-2.1 BF16, FLUX.1-schnell."],
         "a100_80": ["A100 80 GB: Qwen-Image-2.1 BF16, FLUX.1-schnell."],
-        "g4": ["G4: Qwen-Image-2.1 BF16, FLUX; MiniMax-H3 prefetch for ComfyUI."],
+        "g4": ["G4: Qwen-Image-2.1 BF16, FLUX; MiniMax-H3 prefetch — prefer ComfyUI for video."],
     },
     "strata": {
         "t4": [
             "T4: Strata Flash-Next needs L4+ and high host RAM (forum L4/A100 recipes).",
         ],
         "l4": [
-            "L4: Strata + ISTA Q2_0 Flash-Next (Qiita Colab L4 success reports).",
-            "Official: `strata launch --family qwen --model q2_0 --yes --no-tui`.",
+            "L4: Gyro-S / ISTA Q2_0 / Swift IQ2_XS / Qwen3.6 Q4 (memory-tier options).",
+            "Official: `strata launch --family … --model … --yes --no-tui`.",
         ],
         "a100_40": [
-            "A100 40 GB: Strata IQ3_XXS (ISTA) — researched Colab A100 path.",
+            "A100 40 GB: Strata IQ3_XXS (ISTA) or Gyro-M / Swift IQ3_XXS / Qwen3.6 Q4.",
         ],
         "a100_80": [
-            "A100 80 GB: Strata IQ3_S (ISTA recommended quality) or IQ3_XXS.",
+            "A100 80 GB: Strata IQ3_S (ISTA recommended) or IQ3_XXS; Qwen3.6 Q6.",
         ],
         "g4": [
             "G4: Strata IQ3_S / IQ3_XXS for Flash-Next; DeepSeek ISTA 2.00bpw (~257 GB) via strata-dsv41.",
@@ -133,6 +161,35 @@ _ENGINE_NOTES = {
             "G4: best Colab band for Maya GLM + DeepSeek Maya-XS/S (huge Drive downloads).",
         ],
     },
+    "tensorfold": {
+        "t4": ["T4: TensorFold EXL3 27B needs L4+ (~14 GB+)."],
+        "l4": [
+            "L4+: Qwen3.8-27B Mia EXL3 2.0bpw + DFlash2 4-bit (workstation qwen27b-tensorfold).",
+            "Official: `tensorfold-native serve … --drafter … --drafter-bits 4` (TensorFold 1.2.2).",
+        ],
+        "a100_40": ["A100: same EXL3 + DFlash2 entry; raise context toward 16K if VRAM allows."],
+        "a100_80": ["A100 80 GB / G4: EXL3 27B with headroom for longer context."],
+        "g4": ["G4: EXL3 27B + DFlash2; still lower precision than AutoRound W4A16."],
+    },
+    "comfyui": {
+        "t4": ["T4: Qwen-Image-2.1 Turbo via ComfyUI (stock API workflow)."],
+        "l4": ["L4: Qwen-Image-2.1 Turbo + FLUX.3 Klein (workstation Comfy entries)."],
+        "a100_40": ["A100: image entries + Wan 2.2 5B video prefetch."],
+        "a100_80": ["A100 80 GB: image + Wan video prefetch; MiniMax-H3 needs G4 disk."],
+        "g4": ["G4: full Comfy set including MiniMax-H3 prefetch; video OpenAI route is 501 (use UI)."],
+    },
+    "sparsa": {
+        "t4": ["T4: MiniMax-M3.1-Flash via Sparsa needs high-RAM A100/G4-class hosts."],
+        "l4": ["L4: Sparsa MiniMax packs need ~100 GB+ combined memory — use A100 80 / G4."],
+        "a100_40": ["A100 40 GB: still tight for Sparsa MiniMax; prefer A100 80 / G4 + large disk."],
+        "a100_80": [
+            "A100 80 GB: IQ2_KT (~124 GB pack) with SSD expert streaming — experimental.",
+            "Official: `python sparsa.py serve --model … --no-api-key`.",
+        ],
+        "g4": [
+            "G4: IQ2_XS-D3 (default Sparsa pick, ~146 GB) or IQ2_KT. Huge Drive download.",
+        ],
+    },
 }
 
 ENGINE_META = {
@@ -140,13 +197,13 @@ ENGINE_META = {
         "title": "llama.cpp",
         "notebook": "llama_hub_colab.ipynb",
         "kind": "chat",
-        "summary": "GGUF fallbacks: Qwen3.8-27B, Flash-Next, experimental GLM/DeepSeek Unsloth",
+        "summary": "GGUF: Qwen3.8-27B, Bolt IQ2, Sage, Ornith, Flash-Next / GLM / DeepSeek fallbacks",
     },
     "vllm": {
         "title": "vLLM",
         "notebook": "vllm_hub_colab.ipynb",
         "kind": "chat",
-        "summary": "Safetensors chat: Qwen3.8-27B W4A16/FP8/BF16, Sage, …",
+        "summary": "Safetensors chat: Qwen3.8-27B W4A16/FP8/BF16, Sage, Bolt W4A16, …",
     },
     "sglang": {
         "title": "SGLang",
@@ -164,13 +221,31 @@ ENGINE_META = {
         "title": "Strata",
         "notebook": "strata_hub_colab.ipynb",
         "kind": "chat",
-        "summary": "Qwen3.8-Flash-Next (ISTA) + DeepSeek-V4.1-Flash-1017 (strata-dsv41)",
+        "summary": "Flash-Next (ISTA/Gyro/Swift) + Qwen3.6 + DeepSeek (strata-dsv41)",
     },
     "maya": {
         "title": "Maya",
         "notebook": "maya_hub_colab.ipynb",
         "kind": "chat",
         "summary": "GLM-5.3-Flash (Maya-S24/S/XS) + DeepSeek-V4.1-Flash-1017 (maya-ds4)",
+    },
+    "tensorfold": {
+        "title": "TensorFold",
+        "notebook": "tensorfold_hub_colab.ipynb",
+        "kind": "chat",
+        "summary": "Qwen3.8-27B Mia EXL3 2.0bpw + DFlash2 (workstation qwen27b-tensorfold)",
+    },
+    "comfyui": {
+        "title": "ComfyUI",
+        "notebook": "comfyui_hub_colab.ipynb",
+        "kind": "image",
+        "summary": "Qwen-Image-2.1 Turbo, FLUX.3 Klein, Wan 2.2 / MiniMax-H3 video prefetch",
+    },
+    "sparsa": {
+        "title": "Sparsa",
+        "notebook": "sparsa_hub_colab.ipynb",
+        "kind": "chat",
+        "summary": "MiniMax-M3.1-Flash (IQ2_XS-D3 / IQ2_KT) via Sparsa strata-minimax",
     },
 }
 
@@ -219,12 +294,13 @@ def for_gpu(vram_gb, entries=None):
             if mid not in seen:
                 seen.add(mid)
                 prefetch.append(mid)
-    engines = [p["engine"] for p in plans if p["prefetch"] or p["band"] != "t4" or p["engine"] == "diffusers"]
+    engines = [p["engine"] for p in plans if p["prefetch"] or p["band"] != "t4"
+               or p["engine"] in ("diffusers", "comfyui")]
     if not engines:
         engines = ["diffusers"]
     notes = []
     for plan in plans:
-        if plan["prefetch"] or plan["engine"] == "diffusers":
+        if plan["prefetch"] or plan["engine"] in ("diffusers", "comfyui"):
             notes.append(f"[{plan['engine']}] " + plan["notes"][0])
     return {
         "band": band(vram_gb),

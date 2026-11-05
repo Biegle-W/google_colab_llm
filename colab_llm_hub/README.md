@@ -8,9 +8,12 @@ One authenticated, OpenAI-compatible endpoint in front of **one** inference engi
 
 | Notebook | Engine |
 |---|---|
-| [`strata_hub_colab.ipynb`](../strata_hub_colab.ipynb) | **Strata** (Flash-Next, DeepSeek) |
+| [`strata_hub_colab.ipynb`](../strata_hub_colab.ipynb) | **Strata** (Flash-Next ISTA/Gyro/Swift, Qwen3.6, DeepSeek) |
 | [`maya_hub_colab.ipynb`](../maya_hub_colab.ipynb) | **Maya** (GLM-5.3-Flash, DeepSeek) |
-| [`llama_hub_colab.ipynb`](../llama_hub_colab.ipynb) | llama.cpp (GGUF fallbacks) |
+| [`tensorfold_hub_colab.ipynb`](../tensorfold_hub_colab.ipynb) | **TensorFold** (Qwen3.8-27B EXL3 + DFlash2) |
+| [`sparsa_hub_colab.ipynb`](../sparsa_hub_colab.ipynb) | **Sparsa** (MiniMax-M3.1-Flash) |
+| [`comfyui_hub_colab.ipynb`](../comfyui_hub_colab.ipynb) | **ComfyUI** (Qwen-Image Turbo, FLUX.3 Klein, video prefetch) |
+| [`llama_hub_colab.ipynb`](../llama_hub_colab.ipynb) | llama.cpp (Bolt IQ2, Sage, Ornith, MoE fallbacks) |
 | [`vllm_hub_colab.ipynb`](../vllm_hub_colab.ipynb) | vLLM |
 | [`sglang_hub_colab.ipynb`](../sglang_hub_colab.ipynb) | SGLang |
 | [`diffusers_hub_colab.ipynb`](../diffusers_hub_colab.ipynb) | Diffusers |
@@ -26,7 +29,12 @@ your client ──HTTPS──> Cloudflare tunnel ──> hub (127.0.0.1:8000, Be
                                                ├─ llama.cpp   (:30080)  GGUF chat models
                                                ├─ vLLM        (:30010)  safetensors chat models
                                                ├─ SGLang      (:30020)  chat models
-                                               └─ Diffusers   (:30090)  text-to-image pipelines
+                                               ├─ Strata      (:30050)  Flash-Next / Qwen3.6 / DeepSeek
+                                               ├─ Maya        (:30060)  GLM / DeepSeek
+                                               ├─ Sparsa      (:30065)  MiniMax-M3.1-Flash
+                                               ├─ TensorFold  (:30070)  EXL3 + DFlash2
+                                               ├─ Diffusers   (:30090)  text-to-image pipelines
+                                               └─ ComfyUI     (:30095)  Comfy workflows + OpenAI images
 
 Drive root MyDrive/llm_models/
   models/  builds/  config/  hf_cache/  hub/  logs/  outputs/
@@ -38,11 +46,12 @@ later sessions: Drive ──copy──> local ──> engine   (wheels/builds/hu
 |---|---|
 | Hub server: auth, routing, loading, switching, keep-alives | `hub.py` |
 | Model files: download once, save to Drive, restore, evict | `store.py` |
-| llama.cpp / vLLM / SGLang / Diffusers command lines and process control | `backends.py` |
+| Engine command lines and process control | `backends.py` |
 | Diffusers OpenAI images server (incl. Qwen-Image-2.1 / NF4) | `diffusers_server.py` |
+| ComfyUI OpenAI images wrapper + stock API workflows | `comfyui_server.py`, `workflows/` |
 | Model list, what fits which GPU, context / max edge | `catalog.json`, `catalog.py` |
 | Per-engine × GPU recommendations | `recommend.py`, `ENGINE_MATRIX.md` |
-| Generate the four `*_hub_colab.ipynb` notebooks | `make_engine_notebooks.py` |
+| Generate the `*_hub_colab.ipynb` notebooks | `make_engine_notebooks.py` |
 | Drive layout: per-engine settings, HF cache, logs, outputs | `workspace.py` |
 | GPU detection (including Blackwell/CUDA handling) | `gpu.py` |
 | Engine builds and wheels cached on Drive | `install.py` |

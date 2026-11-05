@@ -1,0 +1,525 @@
+{
+  "last_node_id": 13,
+  "last_link_id": 12,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "NvidiaResidentDenoiser",
+      "pos": [
+        0,
+        0
+      ],
+      "size": [
+        350,
+        300
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            5
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "NvidiaResidentDenoiser"
+      },
+      "widgets_values": [
+        "qwen_image_2.1_turbo_int8_convrot.safetensors"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "NvidiaResidentEncoder",
+      "pos": [
+        390,
+        0
+      ],
+      "size": [
+        350,
+        300
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            4
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "NvidiaResidentEncoder"
+      },
+      "widgets_values": [
+        "qwen3vl_8b_w4a8.safetensors",
+        "qwen_image"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "NvidiaResidentVAE",
+      "pos": [
+        780,
+        0
+      ],
+      "size": [
+        350,
+        300
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            2
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "NvidiaResidentVAE"
+      },
+      "widgets_values": [
+        "qwen_image_2.1_vae_bf16.safetensors"
+      ]
+    },
+    {
+      "id": 8,
+      "type": "VAEDecode",
+      "pos": [
+        1170,
+        0
+      ],
+      "size": [
+        350,
+        300
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 1
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            3
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 9,
+      "type": "SaveImage",
+      "pos": [
+        0,
+        400
+      ],
+      "size": [
+        350,
+        300
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 3
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "qwen-image-2.1-turbo-27001"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "TextEncodeQwenImage21",
+      "pos": [
+        390,
+        400
+      ],
+      "size": [
+        350,
+        300
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 4
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            6
+          ]
+        },
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            7
+          ]
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            12
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "TextEncodeQwenImage21"
+      },
+      "widgets_values": [
+        "A detailed editorial photograph of a small red fox standing in fresh white snow beside a dark green pine tree. The fox faces the camera, with two alert triangular ears, amber eyes, a black nose and a fluffy orange tail curled to its right. Warm sunrise light enters from the left, illuminating individual hairs and tiny snow crystals. A softly blurred forest fills the background. Natural colors, realistic anatomy, no text, square composition.",
+        "",
+        1024
+      ]
+    },
+    {
+      "id": 10,
+      "type": "RandomNoise",
+      "pos": [
+        780,
+        400
+      ],
+      "size": [
+        350,
+        300
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "NOISE",
+          "type": "NOISE",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RandomNoise"
+      },
+      "widgets_values": [
+        27001,
+        "fixed"
+      ]
+    },
+    {
+      "id": 11,
+      "type": "KSamplerSelect",
+      "pos": [
+        1170,
+        400
+      ],
+      "size": [
+        350,
+        300
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "links": [
+            10
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSamplerSelect"
+      },
+      "widgets_values": [
+        "euler"
+      ]
+    },
+    {
+      "id": 12,
+      "type": "ManualSigmas",
+      "pos": [
+        0,
+        800
+      ],
+      "size": [
+        350,
+        300
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "links": [
+            11
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ManualSigmas"
+      },
+      "widgets_values": [
+        "1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, 0.704534, 0.414568, 0"
+      ]
+    },
+    {
+      "id": 13,
+      "type": "CFGGuider",
+      "pos": [
+        390,
+        800
+      ],
+      "size": [
+        350,
+        300
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 5
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 6
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "GUIDER",
+          "type": "GUIDER",
+          "links": [
+            9
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CFGGuider"
+      },
+      "widgets_values": [
+        1.0
+      ]
+    },
+    {
+      "id": 7,
+      "type": "SamplerCustomAdvanced",
+      "pos": [
+        780,
+        800
+      ],
+      "size": [
+        350,
+        300
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "noise",
+          "type": "NOISE",
+          "link": 8
+        },
+        {
+          "name": "guider",
+          "type": "GUIDER",
+          "link": 9
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 10
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 11
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 12
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            1
+          ]
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SamplerCustomAdvanced"
+      },
+      "widgets_values": []
+    }
+  ],
+  "links": [
+    [
+      1,
+      7,
+      0,
+      8,
+      0,
+      "LATENT"
+    ],
+    [
+      2,
+      3,
+      0,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      3,
+      8,
+      0,
+      9,
+      0,
+      "IMAGE"
+    ],
+    [
+      4,
+      2,
+      0,
+      4,
+      0,
+      "CLIP"
+    ],
+    [
+      5,
+      1,
+      0,
+      13,
+      0,
+      "MODEL"
+    ],
+    [
+      6,
+      4,
+      0,
+      13,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      7,
+      4,
+      1,
+      13,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      8,
+      10,
+      0,
+      7,
+      0,
+      "NOISE"
+    ],
+    [
+      9,
+      13,
+      0,
+      7,
+      1,
+      "GUIDER"
+    ],
+    [
+      10,
+      11,
+      0,
+      7,
+      2,
+      "SAMPLER"
+    ],
+    [
+      11,
+      12,
+      0,
+      7,
+      3,
+      "SIGMAS"
+    ],
+    [
+      12,
+      4,
+      2,
+      7,
+      4,
+      "LATENT"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}

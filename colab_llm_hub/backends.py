@@ -14,13 +14,14 @@ import urllib.request
 
 PORTS = {
     "llama": 30080, "vllm": 30010, "sglang": 30020, "diffusers": 30090,
-    "strata": 30050, "maya": 30060,
+    "strata": 30050, "maya": 30060, "tensorfold": 30070, "comfyui": 30095,
+    "sparsa": 30065,
 }
 READY_TIMEOUT = 1800
-CHAT_BACKENDS = ("llama", "vllm", "sglang", "strata", "maya")
-IMAGE_BACKENDS = ("diffusers",)
-# Strata/Maya advertise their own model names; readiness = OpenAI /v1/models answers.
-ALIAS_READY_BACKENDS = ("strata", "maya")
+CHAT_BACKENDS = ("llama", "vllm", "sglang", "strata", "maya", "tensorfold", "sparsa")
+IMAGE_BACKENDS = ("diffusers", "comfyui")
+# Engines that advertise their own model names; readiness = OpenAI /v1/models answers.
+ALIAS_READY_BACKENDS = ("strata", "maya", "sparsa")
 opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
@@ -147,6 +148,52 @@ def maya_command(entry, model_path, ctx, maya_root, port=None, models_dir=None):
     return args + list(entry.get("extra_args", []))
 
 
+def tensorfold_command(entry, model_path, ctx, tensorfold_bin, port=None):
+    """Native TensorFold serve (official bin/tensorfold-native). OpenAI API on --port."""
+    args = [str(tensorfold_bin), "serve", str(model_path),
+            "--backend", "cuda", "--device", str(entry.get("device", 0)),
+            "--host", "127.0.0.1", "--port", str(port or PORTS["tensorfold"]),
+            "--name", entry["id"], "--context", str(int(ctx)),
+            "--parallel", str(entry.get("parallel", 1)),
+            "--temperature", "0", "--no-thinking", "--no-update-check",
+            "--prompt-cache-gib", str(entry.get("prompt_cache_gib", 0))]
+    drafter_subdir = entry.get("drafter_subdir", "drafter")
+    drafter_path = os.path.join(str(model_path), drafter_subdir)
+    if entry.get("drafter_bits") and os.path.isdir(drafter_path):
+        args += ["--drafter", drafter_path, "--drafter-bits", str(entry["drafter_bits"])]
+    return args + list(entry.get("extra_args", []))
+
+
+def comfyui_command(entry, model_path, max_edge, comfy_root, python=None, port=None):
+    """OpenAI-compatible ComfyUI wrapper (starts ComfyUI + /v1/images/generations)."""
+    args = [python or sys.executable, "-m", "colab_llm_hub.comfyui_server",
+            "--comfy-root", str(comfy_root),
+            "--model-path", str(model_path), "--model-id", entry["id"],
+            "--port", str(port or PORTS["comfyui"]),
+            "--max-edge", str(max_edge),
+            "--workflow", entry.get("workflow", "qwen-image-2.1-turbo.api.json"),
+            "--steps", str(entry.get("default_steps", 8)),
+            "--guidance", str(entry.get("default_guidance", 1.0))]
+    if entry.get("kind") == "video":
+        args += ["--kind", "video"]
+    return args + list(entry.get("extra_args", []))
+
+
+def sparsa_command(entry, model_path, ctx, sparsa_root, python=None, port=None):
+    """Sparsa MiniMax-M3.1-Flash serve (official python sparsa.py serve)."""
+    script = os.path.join(str(sparsa_root), "sparsa.py")
+    args = [python or sys.executable, script, "serve",
+            "--model", str(model_path),
+            "--host", "127.0.0.1",
+            "--port", str(port or PORTS["sparsa"]),
+            "--context", str(int(ctx)),
+            "--no-api-key", "--no-vision"]
+    engine = os.path.join(str(sparsa_root), "bin", "strata-minimax")
+    if os.path.isfile(engine) and os.access(engine, os.X_OK):
+        args += ["--engine", engine]
+    return args + list(entry.get("extra_args", []))
+
+
 def _walk_names(root):
     out = []
     for dirpath, _, files in os.walk(root):
@@ -168,6 +215,17 @@ def command(entry, model_path, ctx, bins, port=None):
     if entry["backend"] == "maya":
         return maya_command(entry, model_path, ctx, bins.get("maya", "/content/project-maya"), port,
                             models_dir=bins.get("maya_models"))
+    if entry["backend"] == "tensorfold":
+        return tensorfold_command(entry, model_path, ctx,
+                                  bins.get("tensorfold", "tensorfold-native"), port)
+    if entry["backend"] == "comfyui":
+        return comfyui_command(entry, model_path, ctx,
+                               bins.get("comfyui", "/content/ComfyUI"),
+                               bins.get("python"), port)
+    if entry["backend"] == "sparsa":
+        return sparsa_command(entry, model_path, ctx,
+                              bins.get("sparsa", "/content/Sparsa"),
+                              bins.get("python"), port)
     return vllm_command(entry, model_path, ctx, bins.get("vllm", "vllm"), port)
 
 
@@ -176,10 +234,14 @@ def env_for(entry):
     if entry["backend"] in ("vllm", "sglang"):
         env.setdefault("VLLM_ENGINE_READY_TIMEOUT_S", str(READY_TIMEOUT))
         env["HF_HUB_OFFLINE"] = "1"                      # serve the local copy; never re-download
-    if entry["backend"] == "diffusers":
+    if entry["backend"] in ("diffusers", "comfyui"):
         env["HF_HUB_OFFLINE"] = "1"
         env.setdefault("TRANSFORMERS_OFFLINE", "1")
-    if entry["backend"] in ("strata", "maya"):
+    if entry["backend"] == "tensorfold":
+        env.setdefault("TENSORFOLD_NO_UPDATE_CHECK", "1")
+        env.setdefault("TENSORFOLD_NO_LIVE", "1")
+        env["HF_HUB_OFFLINE"] = "1"
+    if entry["backend"] in ("strata", "maya", "sparsa"):
         # Long first-start downloads; keep HF token available for gated packs.
         env.setdefault("HF_HUB_ENABLE_HF_TRANSFER", "1")
     return env
