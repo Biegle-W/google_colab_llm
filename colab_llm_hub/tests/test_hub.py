@@ -183,5 +183,38 @@ class StoreIntegration(HubCase):
         self.assertIn("a", st["downloads"])
 
 
+class Images(HubCase):
+    entries = [entry("chat"), entry("img", backend="diffusers")]
+
+    def test_image_generation_and_wrong_endpoint(self):
+        status, data, _ = self.image("img", prompt="a red cube")
+        self.assertEqual(status, 200)
+        self.assertIn("b64_json", data["data"][0])
+        self.assertEqual(self.hub.active, "img")
+        _, models, _ = self.request("GET", "/v1/models")
+        row = next(m for m in models["data"] if m["id"] == "img")
+        self.assertEqual((row["kind"], row["backend"], row["max_edge"]), ("image", "diffusers", 4096))
+        self.assertEqual(self.chat("img")[0], 400)
+        self.assertEqual(self.image("chat")[0], 400)
+
+    def test_switch_between_chat_and_image(self):
+        self.assertEqual(self.chat("chat")[0], 200)
+        first = self.launches[0]
+        self.assertEqual(self.image("img")[0], 200)
+        self.assertFalse(first.alive)
+        self.assertEqual(self.hub.active, "img")
+
+
+class DiffusersClamp(unittest.TestCase):
+    def test_clamp_size(self):
+        from colab_llm_hub.diffusers_server import clamp_size
+        self.assertEqual(clamp_size(2048, 2048, 1024), (1024, 1024))
+        w, h = clamp_size(1000, 500, 1024)
+        self.assertEqual(w, 1000)
+        self.assertEqual(h % 8, 0)
+        self.assertTrue(496 <= h <= 504)
+        self.assertEqual(clamp_size(None, None, 768), (768, 768))
+
+
 if __name__ == "__main__":
     unittest.main()

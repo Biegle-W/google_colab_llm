@@ -63,10 +63,15 @@ class Hub:
     def describe(self, model_id):
         e = self.entries[model_id]
         st = self.store.state(e)
-        return {"id": e["id"], "object": "model", "created": 0, "owned_by": "colab-" + e["backend"],
-                "name": e["name"], "backend": e["backend"], "context_length": self.context(e["id"]),
+        kind = catalog.kind_for(e)
+        info = {"id": e["id"], "object": "model", "created": 0, "owned_by": "colab-" + e["backend"],
+                "name": e["name"], "backend": e["backend"], "kind": kind,
+                "context_length": self.context(e["id"]),
                 "size_gb": e["size_gb"], "loaded": self.active == e["id"], "loading": self.loading == e["id"],
                 "downloaded": st["on_drive"], "experimental": bool(e.get("experimental"))}
+        if kind == "image":
+            info["max_edge"] = info["context_length"]
+        return info
 
     def status(self):
         with self.cond:
@@ -313,12 +318,18 @@ def make_handler(hub, token):
                 except HubError as e:
                     return self.error_json(e.status, str(e), e.code)
                 return self.send_json(200, {"status": "unloaded"})
-            if path not in ("/v1/chat/completions", "/v1/completions"):
-                return self.error_json(404, "Only OpenAI chat/completion endpoints are exposed.", "not_found")
+            if path not in ("/v1/chat/completions", "/v1/completions", "/v1/images/generations"):
+                return self.error_json(404, "Only OpenAI chat/completion and image endpoints are exposed.", "not_found")
             model = data.get("model")
             if not isinstance(model, str):
                 return self.error_json(400, "A model ID is required. Use GET /v1/models.", "bad_request")
-            if data.get("stream"):
+            if model in hub.entries:
+                kind = catalog.kind_for(hub.entries[model])
+                if path == "/v1/images/generations" and kind != "image":
+                    return self.error_json(400, f"{model} is a chat model; use /v1/chat/completions.", "wrong_endpoint")
+                if path != "/v1/images/generations" and kind == "image":
+                    return self.error_json(400, f"{model} is an image model; use /v1/images/generations.", "wrong_endpoint")
+            if data.get("stream") and path != "/v1/images/generations":
                 return self.stream(model, path, body)
             try:
                 port = hub.acquire(model, timeout=NONSTREAM_WAIT)

@@ -1,17 +1,21 @@
-"""Command lines and process control for the two inference engines.
+"""Command lines and process control for the inference engines.
 
 llama.cpp flags follow the reference setup (flash attention, q8_0 KV cache, --jinja, no prompt cache in RAM,
 thinking off by default). vLLM flags use the Qwen tool/reasoning parsers named in each catalog entry.
+Diffusers runs as `python -m colab_llm_hub.diffusers_server` against a Drive-restored model directory.
 """
 import json
 import os
 import signal
 import subprocess
+import sys
 import time
 import urllib.request
 
-PORTS = {"llama": 30080, "vllm": 30010}
+PORTS = {"llama": 30080, "vllm": 30010, "diffusers": 30090}
 READY_TIMEOUT = 1800
+CHAT_BACKENDS = ("llama", "vllm")
+IMAGE_BACKENDS = ("diffusers",)
 opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
@@ -45,9 +49,22 @@ def vllm_command(entry, model_path, ctx, vllm_bin="vllm", port=None, gpu_util=0.
     return args + list(entry.get("extra_args", []))
 
 
+def diffusion_command(entry, model_path, max_edge, python=None, port=None):
+    args = [python or sys.executable, "-m", "colab_llm_hub.diffusers_server",
+            "--model-path", str(model_path), "--model-id", entry["id"],
+            "--port", str(port or PORTS["diffusers"]), "--max-edge", str(max_edge),
+            "--pipeline", entry.get("pipeline", "AutoPipelineForText2Image"),
+            "--dtype", entry.get("dtype", "float16"),
+            "--steps", str(entry.get("default_steps", 28)),
+            "--guidance", str(entry.get("default_guidance", 7.5))]
+    return args + list(entry.get("extra_args", []))
+
+
 def command(entry, model_path, ctx, bins, port=None):
     if entry["backend"] == "llama":
         return llama_command(entry, model_path, ctx, bins["llama"], port)
+    if entry["backend"] == "diffusers":
+        return diffusion_command(entry, model_path, ctx, bins.get("python"), port)
     return vllm_command(entry, model_path, ctx, bins.get("vllm", "vllm"), port)
 
 
@@ -56,6 +73,9 @@ def env_for(entry):
     if entry["backend"] == "vllm":
         env.setdefault("VLLM_ENGINE_READY_TIMEOUT_S", str(READY_TIMEOUT))
         env["HF_HUB_OFFLINE"] = "1"                      # serve the local copy; never re-download
+    if entry["backend"] == "diffusers":
+        env["HF_HUB_OFFLINE"] = "1"
+        env.setdefault("TRANSFORMERS_OFFLINE", "1")
     return env
 
 
@@ -111,3 +131,7 @@ def log_tail(path, lines=30):
             return b"".join(f.readlines()[-lines:]).decode(errors="replace")
     except OSError:
         return ""
+
+
+def kind_for(entry):
+    return "image" if entry["backend"] in IMAGE_BACKENDS else "chat"

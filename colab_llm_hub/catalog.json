@@ -169,5 +169,57 @@
     "contexts": [[52, 16384], [64, 32768], [90, 65536]],
     "language_model_only": false,
     "experimental": true
+  },
+  {
+    "id": "sd15",
+    "name": "Stable Diffusion 1.5 (diffusers)",
+    "backend": "diffusers",
+    "repo": "stable-diffusion-v1-5/stable-diffusion-v1-5",
+    "files": ["*"],
+    "size_gb": 5.1,
+    "contexts": [[6, 512], [10, 768], [16, 1024]],
+    "pipeline": "AutoPipelineForText2Image",
+    "dtype": "float16",
+    "default_steps": 30,
+    "default_guidance": 7.5
+  },
+  {
+    "id": "sdxl-base",
+    "name": "Stable Diffusion XL Base 1.0 (diffusers)",
+    "backend": "diffusers",
+    "repo": "stabilityai/stable-diffusion-xl-base-1.0",
+    "files": ["*"],
+    "size_gb": 13.0,
+    "contexts": [[14, 768], [18, 1024], [30, 1280]],
+    "pipeline": "AutoPipelineForText2Image",
+    "dtype": "float16",
+    "default_steps": 30,
+    "default_guidance": 7.5
+  },
+  {
+    "id": "sdxl-turbo",
+    "name": "SDXL Turbo (diffusers, few-step)",
+    "backend": "diffusers",
+    "repo": "stabilityai/sdxl-turbo",
+    "files": ["*"],
+    "size_gb": 13.0,
+    "contexts": [[14, 512], [18, 768], [24, 1024]],
+    "pipeline": "AutoPipelineForText2Image",
+    "dtype": "float16",
+    "default_steps": 4,
+    "default_guidance": 0.0
+  },
+  {
+    "id": "flux-schnell",
+    "name": "FLUX.1 Schnell (diffusers)",
+    "backend": "diffusers",
+    "repo": "black-forest-labs/FLUX.1-schnell",
+    "files": ["*"],
+    "size_gb": 32.0,
+    "contexts": [[36, 768], [42, 1024], [70, 1280]],
+    "pipeline": "AutoPipelineForText2Image",
+    "dtype": "bfloat16",
+    "default_steps": 4,
+    "default_guidance": 0.0
   }
 ]

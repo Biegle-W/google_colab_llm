@@ -98,3 +98,32 @@ def ensure_vllm(builds_dir, refresh=False, run=sh, log=print):
         run(f"{pip} wheel -q -w {wheels} vllm")
         run(f"{pip} install -q --no-index --find-links {wheels} vllm")
     return run(f"{pip} show vllm").split("Version:")[-1].split()[0]
+
+
+# Diffusers stack used for text-to-image. Torch is already present on Colab GPU images; we cache the rest.
+DIFFUSERS_PKGS = ("diffusers", "transformers", "accelerate", "safetensors", "sentencepiece", "protobuf", "Pillow")
+
+
+def diffusers_wheelhouse(builds_dir):
+    return os.path.join(builds_dir, f"diffusers_gpu_py{sys.version_info.major}{sys.version_info.minor}")
+
+
+def ensure_diffusers(builds_dir, refresh=False, run=sh, log=print):
+    """Install Diffusers (+ transformers/accelerate) from wheels cached on Drive."""
+    wheels = diffusers_wheelhouse(builds_dir)
+    pip = f"{sys.executable} -m pip"
+    pkgs = " ".join(DIFFUSERS_PKGS)
+    cached = bool(glob.glob(f"{wheels}/*.whl")) and not refresh
+    if cached:
+        log("Installing Diffusers from the wheels saved on Drive...")
+        try:
+            run(f"{pip} install -q --no-index --find-links {wheels} {pkgs}")
+        except InstallError as e:
+            log("Cached Diffusers install failed, rebuilding the wheel cache:", str(e)[:300])
+            cached = False
+    if not cached:
+        log("Downloading Diffusers and its dependencies (one time; saved to Drive)...")
+        os.makedirs(wheels, exist_ok=True)
+        run(f"{pip} wheel -q -w {wheels} {pkgs}")
+        run(f"{pip} install -q --no-index --find-links {wheels} {pkgs}")
+    return run(f"{pip} show diffusers").split("Version:")[-1].split()[0]

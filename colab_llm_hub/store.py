@@ -80,7 +80,7 @@ class ModelStore:
     def local_path(self, entry): return self.local_root / entry["id"]
 
     def model_path(self, entry):
-        """What the engine is pointed at: a GGUF file for llama.cpp, a model directory for vLLM."""
+        """What the engine is pointed at: a GGUF file for llama.cpp, a model directory for vLLM / Diffusers."""
         base = self.local_path(entry)
         return base / entry["model_file"] if entry["backend"] == "llama" else base
 

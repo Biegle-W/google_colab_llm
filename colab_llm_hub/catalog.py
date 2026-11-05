@@ -1,14 +1,20 @@
-"""Model catalog: which models exist, which fit a given GPU, and with what context."""
+"""Model catalog: which models exist, which fit a given GPU, and with what context / resolution."""
 import json
 from pathlib import Path
 
-BACKENDS = ("llama", "vllm")
+BACKENDS = ("llama", "vllm", "diffusers")
+CHAT_BACKENDS = ("llama", "vllm")
+IMAGE_BACKENDS = ("diffusers",)
 REQUIRED = ("id", "name", "backend", "repo", "files", "size_gb", "contexts")
 DEFAULT_PATH = Path(__file__).with_name("catalog.json")
 
 
 class CatalogError(ValueError):
     pass
+
+
+def kind_for(entry):
+    return "image" if entry["backend"] in IMAGE_BACKENDS else "chat"
 
 
 def validate(entries):
@@ -24,9 +30,12 @@ def validate(entries):
             raise CatalogError(f"{e['id']}: unknown backend {e['backend']!r}")
         if e["backend"] == "llama" and "model_file" not in e:
             raise CatalogError(f"{e['id']}: llama entries need model_file")
+        if e["backend"] == "diffusers" and e.get("dtype", "float16") not in ("float16", "bfloat16", "float32"):
+            raise CatalogError(f"{e['id']}: dtype must be float16, bfloat16 or float32")
         ctx = e["contexts"]
+        # For chat backends the second column is context tokens; for diffusers it is max image edge (px).
         if not ctx or any(len(c) != 2 for c in ctx):
-            raise CatalogError(f"{e['id']}: contexts must be [[min_vram_gb, tokens], ...]")
+            raise CatalogError(f"{e['id']}: contexts must be [[min_vram_gb, tokens_or_max_edge], ...]")
         if [c[0] for c in ctx] != sorted(c[0] for c in ctx) or [c[1] for c in ctx] != sorted(c[1] for c in ctx):
             raise CatalogError(f"{e['id']}: contexts must increase in both columns")
     return entries
@@ -45,7 +54,7 @@ def fits(entry, vram_gb):
 
 
 def context_for(entry, vram_gb, override=None):
-    """Largest listed context whose VRAM threshold the GPU meets (or the caller's override)."""
+    """Largest listed context / max edge whose VRAM threshold the GPU meets (or the caller's override)."""
     if override:
         return int(override)
     if not fits(entry, vram_gb):
@@ -69,3 +78,11 @@ def for_engines(entries, engines):
     """Keep only models whose engine is installed (so the hub never advertises a model it cannot start)."""
     engines = set(engines)
     return [e for e in entries if e["backend"] in engines]
+
+
+def chat_entries(entries):
+    return [e for e in entries if e["backend"] in CHAT_BACKENDS]
+
+
+def image_entries(entries):
+    return [e for e in entries if e["backend"] in IMAGE_BACKENDS]

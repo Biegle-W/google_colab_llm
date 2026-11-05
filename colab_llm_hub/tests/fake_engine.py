@@ -1,5 +1,6 @@
-"""A tiny OpenAI-style engine used by the tests (stands in for llama-server / vllm)."""
+"""A tiny OpenAI-style engine used by the tests (stands in for llama-server / vllm / diffusers)."""
 import argparse
+import base64
 import json
 import sys
 import time
@@ -11,12 +12,19 @@ p.add_argument("--model", required=True)
 p.add_argument("--load-delay", type=float, default=0.0)
 p.add_argument("--chunk-delay", type=float, default=0.0)
 p.add_argument("--chunks", type=int, default=3)
+p.add_argument("--kind", default="chat", choices=("chat", "image"))
 p.add_argument("--exit-code", type=int, default=None, help="exit immediately with this status (a failed start)")
 a = p.parse_args()
 if a.exit_code is not None:
     print("fatal: could not load the model", flush=True)
     sys.exit(a.exit_code)
 time.sleep(a.load_delay)
+
+# 1x1 PNG
+TINY_PNG = base64.b64encode(
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde"
+    b"\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82"
+).decode()
 
 
 class H(BaseHTTPRequestHandler):
@@ -41,6 +49,9 @@ class H(BaseHTTPRequestHandler):
     def do_POST(self):
         n = int(self.headers.get("Content-Length", 0))
         req = json.loads(self.rfile.read(n))
+        if self.path == "/v1/images/generations":
+            return self.send(200, {"created": 0, "model": a.model,
+                                   "data": [{"b64_json": TINY_PNG}], "size": "512x512", "steps": 4})
         if not req.get("stream"):
             return self.send(200, {"model": a.model, "choices": [{"message": {"role": "assistant",
                                     "content": f"reply from {a.model}"}}]})

@@ -19,10 +19,13 @@ def parse(argv=None):
     s.add_argument("--key-file", help="API key file (created if missing); default: <drive-dir>/hub/api_key")
     s.add_argument("--llama-bin", default="/content/llama.cpp/build/bin/llama-server")
     s.add_argument("--vllm-bin", default="vllm")
+    s.add_argument("--python", default=sys.executable, help="Python used to launch the Diffusers server")
     s.add_argument("--catalog", default=None)
-    s.add_argument("--engines", default="llama,vllm", help="comma-separated engines that are installed")
+    s.add_argument("--engines", default="llama,vllm,diffusers",
+                   help="comma-separated engines that are installed (llama, vllm, diffusers)")
     s.add_argument("--vram-gb", type=float, default=None, help="override the detected VRAM (testing)")
-    s.add_argument("--ctx", action="append", default=[], metavar="MODEL=TOKENS", help="override a model's context")
+    s.add_argument("--ctx", action="append", default=[], metavar="MODEL=TOKENS",
+                   help="override a model's context tokens (chat) or max edge px (image)")
     s.add_argument("--hf-token-env", default="HF_TOKEN")
     return p.parse_args(argv)
 
@@ -38,7 +41,8 @@ def main(argv=None):
     key = keyfile.load_or_create(a.key_file or os.path.join(a.drive_dir, "hub", "api_key"))
     store = ModelStore(a.drive_dir, a.local_dir, token=os.environ.get(a.hf_token_env))
     overrides = dict(x.split("=", 1) for x in a.ctx)
-    h = hub.Hub(entries, vram, store, {"llama": a.llama_bin, "vllm": a.vllm_bin}, a.log_dir,
+    bins = {"llama": a.llama_bin, "vllm": a.vllm_bin, "python": a.python}
+    h = hub.Hub(entries, vram, store, bins, a.log_dir,
                 ctx_overrides={k: int(v) for k, v in overrides.items()}, gpu_name=name)
     server = hub.make_server(h, key, "127.0.0.1", a.port)
 

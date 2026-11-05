@@ -29,7 +29,10 @@ class Catalog(unittest.TestCase):
         self.assertEqual(catalog.context_for(e, 42.9, override=8192), 8192)
         with self.assertRaises(catalog.CatalogError):
             catalog.context_for(e, 24.2)
-        self.assertEqual(catalog.visible(catalog.load(), 16.1), [])           # T4: use the T4 notebook
+        t4 = catalog.visible(catalog.load(), 16.1)                            # T4: image models fit; hub LLMs mostly do not
+        self.assertTrue(all(e["backend"] == "diffusers" for e in t4))
+        self.assertIn("sd15", {e["id"] for e in t4})
+        self.assertFalse(any(e["backend"] in ("llama", "vllm") for e in t4))
         self.assertTrue(any(e["id"] == "ornith-1.5-122b-q4" for e in catalog.visible(catalog.load(), 102.6)))
         self.assertFalse(any(e["id"] == "ornith-1.5-122b-q4" for e in catalog.visible(catalog.load(), 42.9)))
 
@@ -37,7 +40,9 @@ class Catalog(unittest.TestCase):
         entries = catalog.load()
         llama = catalog.for_engines(entries, ["llama"])
         self.assertTrue(llama and all(e["backend"] == "llama" for e in llama))
-        self.assertEqual(len(catalog.for_engines(entries, ["llama", "vllm"])), len(entries))
+        self.assertEqual(len(catalog.for_engines(entries, ["llama", "vllm", "diffusers"])), len(entries))
+        self.assertTrue(catalog.image_entries(entries))
+        self.assertTrue(all(e["backend"] == "diffusers" for e in catalog.image_entries(entries)))
         self.assertEqual(catalog.for_engines(entries, []), [])
 
     def test_validation_rejects_bad_entries(self):
@@ -48,6 +53,16 @@ class Catalog(unittest.TestCase):
                 catalog.validate([bad])
         with self.assertRaises(catalog.CatalogError):
             catalog.validate([good, good])
+        with self.assertRaises(catalog.CatalogError):
+            catalog.validate([entry("d", backend="diffusers", dtype="float64")])
+
+    def test_diffusers_context_is_max_edge(self):
+        by = catalog.by_id(catalog.load())
+        e = by["sdxl-base"]
+        self.assertEqual(catalog.kind_for(e), "image")
+        self.assertEqual(catalog.context_for(e, 24.2), 1024)
+        self.assertFalse(catalog.fits(by["flux-schnell"], 24.2))
+        self.assertTrue(catalog.fits(by["flux-schnell"], 42.9))
 
 
 class Gpu(unittest.TestCase):
@@ -96,8 +111,21 @@ class Commands(unittest.TestCase):
         self.assertNotIn("--tool-call-parser", plain)
         self.assertNotIn("--language-model-only", plain)
 
+    def test_diffusion_command(self):
+        e = entry("img", backend="diffusers", pipeline="FluxPipeline", dtype="bfloat16",
+                  default_steps=4, default_guidance=0.0)
+        args = backends.diffusion_command(e, "/models/img", 1024, python="/usr/bin/python3", port=30090)
+        self.assertEqual(args[:3], ["/usr/bin/python3", "-m", "colab_llm_hub.diffusers_server"])
+        val = lambda flag: args[args.index(flag) + 1]
+        self.assertEqual((val("--model-path"), val("--model-id"), val("--max-edge"), val("--dtype")),
+                         ("/models/img", "img", "1024", "bfloat16"))
+        self.assertEqual((val("--pipeline"), val("--steps"), val("--guidance")),
+                         ("FluxPipeline", "4", "0.0"))
+        self.assertEqual(backends.kind_for(e), "image")
+
     def test_env(self):
         self.assertEqual(backends.env_for(entry("v", backend="vllm"))["HF_HUB_OFFLINE"], "1")
+        self.assertEqual(backends.env_for(entry("d", backend="diffusers"))["HF_HUB_OFFLINE"], "1")
         self.assertNotIn("HF_HUB_OFFLINE", {k: v for k, v in backends.env_for(entry("l")).items()
                                             if os.environ.get(k) != v})
 
@@ -188,7 +216,8 @@ class Store(unittest.TestCase):
 class Misc(unittest.TestCase):
     def test_provider_yaml_matches_reference_shape(self):
         models = [{"id": "m1", "name": 'Model "One"', "context_length": 32768},
-                  {"id": "m2", "name": "M2", "context_length": 4096}]
+                  {"id": "m2", "name": "M2", "context_length": 4096},
+                  {"id": "img", "name": "SDXL", "context_length": 1024, "kind": "image", "backend": "diffusers"}]
         text = provider.dsh_provider_yaml("https://x.trycloudflare.com/", models)
         try:
             import yaml
@@ -202,6 +231,7 @@ class Misc(unittest.TestCase):
         self.assertEqual([m["contextWindow"] for m in p["models"]], [32768, 4096])
         self.assertEqual([m["maxTokens"] for m in p["models"]], [4096, 2048])
         self.assertEqual(p["models"][0]["name"], 'Model "One"')
+        self.assertNotIn("img", [m["id"] for m in p["models"]])
 
     def test_tunnel_url_parse_and_start(self):
         self.assertEqual(tunnel.parse_quick_url("2026 INF |  https://abc-def-12.trycloudflare.com  |"),

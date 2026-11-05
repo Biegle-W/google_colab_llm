@@ -72,8 +72,10 @@ class HubCase(unittest.TestCase):
         port = free_port()
         os.makedirs(log_dir, exist_ok=True)
         log = os.path.join(log_dir, f"{entry['id']}.log")
+        kind = "image" if entry.get("backend") == "diffusers" else "chat"
         args = [sys.executable, FAKE, "--port", str(port), "--model", entry["id"],
-                "--load-delay", str(self.load_delay), "--chunk-delay", str(self.chunk_delay)]
+                "--load-delay", str(self.load_delay), "--chunk-delay", str(self.chunk_delay),
+                "--kind", kind]
         if entry["id"] in self.fail:
             args += ["--exit-code", "3"]
         with open(log, "ab") as f:
@@ -101,6 +103,10 @@ class HubCase(unittest.TestCase):
     def chat(self, model, stream=False, **kw):
         return self.request("POST", "/v1/chat/completions",
                             {"model": model, "stream": stream, "messages": [{"role": "user", "content": "hi"}]}, **kw)
+
+    def image(self, model, prompt="a cat", **kw):
+        return self.request("POST", "/v1/images/generations",
+                            {"model": model, "prompt": prompt, "size": "512x512"}, **kw)
 
     def stream_raw(self, model, timeout=30):
         conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=timeout)
