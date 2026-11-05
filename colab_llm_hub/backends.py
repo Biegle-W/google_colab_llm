@@ -12,11 +12,32 @@ import sys
 import time
 import urllib.request
 
-PORTS = {"llama": 30080, "vllm": 30010, "sglang": 30020, "diffusers": 30090}
+PORTS = {
+    "llama": 30080, "vllm": 30010, "sglang": 30020, "diffusers": 30090,
+    "strata": 30050, "maya": 30060,
+}
 READY_TIMEOUT = 1800
-CHAT_BACKENDS = ("llama", "vllm", "sglang")
+CHAT_BACKENDS = ("llama", "vllm", "sglang", "strata", "maya")
 IMAGE_BACKENDS = ("diffusers",)
+# Strata/Maya advertise their own model names; readiness = OpenAI /v1/models answers.
+ALIAS_READY_BACKENDS = ("strata", "maya")
 opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
+def _context_flag(ctx):
+    """Strata prefers 32k/64k/128k labels; Maya takes a token count."""
+    n = int(ctx)
+    if n >= 131072:
+        return "128k"
+    if n >= 65536:
+        return "64k"
+    if n >= 32768:
+        return "32k"
+    if n >= 16384:
+        return "16k"
+    if n >= 8192:
+        return "8k"
+    return str(n)
 
 
 def llama_command(entry, model_path, ctx, llama_bin, port=None):
@@ -81,6 +102,59 @@ def diffusion_command(entry, model_path, max_edge, python=None, port=None):
     return args + list(entry.get("extra_args", []))
 
 
+def strata_command(entry, model_path, ctx, strata_bin="strata", port=None, data_dir=None):
+    """Headless Strata Terminal launch (official: --yes --no-tui). OpenAI API on --port."""
+    family = entry.get("strata_family", "qwen")
+    model = entry.get("strata_model", "iq3_xxs")
+    args = [str(strata_bin), "launch",
+            "--family", str(family), "--model", str(model),
+            "--context", _context_flag(ctx),
+            "--yes", "--no-tui", "--restart",
+            "--access", "local", "--no-api-key",
+            "--port", str(port or PORTS["strata"]),
+            "--vision", entry.get("vision", "off"),
+            "--tune", "skip"]
+    if data_dir:
+        args += ["--data-dir", str(data_dir)]
+    # Prefer files already restored from Drive; otherwise Strata downloads into --data-dir.
+    if model_path and os.path.isdir(str(model_path)) and any(
+            p.endswith(".gguf") for p in _walk_names(model_path)):
+        args += ["--model-path", str(model_path)]
+    return args + list(entry.get("extra_args", []))
+
+
+def maya_command(entry, model_path, ctx, maya_root, port=None, models_dir=None):
+    """Project Maya setup/start (official ./setup.sh). OpenAI API on --port."""
+    setup = os.path.join(str(maya_root), "setup.sh")
+    model = entry.get("maya_model", entry["id"])
+    args = ["bash", setup, "--model", str(model),
+            "--port", str(port or PORTS["maya"]),
+            "--host", "127.0.0.1",
+            "--yes", "--plain",
+            "--drafting", entry.get("drafting", "off")]
+    if models_dir:
+        args += ["--models-dir", str(models_dir)]
+    if model_path and os.path.isdir(str(model_path)) and any(
+            p.endswith(".gguf") or p.endswith(".safetensors") for p in _walk_names(model_path)):
+        args += ["--import-model", str(model_path)]
+    else:
+        args += ["--download-model"]
+    # DeepSeek Maya quants also accept --ds4-quant when maya_model is the family name.
+    if entry.get("ds4_quant"):
+        args += ["--ds4-quant", str(entry["ds4_quant"])]
+    if entry.get("mm3_quant"):
+        args += ["--mm3-quant", str(entry["mm3_quant"])]
+    return args + list(entry.get("extra_args", []))
+
+
+def _walk_names(root):
+    out = []
+    for dirpath, _, files in os.walk(root):
+        for name in files:
+            out.append(os.path.join(dirpath, name))
+    return out
+
+
 def command(entry, model_path, ctx, bins, port=None):
     if entry["backend"] == "llama":
         return llama_command(entry, model_path, ctx, bins["llama"], port)
@@ -88,6 +162,12 @@ def command(entry, model_path, ctx, bins, port=None):
         return diffusion_command(entry, model_path, ctx, bins.get("python"), port)
     if entry["backend"] == "sglang":
         return sglang_command(entry, model_path, ctx, bins.get("sglang"), port)
+    if entry["backend"] == "strata":
+        return strata_command(entry, model_path, ctx, bins.get("strata", "strata"), port,
+                              data_dir=bins.get("strata_data"))
+    if entry["backend"] == "maya":
+        return maya_command(entry, model_path, ctx, bins.get("maya", "/content/project-maya"), port,
+                            models_dir=bins.get("maya_models"))
     return vllm_command(entry, model_path, ctx, bins.get("vllm", "vllm"), port)
 
 
@@ -99,14 +179,23 @@ def env_for(entry):
     if entry["backend"] == "diffusers":
         env["HF_HUB_OFFLINE"] = "1"
         env.setdefault("TRANSFORMERS_OFFLINE", "1")
+    if entry["backend"] in ("strata", "maya"):
+        # Long first-start downloads; keep HF token available for gated packs.
+        env.setdefault("HF_HUB_ENABLE_HF_TRANSFER", "1")
     return env
 
 
-def serving(port, model_id, timeout=3):
-    """True when the engine answers and lists the model."""
+def serving(port, model_id, timeout=3, backend=None):
+    """True when the engine answers and lists the model (or any model for Strata/Maya)."""
     try:
         with opener.open(f"http://127.0.0.1:{port}/v1/models", timeout=timeout) as r:
-            return model_id in {m.get("id") for m in json.load(r).get("data", [])}
+            data = json.load(r).get("data", [])
+            ids = {m.get("id") for m in data}
+            if model_id in ids:
+                return True
+            if backend in ALIAS_READY_BACKENDS and data:
+                return True
+            return False
     except (OSError, ValueError):
         return False
 

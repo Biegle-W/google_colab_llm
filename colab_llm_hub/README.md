@@ -8,7 +8,9 @@ One authenticated, OpenAI-compatible endpoint in front of **one** inference engi
 
 | Notebook | Engine |
 |---|---|
-| [`llama_hub_colab.ipynb`](../llama_hub_colab.ipynb) | llama.cpp |
+| [`strata_hub_colab.ipynb`](../strata_hub_colab.ipynb) | **Strata** (Flash-Next, DeepSeek) |
+| [`maya_hub_colab.ipynb`](../maya_hub_colab.ipynb) | **Maya** (GLM-5.3-Flash, DeepSeek) |
+| [`llama_hub_colab.ipynb`](../llama_hub_colab.ipynb) | llama.cpp (GGUF fallbacks) |
 | [`vllm_hub_colab.ipynb`](../vllm_hub_colab.ipynb) | vLLM |
 | [`sglang_hub_colab.ipynb`](../sglang_hub_colab.ipynb) | SGLang |
 | [`diffusers_hub_colab.ipynb`](../diffusers_hub_colab.ipynb) | Diffusers |

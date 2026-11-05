@@ -5,8 +5,10 @@ Notebooks for running **LLM and text-to-image** tooling on Colab GPUs (including
 | Notebook | What it does |
 |---|---|
 | `llm_hub_colab.ipynb` | **Index:** links to one hub notebook per engine |
-| `llama_hub_colab.ipynb` | **llama.cpp only** — GGUF chat: Qwen3.8-27B, Flash-Next, GLM-5.3-Flash, DeepSeek-V4.1-Flash-1017, … |
-| `vllm_hub_colab.ipynb` | **vLLM only** — safetensors chat: Qwen3.8-27B W4A16/FP8/BF16, Sage, … |
+| `strata_hub_colab.ipynb` | **Strata only** — Qwen3.8-Flash-Next (ISTA) + DeepSeek-V4.1 (strata-dsv41); researched Colab path |
+| `maya_hub_colab.ipynb` | **Maya only** — GLM-5.3-Flash (Maya-S24/S/XS) + DeepSeek-V4.1 (maya-ds4) |
+| `llama_hub_colab.ipynb` | **llama.cpp only** — GGUF fallbacks for 27B / Flash-Next / GLM / DeepSeek |
+| `vllm_hub_colab.ipynb` | **vLLM only** — Qwen3.8-27B W4A16/FP8/BF16, Sage, … |
 | `sglang_hub_colab.ipynb` | **SGLang only** — Qwen3.8-27B W4A16 AutoRound |
 | `diffusers_hub_colab.ipynb` | **Diffusers only** — Qwen-Image-2.1, FLUX, SDXL (+ MiniMax-H3 prefetch notes) |
 | `Unsloth_Studio_Colab.ipynb` | Official Unsloth Studio (web UI for training and chat) |

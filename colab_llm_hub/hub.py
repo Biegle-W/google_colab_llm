@@ -177,7 +177,7 @@ class Hub:
             if self.stopping:
                 engine.stop()
                 raise HubError(503, "The hub is shutting down.", "hub_stopping")
-            if self._serving(engine.port, model_id):
+            if self._serving(engine.port, model_id, backend=entry.get("backend")):
                 break
             if not engine.alive:
                 tail = backends.log_tail(engine.log_path, 15).strip().splitlines()

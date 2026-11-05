@@ -2,8 +2,8 @@
 import json
 from pathlib import Path
 
-BACKENDS = ("llama", "vllm", "sglang", "diffusers")
-CHAT_BACKENDS = ("llama", "vllm", "sglang")
+BACKENDS = ("llama", "vllm", "sglang", "diffusers", "strata", "maya")
+CHAT_BACKENDS = ("llama", "vllm", "sglang", "strata", "maya")
 IMAGE_BACKENDS = ("diffusers",)
 REQUIRED = ("id", "name", "backend", "repo", "files", "size_gb", "contexts")
 DEFAULT_PATH = Path(__file__).with_name("catalog.json")

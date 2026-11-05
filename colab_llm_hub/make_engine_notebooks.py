@@ -47,10 +47,9 @@ def _model_table(engine):
             "| Catalog id | Notes |",
             "|---|---|",
             "| `qwen3.8-27b-q4` / `q8` / `bf16` | Qwen3.8-27B GGUF |",
-            "| `flash-next-iq1s` / `flash-next-q3` | Flash-Next + n-gram CPU |",
-            "| `glm-5.3-flash-iq1s` / `iq3` | GLM-5.3-Flash (Maya on workstation) |",
-            "| `deepseek-v4.1-flash-1017-iq1s` | DeepSeek-V4.1-Flash-1017 + Engram |",
-            "| other `*-q*` ids in catalog | Ornith, Nemotron, Sage, Qwen3.6 MoE |",
+            "| `flash-next-iq1s` / `flash-next-q3` | Flash-Next fallback (prefer **Strata**) |",
+            "| `glm-5.3-flash-iq1s` / `iq3` | GLM fallback (prefer **Maya**) |",
+            "| `deepseek-v4.1-flash-1017-iq1s` | DeepSeek fallback (prefer **Maya** / **Strata**) |",
         ]
     if engine == "vllm":
         return [
@@ -67,8 +66,28 @@ def _model_table(engine):
             "|---|---|",
             "| `qwen3.8-27b-w4a16-sglang` | Same W4A16 weights as vLLM, SGLang runtime |",
             "",
-            "Add more SGLang ids to `catalog.json` as you enable them. Flash-Next / GLM / DeepSeek "
-            "official SGLang recipes are multi-GPU — use the **llama.cpp** notebook on Colab.",
+            "Flash-Next / GLM / DeepSeek official SGLang recipes are multi-GPU — use **Strata** / **Maya**.",
+        ]
+    if engine == "strata":
+        return [
+            "| Catalog id | Notes |",
+            "|---|---|",
+            "| `flash-next-strata-q2` | ISTA Q2_0 — Colab L4 forum path |",
+            "| `flash-next-strata-iq3-xxs` | ISTA IQ3_XXS — Colab A100 path |",
+            "| `flash-next-strata-iq3-s` | ISTA IQ3_S — quality pick |",
+            "| `deepseek-strata-ist-2.00` | DeepSeek via `strata-dsv41` (~257 GB) |",
+            "",
+            "Official: [Niko1221/Strata](https://github.com/Niko1221/Strata) `strata launch --family … --yes --no-tui`.",
+        ]
+    if engine == "maya":
+        return [
+            "| Catalog id | Notes |",
+            "|---|---|",
+            "| `glm-maya-s24` | GLM-5.3-Flash for ≤24 GB VRAM (+14% decode) |",
+            "| `glm-maya-s` / `glm-maya-xs` | Default / smallest Maya GLM packs |",
+            "| `deepseek-maya-xs` / `deepseek-maya-s` | DeepSeek via `maya-ds4` (~281 / ~348 GB) |",
+            "",
+            "Official: [mw00/project-maya](https://github.com/mw00/project-maya) `./setup.sh --model glm-maya-s24 --yes`.",
         ]
     return [
         "| Catalog id | Notes |",
@@ -99,7 +118,8 @@ def build_notebook(engine: str) -> dict:
             "",
             f"- Supported models: {meta['summary']}",
             "- Sibling notebooks: `llama_hub_colab.ipynb`, `vllm_hub_colab.ipynb`, "
-            "`sglang_hub_colab.ipynb`, `diffusers_hub_colab.ipynb`",
+            "`sglang_hub_colab.ipynb`, `diffusers_hub_colab.ipynb`, `strata_hub_colab.ipynb`, "
+            "`maya_hub_colab.ipynb`",
             "- Drive root: `MyDrive/llm_models/` (shared weights/builds; settings file is "
             f"`config/settings_{engine}.json`)",
             "- Engine matrix: `colab_llm_hub/ENGINE_MATRIX.md`",
@@ -235,6 +255,8 @@ def build_notebook(engine: str) -> dict:
             "",
             "BUILDS = str(WS.builds)",
             "LLAMA_BIN = \"llama-server\"",
+            "STRATA_BIN = \"strata\"",
+            "MAYA_ROOT = str(WS.builds / \"project-maya\")",
             "install.ensure_hub_deps(BUILDS, refresh=REFRESH_WHEELS)",
             f'if ENGINE == "llama":',
             "    LLAMA_BIN = install.ensure_llama(BUILDS, G[\"arch\"], ref=LLAMA_CPP_REF, rebuild=REBUILD_LLAMA)",
@@ -245,6 +267,12 @@ def build_notebook(engine: str) -> dict:
             "    print(\"SGLang\", install.ensure_sglang(BUILDS, refresh=REFRESH_WHEELS))",
             f'elif ENGINE == "diffusers":',
             "    print(\"diffusers\", install.ensure_diffusers(BUILDS, refresh=REFRESH_WHEELS))",
+            f'elif ENGINE == "strata":',
+            "    STRATA_BIN = install.ensure_strata(BUILDS, refresh=REFRESH_WHEELS)",
+            "    print(\"strata:\", STRATA_BIN)",
+            f'elif ENGINE == "maya":',
+            "    MAYA_ROOT = install.ensure_maya(BUILDS, refresh=REFRESH_WHEELS)",
+            "    print(\"maya:\", MAYA_ROOT)",
             "print(\"Install log →\", WS.logs / \"install.log\")",
         ]),
         _md([
@@ -296,7 +324,9 @@ def build_notebook(engine: str) -> dict:
             "HUB_LOG = str(WS.logs / f\"hub_{ENGINE}.log\")",
             "args = [sys.executable, \"-m\", \"colab_llm_hub\", \"serve\", \"--drive-dir\", DRIVE_DIR,",
             "        \"--local-dir\", str(WS.local_models), \"--log-dir\", str(WS.engine_logs),",
-            "        \"--port\", str(PORT), \"--llama-bin\", LLAMA_BIN, \"--engines\", ENGINE]",
+            "        \"--port\", str(PORT), \"--llama-bin\", LLAMA_BIN,",
+            "        \"--strata-bin\", STRATA_BIN, \"--maya-root\", MAYA_ROOT,",
+            "        \"--engines\", ENGINE]",
             "for k, v in CTX_OVERRIDE.items():",
             "    args += [\"--ctx\", f\"{k}={v}\"]",
             "hub_proc = subprocess.Popen(args, cwd=HUB_DIR, env=dict(os.environ, PYTHONPATH=HUB_DIR, COLAB_LLM_DRIVE=DRIVE_DIR),",

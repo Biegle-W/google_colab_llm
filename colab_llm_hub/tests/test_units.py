@@ -43,10 +43,14 @@ class Catalog(unittest.TestCase):
         entries = catalog.load()
         llama = catalog.for_engines(entries, ["llama"])
         self.assertTrue(llama and all(e["backend"] == "llama" for e in llama))
-        self.assertEqual(len(catalog.for_engines(entries, ["llama", "vllm", "sglang", "diffusers"])), len(entries))
+        self.assertEqual(
+            len(catalog.for_engines(entries, ["llama", "vllm", "sglang", "diffusers", "strata", "maya"])),
+            len(entries))
         self.assertTrue(catalog.image_entries(entries))
         self.assertTrue(all(e["backend"] == "diffusers" for e in catalog.image_entries(entries)))
         self.assertIn("qwen3.8-27b-w4a16-sglang", catalog.by_id(entries))
+        self.assertTrue(catalog.for_engines(entries, ["strata"]))
+        self.assertTrue(catalog.for_engines(entries, ["maya"]))
         self.assertEqual(catalog.for_engines(entries, []), [])
 
     def test_validation_rejects_bad_entries(self):
@@ -83,16 +87,16 @@ class Catalog(unittest.TestCase):
         self.assertTrue(any(x.startswith("qwen3.8-27b") for x in l4["prefetch"]))
         self.assertNotIn("deepseek-v4.1-flash-1017-iq1s", l4["prefetch"])
         g4 = recommend.for_gpu(102.6)
-        self.assertIn("flash-next-q3", g4["prefetch"])
-        self.assertIn("glm-5.3-flash-iq1s", g4["prefetch"])
-        self.assertIn("deepseek-v4.1-flash-1017-iq1s", g4["prefetch"])
-        self.assertIn("llama", g4["engines"])
+        self.assertIn("flash-next-strata-iq3-s", g4["prefetch"])
+        self.assertIn("glm-maya-s", g4["prefetch"])
+        self.assertIn("deepseek-maya-xs", g4["prefetch"])
+        self.assertIn("strata", g4["engines"])
+        self.assertIn("maya", g4["engines"])
 
     def test_recommend_for_engine(self):
         from colab_llm_hub import recommend
         llama = recommend.for_engine("llama", 102.6)
         self.assertEqual(llama["engines"], ["llama"])
-        self.assertIn("glm-5.3-flash-iq1s", llama["prefetch"])
         self.assertTrue(all(not x.startswith("qwen-image") for x in llama["prefetch"]))
         vllm = recommend.for_engine("vllm", 24.2)
         self.assertEqual(vllm["engines"], ["vllm"])
@@ -102,8 +106,27 @@ class Catalog(unittest.TestCase):
         self.assertEqual(sgl["prefetch"], ["qwen3.8-27b-w4a16-sglang"])
         img = recommend.for_engine("diffusers", 16.1)
         self.assertIn("qwen-image-2.1-nf4", img["prefetch"])
+        strata = recommend.for_engine("strata", 42.9)
+        self.assertEqual(strata["engines"], ["strata"])
+        self.assertIn("flash-next-strata-iq3-xxs", strata["prefetch"])
+        maya = recommend.for_engine("maya", 24.2)
+        self.assertIn("glm-maya-s24", maya["prefetch"])
         with self.assertRaises(ValueError):
             recommend.for_engine("tgi", 24.2)
+
+    def test_strata_maya_catalog_and_commands(self):
+        from colab_llm_hub import backends
+        by = catalog.by_id(catalog.load())
+        self.assertEqual(by["flash-next-strata-iq3-xxs"]["backend"], "strata")
+        self.assertEqual(by["glm-maya-s24"]["maya_model"], "glm-maya-s24")
+        cmd = backends.strata_command(by["flash-next-strata-q2"], "/tmp/missing", 32768, "strata", port=30050)
+        self.assertIn("launch", cmd)
+        self.assertIn("--no-tui", cmd)
+        self.assertIn("q2_0", cmd)
+        mcmd = backends.maya_command(by["glm-maya-s24"], "/tmp/missing", 32768, "/tmp/maya", port=30060)
+        self.assertEqual(mcmd[0], "bash")
+        self.assertIn("--model", mcmd)
+        self.assertIn("glm-maya-s24", mcmd)
 
 
 class Gpu(unittest.TestCase):

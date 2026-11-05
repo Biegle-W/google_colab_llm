@@ -80,9 +80,12 @@ class ModelStore:
     def local_path(self, entry): return self.local_root / entry["id"]
 
     def model_path(self, entry):
-        """What the engine is pointed at: a GGUF file for llama.cpp, a model directory for vLLM / Diffusers."""
+        """What the engine is pointed at: a GGUF file for llama.cpp, a model directory otherwise."""
         base = self.local_path(entry)
-        return base / entry["model_file"] if entry["backend"] == "llama" else base
+        if entry["backend"] == "llama":
+            return base / entry["model_file"]
+        # Strata / Maya / vLLM / SGLang / Diffusers all take a directory of shards.
+        return base
 
     def state(self, entry):
         return {"on_drive": is_complete(self.drive_path(entry)), "local": is_complete(self.local_path(entry)),
@@ -135,6 +138,15 @@ class ModelStore:
         lock = self._lock(entry)
         try:
             local, drive = self.local_path(entry), self.drive_path(entry)
+            # Strata/Maya DeepSeek packs often download through the engine itself (signed feeds /
+            # setup.sh), not a plain HF snapshot. Skip HF when flagged; the engine uses data-dir.
+            if entry.get("engine_download") and not is_complete(drive) and not is_complete(local):
+                local.mkdir(parents=True, exist_ok=True)
+                self._set(entry, "engine_managed")
+                self.touch(entry)
+                self.log(f"[store] {entry['id']}: files come from {entry['backend']} on first start "
+                         f"(engine_download); Drive path {drive}")
+                return self.model_path(entry)
             if is_complete(local):
                 self.touch(entry)
                 return self.model_path(entry)

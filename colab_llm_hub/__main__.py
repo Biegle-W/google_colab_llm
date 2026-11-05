@@ -19,10 +19,14 @@ def parse(argv=None):
     s.add_argument("--key-file", help="API key file (created if missing); default: <drive-dir>/hub/api_key")
     s.add_argument("--llama-bin", default="/content/llama.cpp/build/bin/llama-server")
     s.add_argument("--vllm-bin", default="vllm")
+    s.add_argument("--strata-bin", default="strata", help="Strata Terminal binary (from ensure_strata)")
+    s.add_argument("--strata-data", default=None, help="Strata --data-dir (default: <drive>/builds/strata_data)")
+    s.add_argument("--maya-root", default=None, help="Project Maya checkout (from ensure_maya)")
+    s.add_argument("--maya-models", default=None, help="Maya --models-dir (default: <drive>/builds/maya_models)")
     s.add_argument("--python", default=sys.executable, help="Python used to launch the Diffusers server")
     s.add_argument("--catalog", default=None)
-    s.add_argument("--engines", default="llama,vllm,sglang,diffusers",
-                   help="comma-separated engines that are installed (llama, vllm, sglang, diffusers)")
+    s.add_argument("--engines", default="llama,vllm,sglang,diffusers,strata,maya",
+                   help="comma-separated engines (llama,vllm,sglang,diffusers,strata,maya)")
     s.add_argument("--vram-gb", type=float, default=None, help="override the detected VRAM (testing)")
     s.add_argument("--ctx", action="append", default=[], metavar="MODEL=TOKENS",
                    help="override a model's context tokens (chat) or max edge px (image)")
@@ -49,7 +53,14 @@ def main(argv=None):
     key = keyfile.load_or_create(a.key_file or os.path.join(a.drive_dir, "hub", "api_key"))
     store = ModelStore(a.drive_dir, a.local_dir, token=os.environ.get(a.hf_token_env))
     overrides = dict(x.split("=", 1) for x in a.ctx)
-    bins = {"llama": a.llama_bin, "vllm": a.vllm_bin, "python": a.python}
+    builds = os.path.join(a.drive_dir, "builds")
+    bins = {
+        "llama": a.llama_bin, "vllm": a.vllm_bin, "python": a.python,
+        "strata": a.strata_bin,
+        "strata_data": a.strata_data or os.path.join(builds, "strata_data"),
+        "maya": a.maya_root or os.path.join(builds, "project-maya"),
+        "maya_models": a.maya_models or os.path.join(builds, "maya_models"),
+    }
     h = hub.Hub(entries, vram, store, bins, a.log_dir,
                 ctx_overrides={k: int(v) for k, v in overrides.items()}, gpu_name=name)
     server = hub.make_server(h, key, "127.0.0.1", a.port)

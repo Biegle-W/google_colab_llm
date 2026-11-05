@@ -219,3 +219,70 @@ def ensure_sglang(builds_dir, refresh=False, run=sh, log=print):
             log("Wheel cache incomplete; falling back to a direct pip install of sglang...")
             run(f"{pip} install -q -U 'sglang[all]'")
     return run(f"{pip} show sglang").split("Version:")[-1].split()[0]
+
+
+STRATA_INSTALL_SH = "https://github.com/Niko1221/Strata/releases/latest/download/install.sh"
+MAYA_REPO = "https://github.com/mw00/project-maya.git"
+
+
+def ensure_strata(builds_dir, refresh=False, run=sh, log=print):
+    """Install the Strata Terminal into Drive builds/ (official install.sh). Returns strata binary path."""
+    root = os.path.join(builds_dir, "strata_terminal")
+    marker = os.path.join(root, "COMPLETE")
+    os.makedirs(root, exist_ok=True)
+    # Prefer an already-cached binary under the Drive install tree.
+    cached = None
+    for cand in (os.path.join(root, "bin", "strata"),
+                 os.path.join(root, ".local", "bin", "strata"),
+                 os.path.join(root, "strata")):
+        if os.path.isfile(cand) and os.access(cand, os.X_OK):
+            cached = cand
+            break
+    if cached and not refresh and os.path.isfile(marker):
+        log("Restoring Strata Terminal from Drive:", cached)
+        return cached
+    log("Installing Strata Terminal (official install.sh) into Drive builds/...")
+    script = os.path.join(root, "install.sh")
+    run(f"curl -fsSL {STRATA_INSTALL_SH} -o {script}")
+    # Isolate install under our Drive tree so later Colab sessions can restore it.
+    env_prefix = (
+        f"HOME={root} XDG_DATA_HOME={root}/share XDG_CONFIG_HOME={root}/config "
+        f"XDG_BIN_HOME={root}/bin PATH={root}/bin:$PATH"
+    )
+    try:
+        run(f"{env_prefix} sh {script}")
+    except InstallError as e:
+        log("Strata install.sh reported an error; searching for a binary anyway:", str(e)[:300])
+    for cand in (os.path.join(root, "bin", "strata"),
+                 os.path.join(root, ".local", "bin", "strata"),
+                 shutil.which("strata") or ""):
+        if cand and os.path.isfile(cand) and os.access(cand, os.X_OK):
+            open(marker, "w").write(cand)
+            log("Strata binary:", cand)
+            return cand
+    raise InstallError(
+        "Strata Terminal install finished without a usable `strata` binary. "
+        "See logs/install.log and https://github.com/Niko1221/Strata/blob/main/docs/INSTALL.md"
+    )
+
+
+def ensure_maya(builds_dir, refresh=False, run=sh, log=print):
+    """Clone Project Maya into Drive builds/ (official git + ./setup.sh on first model load)."""
+    root = os.path.join(builds_dir, "project-maya")
+    marker = os.path.join(root, "COMPLETE")
+    setup = os.path.join(root, "setup.sh")
+    if os.path.isfile(setup) and os.path.isfile(marker) and not refresh:
+        log("Restoring Project Maya from Drive:", root)
+        return root
+    log("Cloning Project Maya (mw00/project-maya) onto Drive...")
+    parent = os.path.dirname(root)
+    os.makedirs(parent, exist_ok=True)
+    if os.path.isdir(root):
+        shutil.rmtree(root)
+    run(f"git clone --depth 1 {MAYA_REPO} {root}")
+    if not os.path.isfile(setup):
+        raise InstallError(f"Project Maya clone missing setup.sh under {root}")
+    run(f"chmod +x {setup}")
+    open(marker, "w").write(MAYA_REPO)
+    log("Project Maya ready at", root, "(first model load runs ./setup.sh)")
+    return root
