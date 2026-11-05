@@ -24,16 +24,19 @@ llama.cpp is from [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) (M
 Diffusers models keep their upstream licenses (Stability AI, Black Forest Labs, etc.); accept gated licenses on Hugging Face and set Colab secret `HF_TOKEN` when needed.
 
 ## Model and build storage
-Notebooks mount Google Drive and keep artifacts under `MyDrive/llm_models`:
+Notebooks mount Google Drive and keep **all durable state** under `MyDrive/llm_models` so later sessions restore instead of re-downloading:
 
 | Path | Contents |
 |---|---|
 | `models/<id>/` | Weights (GGUF, safetensors, Diffusers trees), marked complete only after a full copy |
-| `builds/` | Cached llama.cpp CUDA builds, vLLM wheels, Diffusers wheels |
-| `hub/api_key` | Stable Bearer token for the tunnel |
-| `hub/endpoint.json` | Last public base URL + model list |
+| `builds/` | llama.cpp CUDA tarballs; vLLM / SGLang / Diffusers / hub_deps wheels; cached `hub_pkg/`; `tools/cloudflared` |
+| `config/settings.json` | Prefetch list, engines, context overrides, tunnel/port |
+| `hf_cache/` | Hugging Face / Transformers / Diffusers cache (`HF_HOME`) |
+| `hub/api_key`, `hub/endpoint.json` | Stable Bearer token + last public URL |
+| `logs/` | `install.log`, `hub.log`, `cloudflared.log`, engine `hub_logs/` |
+| `outputs/images/`, `outputs/chat/`, `outputs/status/` | Generation results and status snapshots |
 
-A model is downloaded from Hugging Face once, saved to Drive, and copied to local disk in later sessions (engines load faster from local disk than through the Drive FUSE mount). The first run asks you to authorize Drive access.
+A model is downloaded from Hugging Face once, saved to Drive, and copied to local disk in later sessions (engines load faster from local disk than through the Drive FUSE mount). The first run asks you to authorize Drive access. Set `REFRESH_WHEELS` / `REBUILD_LLAMA` in Drive settings to force updates.
 
 ## Remote access
 `llm_hub_colab.ipynb`, `llama_cpp_*.ipynb`, `vllm_*.ipynb` can open a free Cloudflare tunnel to their OpenAI-compatible server, protected by a random (or Drive-persisted) API key printed in the notebook. Both also run DeepSeek Harness (dsh) as an agent front end behind a tokenized link where applicable. The URL lasts for one quick-tunnel session unless you configure a named tunnel.

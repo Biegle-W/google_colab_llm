@@ -16,9 +16,13 @@ so changes pushed here take effect the next time the notebook runs.
 your client ──HTTPS──> Cloudflare tunnel ──> hub (127.0.0.1:8000, Bearer key)
                                                ├─ llama.cpp   (:30080)  GGUF chat models
                                                ├─ vLLM        (:30010)  safetensors chat models
+                                               ├─ SGLang      (:30020)  chat models
                                                └─ Diffusers   (:30090)  text-to-image pipelines
-models:  Hugging Face ──once──> Colab local disk ──copy──> Google Drive (MyDrive/llm_models/models/<id>)
-later sessions:  Drive ──copy──> local disk ──> engine
+
+Drive root MyDrive/llm_models/
+  models/  builds/  config/  hf_cache/  hub/  logs/  outputs/
+Hugging Face ──once──> local disk ──copy──> Drive models/
+later sessions: Drive ──copy──> local ──> engine   (wheels/builds/hub_pkg/cloudflared restored too)
 ```
 
 | Piece | File |
@@ -29,6 +33,7 @@ later sessions:  Drive ──copy──> local disk ──> engine
 | Diffusers OpenAI images server (incl. Qwen-Image-2.1 / NF4) | `diffusers_server.py` |
 | Model list, what fits which GPU, context / max edge | `catalog.json`, `catalog.py` |
 | Per-GPU engine recommendations for the four targets | `recommend.py`, `ENGINE_MATRIX.md` |
+| Drive layout: settings, HF cache, logs, outputs, tool caches | `workspace.py` |
 | GPU detection (including Blackwell/CUDA handling) | `gpu.py` |
 | Engine builds and wheels cached on Drive | `install.py` |
 | Cloudflare quick or named tunnel | `tunnel.py` |

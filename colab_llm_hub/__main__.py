@@ -32,6 +32,14 @@ def parse(argv=None):
 
 def main(argv=None):
     a = parse(argv)
+    # Prefer Drive-backed logs / HF cache when the workspace module is available.
+    try:
+        from .workspace import open_workspace
+        ws = open_workspace(a.drive_dir, a.local_dir)
+        if a.log_dir == "/content/hub_logs":
+            a.log_dir = str(ws.engine_logs)
+    except Exception:
+        ws = None
     entries = catalog.for_engines(catalog.load(a.catalog), a.engines.split(","))
     if a.vram_gb is None:
         g = gpu.detect()[0]

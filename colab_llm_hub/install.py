@@ -1,10 +1,12 @@
 """Engine installs, cached on Google Drive so a new Colab session restores them instead of rebuilding.
 
-llama.cpp is compiled for the detected GPU architecture and saved as a tarball of build/bin. vLLM is a pip
-package: its wheels are saved in a wheelhouse on Drive and installed offline in later sessions.
+llama.cpp is compiled for the detected GPU architecture and saved as a tarball of build/bin. vLLM / SGLang /
+Diffusers wheels are saved in a wheelhouse on Drive and installed offline in later sessions. Install logs
+also go under the Drive workspace ``logs/`` when ``COLAB_LLM_DRIVE`` is set.
 """
 import glob
 import os
+import shutil
 import subprocess
 import sys
 
@@ -20,7 +22,17 @@ class InstallError(RuntimeError):
     pass
 
 
-def sh(cmd, log_path="/content/install.log"):
+def _install_log_path():
+    drive = os.environ.get("COLAB_LLM_DRIVE")
+    if drive:
+        path = os.path.join(drive, "logs", "install.log")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        return path
+    return "/content/install.log"
+
+
+def sh(cmd, log_path=None):
+    log_path = log_path or _install_log_path()
     r = subprocess.run(cmd, shell=True, capture_output=True, text=True)
     with open(log_path, "a") as f:
         f.write(f"$ {cmd}\n{r.stdout}{r.stderr}\n")
@@ -101,7 +113,8 @@ def ensure_vllm(builds_dir, refresh=False, run=sh, log=print):
 
 
 # Diffusers stack used for text-to-image. Torch is already present on Colab GPU images; we cache the rest.
-DIFFUSERS_PKGS = ("diffusers", "transformers", "accelerate", "safetensors", "sentencepiece", "protobuf", "Pillow")
+DIFFUSERS_PKGS = ("diffusers", "transformers", "accelerate", "safetensors", "sentencepiece",
+                  "protobuf", "Pillow", "bitsandbytes", "huggingface_hub", "hf_xet")
 
 
 def diffusers_wheelhouse(builds_dir):
@@ -109,7 +122,7 @@ def diffusers_wheelhouse(builds_dir):
 
 
 def ensure_diffusers(builds_dir, refresh=False, run=sh, log=print):
-    """Install Diffusers (+ transformers/accelerate) from wheels cached on Drive."""
+    """Install Diffusers (+ transformers/accelerate/bitsandbytes) from wheels cached on Drive."""
     wheels = diffusers_wheelhouse(builds_dir)
     pip = f"{sys.executable} -m pip"
     pkgs = " ".join(DIFFUSERS_PKGS)
@@ -126,12 +139,58 @@ def ensure_diffusers(builds_dir, refresh=False, run=sh, log=print):
         os.makedirs(wheels, exist_ok=True)
         run(f"{pip} wheel -q -w {wheels} {pkgs}")
         run(f"{pip} install -q --no-index --find-links {wheels} {pkgs}")
-    # Qwen-Image-2.1 and NF4 need a current Diffusers + bitsandbytes; prefer git if the wheel is too old.
-    try:
-        run(f"{pip} install -q -U 'transformers>=4.50' bitsandbytes")
-    except InstallError as e:
-        log("Optional transformers/bitsandbytes upgrade skipped:", str(e)[:200])
     return run(f"{pip} show diffusers").split("Version:")[-1].split()[0]
+
+
+def ensure_hub_deps(builds_dir, refresh=False, run=sh, log=print):
+    """Small always-on deps (huggingface_hub) from Drive wheels — used before model prefetch."""
+    wheels = os.path.join(builds_dir, f"hub_deps_py{sys.version_info.major}{sys.version_info.minor}")
+    pip = f"{sys.executable} -m pip"
+    pkgs = "huggingface_hub hf_xet"
+    cached = bool(glob.glob(f"{wheels}/*.whl")) and not refresh
+    if cached:
+        log("Installing hub deps from Drive wheels...")
+        try:
+            run(f"{pip} install -q --no-index --find-links {wheels} {pkgs}")
+            return
+        except InstallError as e:
+            log("Cached hub-deps install failed:", str(e)[:200])
+            cached = False
+    log("Caching huggingface_hub wheels on Drive...")
+    os.makedirs(wheels, exist_ok=True)
+    run(f"{pip} wheel -q -w {wheels} {pkgs}")
+    run(f"{pip} install -q --no-index --find-links {wheels} {pkgs}")
+
+
+def cache_hub_package(src_dir, builds_dir, ref="default", log=print):
+    """Copy ``colab_llm_hub`` from a fresh git checkout onto Drive for offline restore."""
+    src = os.path.join(src_dir, "colab_llm_hub")
+    if not os.path.isdir(src):
+        raise InstallError(f"no colab_llm_hub package under {src_dir}")
+    dest = os.path.join(builds_dir, "hub_pkg", (ref or "default").replace("/", "_")[:80], "colab_llm_hub")
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    if os.path.isdir(dest):
+        shutil.rmtree(dest)
+    shutil.copytree(src, dest, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".git"))
+    marker = os.path.join(os.path.dirname(dest), "COMPLETE")
+    open(marker, "w").write(ref or "default")
+    log("Cached hub package on Drive:", dest)
+    return dest
+
+
+def restore_hub_package(builds_dir, dest_parent, ref="default", log=print):
+    """Restore a Drive-cached hub package into dest_parent/colab_llm_hub. Returns True on hit."""
+    src = os.path.join(builds_dir, "hub_pkg", (ref or "default").replace("/", "_")[:80], "colab_llm_hub")
+    marker = os.path.join(os.path.dirname(src), "COMPLETE")
+    if not (os.path.isdir(src) and os.path.isfile(marker)):
+        return False
+    dest = os.path.join(dest_parent, "colab_llm_hub")
+    if os.path.isdir(dest):
+        shutil.rmtree(dest)
+    os.makedirs(dest_parent, exist_ok=True)
+    shutil.copytree(src, dest)
+    log("Restored hub package from Drive:", src)
+    return True
 
 
 def sglang_wheelhouse(builds_dir):

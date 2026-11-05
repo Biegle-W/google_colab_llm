@@ -239,6 +239,46 @@ class Store(unittest.TestCase):
         self.assertEqual((st["on_drive"], st["local"], st["phase"]), (True, True, "ready"))
 
 
+class WorkspaceDrive(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="ws-")
+        from colab_llm_hub.workspace import Workspace
+        self.ws = Workspace(self.tmp, os.path.join(self.tmp, "local")).ensure().apply_env()
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_layout_settings_and_outputs(self):
+        self.assertTrue(self.ws.models.is_dir())
+        self.assertTrue(self.ws.builds.is_dir())
+        self.assertEqual(os.environ.get("HF_HOME"), str(self.ws.hf_cache))
+        self.ws.save_settings({"prefetch": ["a"], "engines": ["llama"], "port": 9000})
+        loaded = self.ws.load_settings()
+        self.assertEqual(loaded["prefetch"], ["a"])
+        self.assertEqual(loaded["port"], 9000)
+        path = self.ws.save_chat("m", [{"role": "user", "content": "hi"}], "hello")
+        self.assertTrue(path.is_file())
+        self.assertTrue(str(path).startswith(str(self.ws.chat)))
+        img = self.ws.save_image_b64(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+            "sdxl", prompt="x")
+        self.assertTrue(img.is_file())
+        self.assertTrue(img.with_suffix(img.suffix + ".json").is_file())
+
+    def test_hub_package_cache_roundtrip(self):
+        from colab_llm_hub import install
+        src = tempfile.mkdtemp(prefix="hubsrc-")
+        pkg = os.path.join(src, "colab_llm_hub")
+        os.makedirs(pkg)
+        open(os.path.join(pkg, "x.py"), "w").write("v=1\n")
+        install.cache_hub_package(src, str(self.ws.builds), ref="branch/x", log=lambda *_: None)
+        dest = tempfile.mkdtemp(prefix="hubdst-")
+        self.assertTrue(install.restore_hub_package(str(self.ws.builds), dest, ref="branch/x", log=lambda *_: None))
+        self.assertTrue(os.path.isfile(os.path.join(dest, "colab_llm_hub", "x.py")))
+        shutil.rmtree(src, ignore_errors=True)
+        shutil.rmtree(dest, ignore_errors=True)
+
+
 class Misc(unittest.TestCase):
     def test_provider_yaml_matches_reference_shape(self):
         models = [{"id": "m1", "name": 'Model "One"', "context_length": 32768},
@@ -273,8 +313,21 @@ class Misc(unittest.TestCase):
             stdout.flush()
             self.assertEqual(args[:3], ["/cf", "tunnel", "--url"])
             return P()
-        proc, url = tunnel.start_quick(8000, "/cf", tmp, popen, wait=2, sleep=lambda s: None)
+        proc, url = tunnel.start_quick(8000, binary="/cf", log_path=tmp, popen=popen, wait=2, sleep=lambda s: None)
         self.assertEqual(url, "https://zz-top.trycloudflare.com")
+
+    def test_cloudflared_cached_on_drive(self):
+        root = tempfile.mkdtemp()
+        fetched = []
+
+        def fetch(url, path):
+            open(path, "wb").write(b"cf")
+            fetched.append(path)
+        p1 = tunnel.ensure_cloudflared(drive_dir=root, fetch=fetch)
+        p2 = tunnel.ensure_cloudflared(drive_dir=root, fetch=fetch)
+        self.assertEqual(p1, p2)
+        self.assertTrue(p1.endswith("builds/tools/cloudflared"))
+        self.assertEqual(len(fetched), 1)  # second call uses the Drive cache
 
     def test_llama_fetch_commands(self):
         pinned = install.llama_fetch_commands(install.LLAMA_PIN, "/s")
