@@ -12,9 +12,9 @@ import sys
 import time
 import urllib.request
 
-PORTS = {"llama": 30080, "vllm": 30010, "diffusers": 30090}
+PORTS = {"llama": 30080, "vllm": 30010, "sglang": 30020, "diffusers": 30090}
 READY_TIMEOUT = 1800
-CHAT_BACKENDS = ("llama", "vllm")
+CHAT_BACKENDS = ("llama", "vllm", "sglang")
 IMAGE_BACKENDS = ("diffusers",)
 opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
@@ -49,6 +49,25 @@ def vllm_command(entry, model_path, ctx, vllm_bin="vllm", port=None, gpu_util=0.
     return args + list(entry.get("extra_args", []))
 
 
+def sglang_command(entry, model_path, ctx, sglang_bin=None, port=None):
+    # `python -m sglang.launch_server` is the usual Colab install; allow an override binary.
+    if sglang_bin:
+        args = [str(sglang_bin)]
+    else:
+        args = [sys.executable, "-m", "sglang.launch_server"]
+    args += ["--model-path", str(model_path), "--served-model-name", entry["id"],
+             "--host", "127.0.0.1", "--port", str(port or PORTS["sglang"]),
+             "--context-length", str(ctx),
+             "--mem-fraction-static", str(entry.get("mem_fraction", 0.85))]
+    if entry.get("tool_parser"):
+        args += ["--tool-call-parser", entry["tool_parser"]]
+    if entry.get("reasoning_parser"):
+        args += ["--reasoning-parser", entry["reasoning_parser"]]
+    if not entry.get("thinking", False):
+        args += ["--chat-template-kwargs", json.dumps({"enable_thinking": False})]
+    return args + list(entry.get("extra_args", []))
+
+
 def diffusion_command(entry, model_path, max_edge, python=None, port=None):
     args = [python or sys.executable, "-m", "colab_llm_hub.diffusers_server",
             "--model-path", str(model_path), "--model-id", entry["id"],
@@ -57,6 +76,8 @@ def diffusion_command(entry, model_path, max_edge, python=None, port=None):
             "--dtype", entry.get("dtype", "float16"),
             "--steps", str(entry.get("default_steps", 28)),
             "--guidance", str(entry.get("default_guidance", 7.5))]
+    if entry.get("quantization"):
+        args += ["--quantization", entry["quantization"]]
     return args + list(entry.get("extra_args", []))
 
 
@@ -65,12 +86,14 @@ def command(entry, model_path, ctx, bins, port=None):
         return llama_command(entry, model_path, ctx, bins["llama"], port)
     if entry["backend"] == "diffusers":
         return diffusion_command(entry, model_path, ctx, bins.get("python"), port)
+    if entry["backend"] == "sglang":
+        return sglang_command(entry, model_path, ctx, bins.get("sglang"), port)
     return vllm_command(entry, model_path, ctx, bins.get("vllm", "vllm"), port)
 
 
 def env_for(entry):
     env = dict(os.environ)
-    if entry["backend"] == "vllm":
+    if entry["backend"] in ("vllm", "sglang"):
         env.setdefault("VLLM_ENGINE_READY_TIMEOUT_S", str(READY_TIMEOUT))
         env["HF_HUB_OFFLINE"] = "1"                      # serve the local copy; never re-download
     if entry["backend"] == "diffusers":

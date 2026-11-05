@@ -1,8 +1,11 @@
 # Colab LLM + diffusion hub
 
-One authenticated, OpenAI-compatible endpoint in front of llama.cpp, vLLM, and Diffusers on a Colab GPU
+One authenticated, OpenAI-compatible endpoint in front of llama.cpp, vLLM, SGLang, and Diffusers on a Colab GPU
 (Google AI Pro / Colab Pro L4, A100, or G4), so a harness on your own computer can use Colab's GPUs for
 **chat** and **text-to-image**. Model files live on Google Drive and are downloaded only once.
+
+Target models and per-GPU engine picks (including why Strata / Maya / HyperQwen-container stay off Colab)
+are documented in [`ENGINE_MATRIX.md`](ENGINE_MATRIX.md). `recommend.for_gpu(vram_gb)` drives the notebook defaults.
 
 Run it with [`llm_hub_colab.ipynb`](../llm_hub_colab.ipynb). The notebook only fetches this package and calls it,
 so changes pushed here take effect the next time the notebook runs.
@@ -22,9 +25,10 @@ later sessions:  Drive ──copy──> local disk ──> engine
 |---|---|
 | Hub server: auth, routing, loading, switching, keep-alives | `hub.py` |
 | Model files: download once, save to Drive, restore, evict | `store.py` |
-| llama.cpp / vLLM / Diffusers command lines and process control | `backends.py` |
-| Diffusers OpenAI images server | `diffusers_server.py` |
+| llama.cpp / vLLM / SGLang / Diffusers command lines and process control | `backends.py` |
+| Diffusers OpenAI images server (incl. Qwen-Image-2.1 / NF4) | `diffusers_server.py` |
 | Model list, what fits which GPU, context / max edge | `catalog.json`, `catalog.py` |
+| Per-GPU engine recommendations for the four targets | `recommend.py`, `ENGINE_MATRIX.md` |
 | GPU detection (including Blackwell/CUDA handling) | `gpu.py` |
 | Engine builds and wheels cached on Drive | `install.py` |
 | Cloudflare quick or named tunnel | `tunnel.py` |

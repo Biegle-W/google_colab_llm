@@ -126,4 +126,37 @@ def ensure_diffusers(builds_dir, refresh=False, run=sh, log=print):
         os.makedirs(wheels, exist_ok=True)
         run(f"{pip} wheel -q -w {wheels} {pkgs}")
         run(f"{pip} install -q --no-index --find-links {wheels} {pkgs}")
+    # Qwen-Image-2.1 and NF4 need a current Diffusers + bitsandbytes; prefer git if the wheel is too old.
+    try:
+        run(f"{pip} install -q -U 'transformers>=4.50' bitsandbytes")
+    except InstallError as e:
+        log("Optional transformers/bitsandbytes upgrade skipped:", str(e)[:200])
     return run(f"{pip} show diffusers").split("Version:")[-1].split()[0]
+
+
+def sglang_wheelhouse(builds_dir):
+    return os.path.join(builds_dir, f"sglang_gpu_py{sys.version_info.major}{sys.version_info.minor}")
+
+
+def ensure_sglang(builds_dir, refresh=False, run=sh, log=print):
+    """Install SGLang from wheels cached on Drive (chat serving; diffusion/H3 is separate)."""
+    wheels = sglang_wheelhouse(builds_dir)
+    pip = f"{sys.executable} -m pip"
+    cached = bool(glob.glob(f"{wheels}/*.whl")) and not refresh
+    if cached:
+        log("Installing SGLang from the wheels saved on Drive...")
+        try:
+            run(f"{pip} install -q --no-index --find-links {wheels} 'sglang[all]'")
+        except InstallError as e:
+            log("Cached SGLang install failed, rebuilding the wheel cache:", str(e)[:300])
+            cached = False
+    if not cached:
+        log("Downloading SGLang and its dependencies (several GB, one time)...")
+        os.makedirs(wheels, exist_ok=True)
+        try:
+            run(f"{pip} wheel -q -w {wheels} 'sglang[all]'")
+            run(f"{pip} install -q --no-index --find-links {wheels} 'sglang[all]'")
+        except InstallError:
+            log("Wheel cache incomplete; falling back to a direct pip install of sglang...")
+            run(f"{pip} install -q -U 'sglang[all]'")
+    return run(f"{pip} show sglang").split("Version:")[-1].split()[0]

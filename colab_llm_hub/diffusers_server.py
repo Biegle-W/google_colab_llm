@@ -13,10 +13,15 @@ import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
-def load_pipeline(model_path, pipeline_name, dtype_name, device="cuda"):
+def load_pipeline(model_path, pipeline_name, dtype_name, device="cuda", quantization=None):
     import torch
     from diffusers import AutoPipelineForText2Image, DiffusionPipeline
 
+    if pipeline_name in ("unsupported_use_comfy_or_sglang", "unsupported"):
+        raise RuntimeError(
+            "This catalog entry is stored on Drive for ComfyUI / SGLang diffusion; "
+            "the Diffusers OpenAI image server cannot start it. See ENGINE_MATRIX.md."
+        )
     dtype = {"float16": torch.float16, "bfloat16": torch.bfloat16, "float32": torch.float32}[dtype_name]
     loaders = {
         "AutoPipelineForText2Image": AutoPipelineForText2Image,
@@ -24,11 +29,34 @@ def load_pipeline(model_path, pipeline_name, dtype_name, device="cuda"):
     }
     cls = loaders.get(pipeline_name)
     if cls is None:
-        # Named class from diffusers (e.g. FluxPipeline, StableDiffusionXLPipeline).
+        # Named class from diffusers (e.g. QwenImage21Pipeline, FluxPipeline).
         import diffusers
         cls = getattr(diffusers, pipeline_name)
-    pipe = cls.from_pretrained(str(model_path), torch_dtype=dtype, local_files_only=True)
-    pipe = pipe.to(device)
+    kwargs = {"dtype": dtype, "local_files_only": True}
+    # Prefer torch_dtype for older Diffusers; newer QwenImage21 uses dtype=.
+    try:
+        if quantization == "nf4":
+            from diffusers.quantizers import PipelineQuantizationConfig
+            kwargs["quantization_config"] = PipelineQuantizationConfig(
+                quant_backend="bitsandbytes_4bit",
+                quant_kwargs={"load_in_4bit": True, "bnb_4bit_quant_type": "nf4",
+                              "bnb_4bit_compute_dtype": torch.float16},
+                components_to_quantize=["transformer", "text_encoder"],
+            )
+            kwargs["low_cpu_mem_usage"] = True
+            kwargs["device_map"] = "cuda"
+            pipe = cls.from_pretrained(str(model_path), **kwargs)
+        else:
+            try:
+                pipe = cls.from_pretrained(str(model_path), **kwargs)
+            except TypeError:
+                kwargs.pop("dtype", None)
+                pipe = cls.from_pretrained(str(model_path), torch_dtype=dtype, local_files_only=True)
+            pipe = pipe.to(device)
+    except Exception:
+        # Fall back to the classic torch_dtype path without quantization.
+        pipe = cls.from_pretrained(str(model_path), torch_dtype=dtype, local_files_only=True)
+        pipe = pipe.to(device)
     if hasattr(pipe, "enable_attention_slicing"):
         try:
             pipe.enable_attention_slicing()
@@ -159,11 +187,14 @@ def main(argv=None):
     p.add_argument("--dtype", default="float16", choices=("float16", "bfloat16", "float32"))
     p.add_argument("--steps", type=int, default=28)
     p.add_argument("--guidance", type=float, default=7.5)
+    p.add_argument("--quantization", default="", choices=("", "nf4"))
     p.add_argument("--device", default="cuda")
     a = p.parse_args(argv)
+    a.quantization = a.quantization or None
 
-    print(f"[diffusers] loading {a.model_id} from {a.model_path} ({a.pipeline}, {a.dtype})", flush=True)
-    pipe = load_pipeline(a.model_path, a.pipeline, a.dtype, device=a.device)
+    print(f"[diffusers] loading {a.model_id} from {a.model_path} "
+          f"({a.pipeline}, {a.dtype}, quant={a.quantization})", flush=True)
+    pipe = load_pipeline(a.model_path, a.pipeline, a.dtype, device=a.device, quantization=a.quantization)
     state = {"pipe": pipe, "model_id": a.model_id, "max_edge": a.max_edge,
              "default_steps": a.steps, "default_guidance": a.guidance}
     print(f"[diffusers] ready on 127.0.0.1:{a.port} (max edge {a.max_edge})", flush=True)

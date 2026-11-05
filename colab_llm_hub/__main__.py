@@ -21,8 +21,8 @@ def parse(argv=None):
     s.add_argument("--vllm-bin", default="vllm")
     s.add_argument("--python", default=sys.executable, help="Python used to launch the Diffusers server")
     s.add_argument("--catalog", default=None)
-    s.add_argument("--engines", default="llama,vllm,diffusers",
-                   help="comma-separated engines that are installed (llama, vllm, diffusers)")
+    s.add_argument("--engines", default="llama,vllm,sglang,diffusers",
+                   help="comma-separated engines that are installed (llama, vllm, sglang, diffusers)")
     s.add_argument("--vram-gb", type=float, default=None, help="override the detected VRAM (testing)")
     s.add_argument("--ctx", action="append", default=[], metavar="MODEL=TOKENS",
                    help="override a model's context tokens (chat) or max edge px (image)")

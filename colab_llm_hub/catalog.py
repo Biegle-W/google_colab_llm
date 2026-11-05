@@ -2,8 +2,8 @@
 import json
 from pathlib import Path
 
-BACKENDS = ("llama", "vllm", "diffusers")
-CHAT_BACKENDS = ("llama", "vllm")
+BACKENDS = ("llama", "vllm", "sglang", "diffusers")
+CHAT_BACKENDS = ("llama", "vllm", "sglang")
 IMAGE_BACKENDS = ("diffusers",)
 REQUIRED = ("id", "name", "backend", "repo", "files", "size_gb", "contexts")
 DEFAULT_PATH = Path(__file__).with_name("catalog.json")
@@ -14,7 +14,11 @@ class CatalogError(ValueError):
 
 
 def kind_for(entry):
-    return "image" if entry["backend"] in IMAGE_BACKENDS else "chat"
+    if entry.get("kind") in ("image", "video", "chat"):
+        return entry["kind"]
+    if entry["backend"] in IMAGE_BACKENDS:
+        return "image"
+    return "chat"
 
 
 def validate(entries):

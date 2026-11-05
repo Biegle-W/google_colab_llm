@@ -17,7 +17,10 @@ class Catalog(unittest.TestCase):
         for e in entries:
             self.assertTrue(e["files"], e["id"])
             self.assertGreater(e["size_gb"], 1, e["id"])
-            # The smallest context threshold must at least cover the weights.
+            # GPU-resident weights: min VRAM should cover size. Offload / experimental
+            # entries (Flash-Next n-gram CPU, MiniMax-H3, NF4) may download more than fits in VRAM.
+            if e.get("offload") or e.get("experimental"):
+                continue
             self.assertGreaterEqual(catalog.min_vram_gb(e), e["size_gb"], e["id"])
 
     def test_fit_and_context_by_gpu(self):
@@ -40,9 +43,10 @@ class Catalog(unittest.TestCase):
         entries = catalog.load()
         llama = catalog.for_engines(entries, ["llama"])
         self.assertTrue(llama and all(e["backend"] == "llama" for e in llama))
-        self.assertEqual(len(catalog.for_engines(entries, ["llama", "vllm", "diffusers"])), len(entries))
+        self.assertEqual(len(catalog.for_engines(entries, ["llama", "vllm", "sglang", "diffusers"])), len(entries))
         self.assertTrue(catalog.image_entries(entries))
         self.assertTrue(all(e["backend"] == "diffusers" for e in catalog.image_entries(entries)))
+        self.assertIn("qwen3.8-27b-w4a16-sglang", catalog.by_id(entries))
         self.assertEqual(catalog.for_engines(entries, []), [])
 
     def test_validation_rejects_bad_entries(self):
@@ -63,6 +67,19 @@ class Catalog(unittest.TestCase):
         self.assertEqual(catalog.context_for(e, 24.2), 1024)
         self.assertFalse(catalog.fits(by["flux-schnell"], 24.2))
         self.assertTrue(catalog.fits(by["flux-schnell"], 42.9))
+        self.assertEqual(catalog.kind_for(by["minimax-h3"]), "video")
+        self.assertTrue(catalog.fits(by["flash-next-q3"], 102.6))
+        self.assertFalse(catalog.fits(by["flash-next-q3"], 42.9))
+
+    def test_recommend_for_gpu_bands(self):
+        from colab_llm_hub import recommend
+        l4 = recommend.for_gpu(24.2)
+        self.assertEqual(l4["band"], "l4")
+        self.assertIn("vllm", l4["engines"])
+        self.assertTrue(any(x.startswith("qwen3.8-27b") for x in l4["prefetch"]))
+        g4 = recommend.for_gpu(102.6)
+        self.assertIn("flash-next-q3", g4["prefetch"])
+        self.assertIn("llama", g4["engines"])
 
 
 class Gpu(unittest.TestCase):
@@ -122,6 +139,15 @@ class Commands(unittest.TestCase):
         self.assertEqual((val("--pipeline"), val("--steps"), val("--guidance")),
                          ("FluxPipeline", "4", "0.0"))
         self.assertEqual(backends.kind_for(e), "image")
+
+    def test_sglang_command(self):
+        e = entry("s", backend="sglang", tool_parser="qwen3_coder", reasoning_parser="qwen3")
+        args = backends.sglang_command(e, "/models/s", 32768, port=30020)
+        self.assertEqual(args[1:3], ["-m", "sglang.launch_server"])
+        val = lambda flag: args[args.index(flag) + 1]
+        self.assertEqual((val("--model-path"), val("--served-model-name"), val("--context-length")),
+                         ("/models/s", "s", "32768"))
+        self.assertEqual(val("--tool-call-parser"), "qwen3_coder")
 
     def test_env(self):
         self.assertEqual(backends.env_for(entry("v", backend="vllm"))["HF_HUB_OFFLINE"], "1")

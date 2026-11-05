@@ -147,6 +147,9 @@ class Hub:
 
     def _load(self, model_id):
         entry = self.entries[model_id]
+        if entry.get("pipeline") in ("unsupported_use_comfy_or_sglang", "unsupported"):
+            raise HubError(501, f"{model_id} is stored for ComfyUI / SGLang diffusion only; "
+                                "see colab_llm_hub/ENGINE_MATRIX.md.", "unsupported_backend")
         # 1. Get the files while the current model keeps serving.
         self._set_phase("getting model files")
         protect = [self.entries[self.active]] if self.active in self.entries else []
