@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from .recommend import ENGINE_META, ENGINES
+from .recommend import ENGINE_META, ENGINES, INDEX_NOTEBOOK
 
 REPO = "https://github.com/Biegle-W/google_colab_llm"
 BRANCH = "main"
@@ -42,9 +42,9 @@ def _badge(notebook):
 
 
 SIBLING_NOTEBOOKS = (
-    "`llama_hub_colab.ipynb`, `vllm_hub_colab.ipynb`, `sglang_hub_colab.ipynb`, "
-    "`diffusers_hub_colab.ipynb`, `strata_hub_colab.ipynb`, `maya_hub_colab.ipynb`, "
-    "`tensorfold_hub_colab.ipynb`, `comfyui_hub_colab.ipynb`, `sparsa_hub_colab.ipynb`"
+    "`notebooks/llama/`, `notebooks/vllm/`, `notebooks/sglang/`, `notebooks/diffusers/`, "
+    "`notebooks/strata/`, `notebooks/maya/`, `notebooks/tensorfold/`, `notebooks/comfyui/`, "
+    "`notebooks/sparsa/` — see `notebooks/llm_hub_colab.ipynb`"
 )
 
 
@@ -597,21 +597,24 @@ def build_index() -> dict:
     ]
     for eng in ENGINES:
         m = ENGINE_META[eng]
-        rows.append(f"| `{m['notebook']}` | **{m['title']}** | {m['summary']} |")
+        # Index lives at notebooks/llm_hub_colab.ipynb → link relative to that folder.
+        rel = m["notebook"][len("notebooks/"):] if m["notebook"].startswith("notebooks/") else m["notebook"]
+        rows.append(f"| [`{m['notebook']}`]({rel}) | **{m['title']}** | {m['summary']} |")
     cells = [
         _md([
-            _badge("llm_hub_colab.ipynb"),
+            _badge(INDEX_NOTEBOOK),
             "",
             "# Colab inference hubs (one notebook per engine)",
             "",
-            "Pick the engine you want. Each notebook installs **only that engine**, lists **only "
-            "its supported models**, and saves settings under `config/settings_<engine>.json`. "
-            "Weights and builds still share `MyDrive/llm_models/`.",
+            "Notebooks are grouped under `notebooks/<engine>/`. Each hub installs **only that "
+            "engine**, lists **only its supported models**, and saves settings under "
+            "`config/settings_<engine>.json`. Weights and builds still share `MyDrive/llm_models/`.",
             "",
             *rows,
             "",
-            "Also see the older single-model notebooks (`llama_cpp_gpu.ipynb`, `vllm_gpu.ipynb`, …) "
-            "and `colab_llm_hub/ENGINE_MATRIX.md`.",
+            "Older single-model notebooks live in the same engine folders "
+            "(`notebooks/llama/llama_cpp_*.ipynb`, `notebooks/vllm/vllm_*.ipynb`, …). "
+            "See also `colab_llm_hub/ENGINE_MATRIX.md`.",
             "",
             "Runtime → Change runtime type → **L4, A100 or G4**.",
         ]),
@@ -633,9 +636,11 @@ def write_all(root: Path | None = None):
     written = []
     for eng in ENGINES:
         path = root / ENGINE_META[eng]["notebook"]
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(build_notebook(eng), indent=1) + "\n")
         written.append(path)
-    index = root / "llm_hub_colab.ipynb"
+    index = root / INDEX_NOTEBOOK
+    index.parent.mkdir(parents=True, exist_ok=True)
     index.write_text(json.dumps(build_index(), indent=1) + "\n")
     written.append(index)
     return written

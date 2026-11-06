@@ -192,62 +192,64 @@ _ENGINE_NOTES = {
     },
 }
 
+# Hub notebooks live under notebooks/<engine>/…
 ENGINE_META = {
     "llama": {
         "title": "llama.cpp",
-        "notebook": "llama_hub_colab.ipynb",
+        "notebook": "notebooks/llama/llama_hub_colab.ipynb",
         "kind": "chat",
         "summary": "GGUF: Qwen3.8-27B, Bolt IQ2, Sage, Ornith, Flash-Next / GLM / DeepSeek fallbacks",
     },
     "vllm": {
         "title": "vLLM",
-        "notebook": "vllm_hub_colab.ipynb",
+        "notebook": "notebooks/vllm/vllm_hub_colab.ipynb",
         "kind": "chat",
         "summary": "Safetensors chat: Qwen3.8-27B W4A16/FP8/BF16, Sage, Bolt W4A16, …",
     },
     "sglang": {
         "title": "SGLang",
-        "notebook": "sglang_hub_colab.ipynb",
+        "notebook": "notebooks/sglang/sglang_hub_colab.ipynb",
         "kind": "chat",
         "summary": "SGLang chat: Qwen3.8-27B W4A16 AutoRound",
     },
     "diffusers": {
         "title": "Diffusers",
-        "notebook": "diffusers_hub_colab.ipynb",
+        "notebook": "notebooks/diffusers/diffusers_hub_colab.ipynb",
         "kind": "image",
         "summary": "Text-to-image: Qwen-Image-2.1, FLUX, SDXL (+ MiniMax-H3 prefetch)",
     },
     "strata": {
         "title": "Strata",
-        "notebook": "strata_hub_colab.ipynb",
+        "notebook": "notebooks/strata/strata_hub_colab.ipynb",
         "kind": "chat",
         "summary": "Flash-Next (ISTA/Gyro/Swift) + Qwen3.6 + DeepSeek (strata-dsv41)",
     },
     "maya": {
         "title": "Maya",
-        "notebook": "maya_hub_colab.ipynb",
+        "notebook": "notebooks/maya/maya_hub_colab.ipynb",
         "kind": "chat",
         "summary": "GLM-5.3-Flash (Maya-S24/S/XS) + DeepSeek-V4.1-Flash-1017 (maya-ds4)",
     },
     "tensorfold": {
         "title": "TensorFold",
-        "notebook": "tensorfold_hub_colab.ipynb",
+        "notebook": "notebooks/tensorfold/tensorfold_hub_colab.ipynb",
         "kind": "chat",
         "summary": "Qwen3.8-27B Mia EXL3 2.0bpw + DFlash2 (workstation qwen27b-tensorfold)",
     },
     "comfyui": {
         "title": "ComfyUI",
-        "notebook": "comfyui_hub_colab.ipynb",
+        "notebook": "notebooks/comfyui/comfyui_hub_colab.ipynb",
         "kind": "image",
         "summary": "Qwen-Image-2.1 Turbo, FLUX.3 Klein, Wan 2.2 / MiniMax-H3 video prefetch",
     },
     "sparsa": {
         "title": "Sparsa",
-        "notebook": "sparsa_hub_colab.ipynb",
+        "notebook": "notebooks/sparsa/sparsa_hub_colab.ipynb",
         "kind": "chat",
         "summary": "MiniMax-M3.1-Flash (IQ2_XS-D3 / IQ2_KT) via Sparsa strata-minimax",
     },
 }
+INDEX_NOTEBOOK = "notebooks/llm_hub_colab.ipynb"
 
 
 def band(vram_gb):

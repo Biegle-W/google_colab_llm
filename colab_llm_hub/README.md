@@ -4,23 +4,24 @@ One authenticated, OpenAI-compatible endpoint in front of **one** inference engi
 (Google AI Pro / Colab Pro L4, A100, or G4), so a harness on your own computer can use Colab's GPUs for
 **chat** or **text-to-image**. Model files live on Google Drive and are downloaded only once.
 
-**One notebook per engine** (each installs only that engine and advertises only its catalog models):
+**One notebook per engine** under [`notebooks/<engine>/`](../notebooks/) (each installs only that
+engine and advertises only its catalog models):
 
 | Notebook | Engine |
 |---|---|
-| [`strata_hub_colab.ipynb`](../strata_hub_colab.ipynb) | **Strata** (Flash-Next ISTA/Gyro/Swift, Qwen3.6, DeepSeek) |
-| [`maya_hub_colab.ipynb`](../maya_hub_colab.ipynb) | **Maya** (GLM-5.3-Flash, DeepSeek) |
-| [`tensorfold_hub_colab.ipynb`](../tensorfold_hub_colab.ipynb) | **TensorFold** (Qwen3.8-27B EXL3 + DFlash2) |
-| [`sparsa_hub_colab.ipynb`](../sparsa_hub_colab.ipynb) | **Sparsa** (MiniMax-M3.1-Flash) |
-| [`comfyui_hub_colab.ipynb`](../comfyui_hub_colab.ipynb) | **ComfyUI** (Qwen-Image Turbo, FLUX.3 Klein, video prefetch) |
-| [`llama_hub_colab.ipynb`](../llama_hub_colab.ipynb) | llama.cpp (Bolt IQ2, Sage, Ornith, MoE fallbacks) |
-| [`vllm_hub_colab.ipynb`](../vllm_hub_colab.ipynb) | vLLM |
-| [`sglang_hub_colab.ipynb`](../sglang_hub_colab.ipynb) | SGLang |
-| [`diffusers_hub_colab.ipynb`](../diffusers_hub_colab.ipynb) | Diffusers |
+| [`notebooks/strata/`](../notebooks/strata/) | **Strata** (Flash-Next ISTA/Gyro/Swift, Qwen3.6, DeepSeek) |
+| [`notebooks/maya/`](../notebooks/maya/) | **Maya** (GLM-5.3-Flash, DeepSeek) |
+| [`notebooks/tensorfold/`](../notebooks/tensorfold/) | **TensorFold** (Qwen3.8-27B EXL3 + DFlash2) |
+| [`notebooks/sparsa/`](../notebooks/sparsa/) | **Sparsa** (MiniMax-M3.1-Flash) |
+| [`notebooks/comfyui/`](../notebooks/comfyui/) | **ComfyUI** (Qwen-Image Turbo, FLUX.3 Klein, video prefetch) |
+| [`notebooks/llama/`](../notebooks/llama/) | llama.cpp (Bolt IQ2, Sage, Ornith, MoE fallbacks) |
+| [`notebooks/vllm/`](../notebooks/vllm/) | vLLM |
+| [`notebooks/sglang/`](../notebooks/sglang/) | SGLang |
+| [`notebooks/diffusers/`](../notebooks/diffusers/) | Diffusers |
 
-[`llm_hub_colab.ipynb`](../llm_hub_colab.ipynb) is an index. Target models and per-GPU picks are in
-[`ENGINE_MATRIX.md`](ENGINE_MATRIX.md). Defaults come from `recommend.for_engine(engine, vram_gb)`.
-Regenerate notebooks with `python3 -m colab_llm_hub.make_engine_notebooks`.
+[`notebooks/llm_hub_colab.ipynb`](../notebooks/llm_hub_colab.ipynb) is an index. Target models and
+per-GPU picks are in [`ENGINE_MATRIX.md`](ENGINE_MATRIX.md). Defaults come from
+`recommend.for_engine(engine, vram_gb)`. Regenerate with `python3 -m colab_llm_hub.make_engine_notebooks`.
 
 ## How it works
 
