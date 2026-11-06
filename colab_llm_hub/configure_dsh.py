@@ -1,6 +1,6 @@
 """Run on your own computer: add the Colab hub to dsh's settings.
 
-    python -m colab_llm_hub.configure_dsh --url https://xxxx.trycloudflare.com --key <api key> \
+    python -m colab_llm_hub.configure_dsh --url https://colab-llama.your-tailnet.ts.net --key <api key> \
         --settings path/to/settings.yaml [--default qwen3.8-27b-q4]
 
 It asks the hub which models it serves (so context sizes match the Colab GPU) and merges one provider into the

@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from . import catalog
 from .recommend import ENGINE_META, ENGINES, INDEX_NOTEBOOK
 
 REPO = "https://github.com/Biegle-W/google_colab_llm"
@@ -138,6 +139,11 @@ def _model_table(engine):
     ]
 
 
+def _model_choices(engine):
+    """Dropdown options for the model picker: "recommended" first, then this engine's catalog ids."""
+    return ["recommended"] + [e["id"] for e in catalog.for_engines(catalog.load(), [engine])]
+
+
 def build_notebook(engine: str) -> dict:
     meta = ENGINE_META[engine]
     notebook = meta["notebook"]
@@ -248,13 +254,14 @@ def build_notebook(engine: str) -> dict:
             "    mark = \" *\" if e[\"id\"] in PLAN[\"prefetch\"] else \"\"",
             "    print(f\"{e['id']:36s} {kind:5s} {e['size_gb']:6.1f}G  {ctx:>14s}{mark}\" + "
             "(\"\" if fit else \"   (does not fit)\"))",
-            "print(\"\\n* = recommended prefetch for this GPU + engine\")",
+            "print(\"\\n* = recommended for this GPU + engine. Pick ONE model in the next cell.\")",
         ]),
         _md([
             f"## 3. Config (saved on Drive under `config/settings_{engine}.json`)",
             "",
-            "Defaults come from the engine recommender, then from any settings already on Drive. "
-            "Edit and re-run to persist.",
+            "**Pick one model** in the `MODEL` dropdown: it is the only model this session downloads and "
+            "serves. `recommended` uses the first recommended model that fits this GPU. Other settings "
+            "come from Drive; edit and re-run to persist.",
         ]),
         _code([
             "from colab_llm_hub import catalog, gpu, recommend",
@@ -268,30 +275,33 @@ def build_notebook(engine: str) -> dict:
             "PLAN = recommend.for_engine(ENGINE, VRAM, ALL)",
             "saved = WS.load_settings()",
             "",
-            "PREFETCH = saved.get(\"prefetch\") or PLAN[\"prefetch\"]",
+            "# The ONE model this session downloads to Drive and serves. Nothing else is fetched.",
+            f"MODEL = \"recommended\"  # @param {json.dumps(_model_choices(engine))}",
+            "SERVE_ONLY_SELECTED = True  # @param {type:\"boolean\"}",
+            "fitting = [e[\"id\"] for e in ENTRIES if catalog.fits(e, VRAM)]",
+            "if MODEL == \"recommended\":",
+            "    MODEL = (PLAN[\"prefetch\"] or fitting or [None])[0]",
+            "    print(\"Recommended model for this GPU:\", MODEL)",
+            "assert MODEL, f\"No {ENGINE} model fits this GPU ({VRAM} GB); try a larger runtime.\"",
+            "assert MODEL in {e[\"id\"] for e in ENTRIES}, f\"{MODEL} is not a {ENGINE} model\"",
+            "assert MODEL in fitting, (f\"{MODEL} needs {catalog.min_vram_gb(catalog.by_id(ENTRIES)[MODEL])} GB \"",
+            "                         f\"of VRAM; this GPU has {VRAM} GB\")",
+            "PREFETCH = [MODEL]",
             "ENGINES = [ENGINE]  # never install other engines from this notebook",
             "CTX_OVERRIDE = saved.get(\"ctx_override\") or {}",
             "LLAMA_CPP_REF = saved.get(\"llama_cpp_ref\") or \"4c3c5810f87efe177949f1b85ae509d38a2a311f\"",
             "REBUILD_LLAMA = bool(saved.get(\"rebuild_llama\", False))",
             "REFRESH_WHEELS = bool(saved.get(\"refresh_wheels\", False))",
-            "# Default: Tailscale. Auth key is stored on private Drive (hub/tailscale_authkey), never in git.",
-            "# Alternatives: set TUNNEL to \"quick\" or \"named\" and keep_cloudflare_quick=True for Cloudflare.",
-            "TUNNEL = saved.get(\"tunnel\") or \"tailscale\"",
-            "if TUNNEL == \"quick\" and not saved.get(\"keep_cloudflare_quick\"):",
-            "    TUNNEL = \"tailscale\"  # migrate older Drive defaults to Tailscale",
+            "# Connection: Tailscale only. The auth key is stored on private Drive (hub/tailscale_authkey), never in git.",
+            "TUNNEL = \"tailscale\"",
             "PORT = int(saved.get(\"port\") or 8000)",
             "TS_HOSTNAME = saved.get(\"ts_hostname\") or f\"colab-{ENGINE}\"",
             "TS_FUNNEL = bool(saved.get(\"ts_funnel\", False))  # False = tailnet-only Serve",
             "REFRESH_TS_KEY = bool(saved.get(\"refresh_tailscale_key\", False))",
             "",
-            "if not PREFETCH:",
-            "    # Fall back to the smallest model that fits so the notebook is still runnable.",
-            "    fit_ids = [e[\"id\"] for e in ENTRIES if catalog.fits(e, VRAM)]",
-            "    PREFETCH = fit_ids[:1]",
-            "    print(\"No band default; using\", PREFETCH)",
-            "",
             "WS.save_settings({",
-            "    \"engine\": ENGINE, \"prefetch\": PREFETCH, \"engines\": ENGINES,",
+            "    \"engine\": ENGINE, \"model\": MODEL, \"serve_only_selected\": SERVE_ONLY_SELECTED,",
+            "    \"engines\": ENGINES,",
             "    \"ctx_override\": CTX_OVERRIDE, \"llama_cpp_ref\": LLAMA_CPP_REF,",
             "    \"rebuild_llama\": REBUILD_LLAMA, \"refresh_wheels\": REFRESH_WHEELS,",
             "    \"tunnel\": TUNNEL, \"port\": PORT, \"hub_ref\": HUB_REF,",
@@ -302,15 +312,10 @@ def build_notebook(engine: str) -> dict:
             "    \"ram_gb\": RAM[\"total_gb\"], \"ram_available_gb\": RAM[\"available_gb\"],",
             "})",
             "print(\"Saved settings →\", WS.settings_path)",
-            "print(\"PREFETCH =\", PREFETCH)",
+            "print(\"MODEL    =\", MODEL, \"(the only model downloaded and served)\" if SERVE_ONLY_SELECTED else \"(prefetched; others load on request)\")",
             "print(\"ENGINE   =\", ENGINE)",
             "print(\"TUNNEL   =\", TUNNEL)",
             "print(\"Tailscale key file (private Drive, not git):\", WS.hub / \"tailscale_authkey\")",
-            "unknown = [m for m in PREFETCH if m not in {e[\"id\"] for e in ENTRIES}]",
-            "assert not unknown, f\"unknown or wrong-engine model ids: {unknown}\"",
-            "not_fit = [m for m in PREFETCH if not catalog.fits(catalog.by_id(ENTRIES)[m], VRAM)]",
-            "assert not not_fit, f\"these do not fit this GPU: {not_fit}\"",
-            "assert all(catalog.by_id(ENTRIES)[m][\"backend\"] == ENGINE for m in PREFETCH)",
         ]),
         _md([f"## 4. Install {title} (built or downloaded once, then restored from Drive)"]),
         _code([
@@ -393,14 +398,16 @@ def build_notebook(engine: str) -> dict:
             "",
             "Create a **reusable + ephemeral** key at "
             "[Tailscale Keys](https://login.tailscale.com/admin/settings/keys). "
-            "Set `REFRESH_TS_KEY = True` (or `refresh_tailscale_key` in settings) to overwrite the Drive copy. "
-            "Cloudflare: set `TUNNEL=\"quick\"` / `\"named\"` with `keep_cloudflare_quick=True`.",
+            "Set `REFRESH_TS_KEY = True` (or `refresh_tailscale_key` in settings) to overwrite the Drive copy.",
+            "",
+            "Your harness runs on **your own machine**, not here: join that machine to the same tailnet and "
+            "point the harness at the Base URL this cell prints.",
         ]),
         _code([
             "import json, requests, time",
             "from colab_llm_hub import keyfile, tunnel, provider",
             "",
-            "subprocess.run(\"pkill -TERM -f '[c]olab_llm_hub serve'; pkill -f '[c]loudflared'; "
+            "subprocess.run(\"pkill -TERM -f '[c]olab_llm_hub serve'; "
             "pkill -TERM -f '[t]ailscaled.*colab-llm-tailscale'\", shell=True)",
             "time.sleep(3)",
             "",
@@ -413,6 +420,8 @@ def build_notebook(engine: str) -> dict:
             "        \"--tensorfold-bin\", TENSORFOLD_BIN, \"--comfyui-root\", COMFYUI_ROOT,",
             "        \"--sparsa-root\", SPARSA_ROOT,",
             "        \"--engines\", ENGINE]",
+            "if SERVE_ONLY_SELECTED:",
+            "    args += [\"--models\", MODEL]   # the harness cannot trigger downloads of other models",
             "for k, v in CTX_OVERRIDE.items():",
             "    args += [\"--ctx\", f\"{k}={v}\"]",
             "hub_proc = subprocess.Popen(args, cwd=HUB_DIR, env=dict(os.environ, PYTHONPATH=HUB_DIR, COLAB_LLM_DRIVE=DRIVE_DIR),",
@@ -431,22 +440,12 @@ def build_notebook(engine: str) -> dict:
             "else:",
             "    raise RuntimeError(\"The hub did not start:\\n\" + open(HUB_LOG).read()[-3000:])",
             "",
-            "if TUNNEL == \"tailscale\":",
-            "    # Load from private Drive, or prompt once and save there (never committed to git).",
-            "    TS_KEY_PATH = str(WS.hub / \"tailscale_authkey\")",
-            "    TS_AUTHKEY = tunnel.load_or_ask_tailscale_authkey(",
-            "        TS_KEY_PATH, refresh=REFRESH_TS_KEY)",
-            "    tunnel_proc, BASE = tunnel.start_tailscale(",
-            "        PORT, TS_AUTHKEY, hostname=TS_HOSTNAME, drive_dir=DRIVE_DIR, funnel=TS_FUNNEL)",
-            "    del TS_AUTHKEY  # drop from notebook namespace; Drive file remains private",
-            "elif TUNNEL == \"named\":",
-            "    from google.colab import userdata",
-            "    tunnel.ensure_cloudflared(drive_dir=DRIVE_DIR)",
-            "    tunnel_proc = tunnel.start_named(userdata.get(\"CLOUDFLARE_TUNNEL_TOKEN\"), drive_dir=DRIVE_DIR)",
-            "    BASE = \"https://\" + userdata.get(\"CLOUDFLARE_HOSTNAME\").removeprefix(\"https://\").strip(\"/\")",
-            "else:",
-            "    tunnel.ensure_cloudflared(drive_dir=DRIVE_DIR)",
-            "    tunnel_proc, BASE = tunnel.start_quick(PORT, drive_dir=DRIVE_DIR)",
+            "# Load the auth key from private Drive, or prompt once and save it there (never committed to git).",
+            "TS_KEY_PATH = str(WS.hub / \"tailscale_authkey\")",
+            "TS_AUTHKEY = tunnel.load_or_ask_tailscale_authkey(TS_KEY_PATH, refresh=REFRESH_TS_KEY)",
+            "tunnel_proc, BASE = tunnel.start_tailscale(",
+            "    PORT, TS_AUTHKEY, hostname=TS_HOSTNAME, drive_dir=DRIVE_DIR, funnel=TS_FUNNEL)",
+            "del TS_AUTHKEY  # drop from notebook namespace; Drive file remains private",
             "",
             "MODELS = requests.get(f\"http://127.0.0.1:{PORT}/v1/models\", headers=AUTH).json()[\"data\"]",
             "WS.save_endpoint(BASE + \"/v1\", API_KEY, G[\"name\"], [m[\"id\"] for m in MODELS])",
@@ -457,12 +456,12 @@ def build_notebook(engine: str) -> dict:
             "print(\"API key  :\", API_KEY)",
             "print(f\"Models   : {', '.join(m['id'] for m in MODELS)}\")",
             "print(\"Endpoint →\", WS.hub / \"endpoint.json\")",
-            "if TUNNEL == \"tailscale\" and not TS_FUNNEL:",
-            "    print(\"Reach this URL from any device on your Tailscale tailnet.\")",
+            "if not TS_FUNNEL:",
+            "    print(\"Reach this URL from any device on your Tailscale tailnet (e.g. the machine your harness runs on).\")",
             "print()",
             "print(\"Any OpenAI-compatible client:\")",
             "print(provider.openai_env(BASE, API_KEY))",
-            "print(\"dsh: on your computer, in a clone of this repo:\")",
+            "print(\"dsh (runs on YOUR machine, not in this notebook): in a clone of this repo there, run\")",
             "print(f\"  python -m colab_llm_hub.configure_dsh --url {BASE} --key {API_KEY} "
             "--settings <path to dsh settings.yaml>\")",
             "print(f\"  export COLAB_LLM_API_KEY={API_KEY}\\n\")",
@@ -485,7 +484,7 @@ def build_notebook(engine: str) -> dict:
                 "by = catalog.by_id(ENTRIES)",
                 "image_models = [m for m in MODELS if m[\"id\"] in by and catalog.kind_for(by[m[\"id\"]]) == \"image\"]",
                 "if not image_models:",
-                "    raise RuntimeError(\"No image models visible for this GPU; lower size or pick another Diffusers id in PREFETCH.\")",
+                "    raise RuntimeError(\"No image models visible for this GPU; pick another model in the MODEL dropdown (cell 3).\")",
                 "",
                 "IMG = next((m for m in PREFETCH if m in {x[\"id\"] for x in image_models}), image_models[0][\"id\"])",
                 "prompt = \"a watercolor fox under pine trees, soft light\"",
@@ -563,7 +562,7 @@ def build_notebook(engine: str) -> dict:
             "",
             *_model_table(engine),
             "",
-            "### Remote access (Tailscale by default)",
+            "### Connecting your harness (Tailscale)",
             "",
             "1. Create a **reusable + ephemeral** auth key: "
             "https://login.tailscale.com/admin/settings/keys",
@@ -571,16 +570,17 @@ def build_notebook(engine: str) -> dict:
             "`MyDrive/llm_models/hub/tailscale_authkey` (not GitHub).",
             "3. Later Colab sessions reuse that Drive file automatically.",
             "4. Optional Colab secret `TAILSCALE_AUTHKEY` if you press Enter on an empty prompt.",
-            "5. Connect from your PC (same tailnet) to the printed `https://….ts.net/v1` URL.",
-            "6. Cloudflare fallbacks: `TUNNEL=\"quick\"` / `\"named\"` with `keep_cloudflare_quick=True`.",
+            "5. Join the machine your harness runs on to the same tailnet and point the harness at the "
+            "printed `https://….ts.net/v1` URL with the API key. The harness (dsh or any OpenAI client) "
+            "runs there, never in this notebook.",
             "",
             "### Drive layout",
             "",
             "| Path under `MyDrive/llm_models` | Contents |",
             "|---|---|",
             "| `models/<id>/` | Weights shared across engine notebooks |",
-            "| `builds/` | llama.cpp tarballs, wheels, hub_pkg, cloudflared, Tailscale |",
-            f"| `config/settings_{engine}.json` | Prefetch / ctx / tunnel for **this** engine (no secrets) |",
+            "| `builds/` | llama.cpp tarballs, wheels, hub_pkg, Tailscale |",
+            f"| `config/settings_{engine}.json` | Selected model / ctx / Tailscale for **this** engine (no secrets) |",
             "| `hub/api_key` | Hub Bearer token (private Drive only) |",
             "| `hub/tailscale_authkey` | Tailscale auth key (private Drive only; never in git) |",
             "| `hub/endpoint.json` | Last base URL + key hint |",
@@ -588,7 +588,7 @@ def build_notebook(engine: str) -> dict:
             "",
             "- See `colab_llm_hub/ENGINE_MATRIX.md` for workstation (Maya / Strata / HyperQwen) notes.",
             "- Set `REFRESH_WHEELS` / `REBUILD_LLAMA` / `refresh_tailscale_key` in settings to force updates.",
-            "- **Security:** Tailscale Serve is tailnet-only. Cloudflare quick tunnels are public; "
+            "- **Security:** Tailscale Serve is reachable only from your tailnet (`ts_funnel` makes it public); "
             "the hub API key still protects GPU use. Never commit `hub/api_key` or `hub/tailscale_authkey`.",
         ]),
     ]

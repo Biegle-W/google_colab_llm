@@ -26,7 +26,7 @@ per-GPU picks are in [`ENGINE_MATRIX.md`](ENGINE_MATRIX.md). Defaults come from
 ## How it works
 
 ```
-your client ──HTTPS──> Tailscale Serve (default) or Cloudflare ──> hub (127.0.0.1:8000, Bearer key)
+your machine (harness) ──HTTPS over your tailnet──> Tailscale Serve ──> hub (127.0.0.1:8000, Bearer key)
                                                ├─ llama.cpp   (:30080)  GGUF chat models
                                                ├─ vLLM        (:30010)  safetensors chat models
                                                ├─ SGLang      (:30020)  chat models
@@ -40,7 +40,7 @@ your client ──HTTPS──> Tailscale Serve (default) or Cloudflare ──> h
 Drive root MyDrive/llm_models/
   models/  builds/  config/  hf_cache/  hub/  logs/  outputs/
 Hugging Face ──once──> local disk ──copy──> Drive models/
-later sessions: Drive ──copy──> local ──> engine   (wheels/builds/cloudflared restored too;
+later sessions: Drive ──copy──> local ──> engine   (wheels/builds/Tailscale restored too;
                 hub code is fetched from GitHub each run, hub_pkg/ on Drive is only the offline fallback)
 ```
 
@@ -57,7 +57,7 @@ later sessions: Drive ──copy──> local ──> engine   (wheels/builds/cl
 | Drive layout: per-engine settings, HF cache, logs, outputs | `workspace.py` |
 | GPU detection (including Blackwell/CUDA handling) | `gpu.py` |
 | Engine builds and wheels cached on Drive | `install.py` |
-| Tailscale Serve (default) + Cloudflare quick/named tunnels | `tunnel.py` |
+| Tailscale Serve (tailnet) or Funnel (public) | `tunnel.py` |
 | dsh provider block, stable API key | `provider.py`, `keyfile.py` |
 | Local script: add the hub to dsh's settings | `configure_dsh.py` |
 
@@ -73,8 +73,8 @@ later sessions: Drive ──copy──> local ──> engine   (wheels/builds/cl
 | `POST /v1/hub/unload` | stop the engine |
 
 Loading behavior: **streaming** chat requests are answered with headers at once and `: loading ...` comment lines every
-10 s until the first token. **Non-streaming** (and image) requests wait about 85 s (under Cloudflare's roughly 100 s idle
-limit) and then get `503` with `Retry-After`; the load keeps going, so a retry succeeds.
+10 s until the first token. **Non-streaming** (and image) requests wait about 85 s (under common proxy idle
+limits) and then get `503` with `Retry-After`; the load keeps going, so a retry succeeds.
 
 ## Connecting your harness
 
@@ -82,9 +82,10 @@ The notebook prints the base URL, the API key and a dsh provider block (chat mod
 repository, `python -m colab_llm_hub.configure_dsh --url <URL> --key <KEY> --settings <dsh settings.yaml>` asks the
 hub which models it serves and merges one provider into the settings (other providers and settings are left alone,
 a `.bak` is written, and the key is never saved in the file: dsh reads it from `COLAB_LLM_API_KEY`).
-Default remote access is **Tailscale Serve**: the auth key is prompted once and saved only under the user's
-private Drive (`hub/tailscale_authkey`, gitignored). Cloudflare quick / named tunnels remain available by
-setting `TUNNEL` to `quick` or `named`.
+Remote access is **Tailscale Serve** only: the auth key is prompted once and saved only under the user's
+private Drive (`hub/tailscale_authkey`, gitignored). The harness always runs on your own machine in the same
+tailnet; no harness runs inside a notebook. Each notebook serves the one model picked in its `MODEL` dropdown
+(`serve --models <id>`), so requests for other models return 404 instead of starting a download.
 
 Image clients call the same base URL:
 

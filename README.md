@@ -39,16 +39,18 @@ Notebooks mount Google Drive and keep **all durable state** under `MyDrive/llm_m
 | Path | Contents |
 |---|---|
 | `models/<id>/` | Weights (GGUF, safetensors, Diffusers / Comfy trees), marked complete only after a full copy |
-| `builds/` | llama.cpp tarballs; wheels; TensorFold / Sparsa / ComfyUI / Strata / Maya trees; `hub_pkg/`; `tools/cloudflared` |
-| `config/settings_<engine>.json` | Per-engine prefetch, ctx overrides, tunnel/port |
+| `builds/` | llama.cpp tarballs; wheels; TensorFold / Sparsa / ComfyUI / Strata / Maya trees; `hub_pkg/`; `tools/tailscale` |
+| `config/settings_<engine>.json` | Per-engine selected model, ctx overrides, Tailscale hostname/port |
 | `hf_cache/` | Hugging Face / Transformers / Diffusers cache (`HF_HOME`) |
 | `hub/api_key`, `hub/tailscale_authkey`, `hub/endpoint.json` | Private Drive secrets + last public URL (not in git) |
-| `logs/` | `install.log`, `hub.log`, `cloudflared.log`, engine `hub_logs/` |
+| `logs/` | `install.log`, `hub.log`, `tailscaled.log`, engine `hub_logs/` |
 | `outputs/images/`, `outputs/chat/`, `outputs/status/` | Generation results and status snapshots |
 
 A model is downloaded from Hugging Face once, saved to Drive, and copied to local disk in later sessions (engines load faster from local disk than through the Drive FUSE mount). The first run asks you to authorize Drive access. Set `REFRESH_WHEELS` / `REBUILD_LLAMA` in Drive settings to force updates.
 
 ## Remote access
-Hub notebooks default to **Tailscale**. On first run you paste a Tailscale auth key (reusable + ephemeral recommended); it is saved only on **your private Google Drive** at `MyDrive/llm_models/hub/tailscale_authkey` (gitignored; never committed). Later Colab sessions reuse that Drive file. Optional Colab secret `TAILSCALE_AUTHKEY` if you press Enter on an empty prompt. Cloudflare `quick` / `named` remain available via `TUNNEL` in settings. The hub API key is also Drive-only (`hub/api_key`).
+Hub notebooks default to **Tailscale**. On first run you paste a Tailscale auth key (reusable + ephemeral recommended); it is saved only on **your private Google Drive** at `MyDrive/llm_models/hub/tailscale_authkey` (gitignored; never committed). Later Colab sessions reuse that Drive file. Optional Colab secret `TAILSCALE_AUTHKEY` if you press Enter on an empty prompt. The hub API key is also Drive-only (`hub/api_key`). Tailscale is the only connection method; your harness (dsh or any OpenAI client) runs on your own machine in the same tailnet, never in a notebook.
+
+Each notebook downloads and serves **one model**, picked in its `MODEL` dropdown (`recommended` = the first recommended model that fits the GPU). With `SERVE_ONLY_SELECTED` (on by default) the hub serves only that model, so a harness request for another model cannot start a large download.
 
 Builds are cached too: the first run builds/downloads and saves them; later runs restore them. Set `REBUILD_LLAMA` or `REFRESH_WHEELS` in the notebook to update. A cache is tied to the Python version (and, for llama.cpp, the GPU arch), so if Colab changes its image the notebook rebuilds automatically.

@@ -31,6 +31,9 @@ def parse(argv=None):
     s.add_argument("--engines",
                    default="llama,vllm,sglang,diffusers,strata,maya,tensorfold,comfyui,sparsa",
                    help="comma-separated engines")
+    s.add_argument("--models", default="",
+                   help="comma-separated model ids to serve (default: every catalog model that fits); "
+                        "the notebooks pass only the selected model so nothing else is downloaded")
     s.add_argument("--vram-gb", type=float, default=None, help="override the detected VRAM (testing)")
     s.add_argument("--ctx", action="append", default=[], metavar="MODEL=TOKENS",
                    help="override a model's context tokens (chat) or max edge px (image)")
@@ -49,6 +52,8 @@ def main(argv=None):
     except Exception:
         ws = None
     entries = catalog.for_engines(catalog.load(a.catalog), a.engines.split(","))
+    if a.models:
+        entries = catalog.only(entries, a.models.split(","))
     if a.vram_gb is None:
         g = gpu.detect()[0]
         vram, name = g["vram_gb"], g["name"]

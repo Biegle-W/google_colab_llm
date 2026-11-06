@@ -21,7 +21,7 @@ MAX_BODY = 32 * 1024 * 1024
 KEEPALIVE = 10            # seconds between SSE comment keep-alives
 DRAIN_TIMEOUT = 900       # wait this long for in-flight replies before refusing a switch
 STREAM_WAIT = 7200        # a streaming request may wait this long for a model (large downloads)
-NONSTREAM_WAIT = 85       # stay under Cloudflare's ~100 s idle limit
+NONSTREAM_WAIT = 85       # stay under common proxy idle limits (~100 s)
 POLL = 1                  # seconds between readiness checks while an engine starts
 ERROR_TTL = 20            # repeat a failed load's error for this long instead of retrying at once
 
@@ -360,7 +360,7 @@ def make_handler(hub, token):
                 conn.close()
 
         def stream(self, model, path, body):
-            # Headers go out at once so the client (and Cloudflare) sees progress while a model loads.
+            # Headers go out at once so the client (and any proxy) sees progress while a model loads.
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream")
             self.send_header("Cache-Control", "no-store")

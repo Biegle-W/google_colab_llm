@@ -77,4 +77,5 @@ models. Settings: `config/settings_<engine>.json`.
 | `qwen3.8-27b-*` | vLLM / SGLang / llama | Dense 27B |
 | `qwen-image-2.1*` | Diffusers | Images (API) |
 
-`recommend.for_engine(engine, vram_gb)` returns the preferred prefetch list for one notebook.
+`recommend.for_engine(engine, vram_gb)` returns the recommended models for one notebook, best first; the
+notebook's `MODEL = "recommended"` uses the first one that fits, and only that one model is downloaded.

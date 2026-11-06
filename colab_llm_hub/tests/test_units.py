@@ -410,50 +410,20 @@ class Misc(unittest.TestCase):
         models = [{"id": "m1", "name": 'Model "One"', "context_length": 32768},
                   {"id": "m2", "name": "M2", "context_length": 4096},
                   {"id": "img", "name": "SDXL", "context_length": 1024, "kind": "image", "backend": "diffusers"}]
-        text = provider.dsh_provider_yaml("https://x.trycloudflare.com/", models)
+        text = provider.dsh_provider_yaml("https://x.tailnet.ts.net/", models)
         try:
             import yaml
         except ImportError:
             self.skipTest("PyYAML not installed")
         doc = yaml.safe_load(text)
         p = doc["llm-pi-ai"]["providers"]["colab-hub"]
-        self.assertEqual(p["baseURL"], "https://x.trycloudflare.com/v1")
+        self.assertEqual(p["baseURL"], "https://x.tailnet.ts.net/v1")
         self.assertEqual((p["api"], p["apiKeyEnv"]), ("openai-completions", "COLAB_LLM_API_KEY"))
         self.assertEqual(p["compat"], {"supportsDeveloperRole": False, "maxTokensField": "max_tokens"})
         self.assertEqual([m["contextWindow"] for m in p["models"]], [32768, 4096])
         self.assertEqual([m["maxTokens"] for m in p["models"]], [4096, 2048])
         self.assertEqual(p["models"][0]["name"], 'Model "One"')
         self.assertNotIn("img", [m["id"] for m in p["models"]])
-
-    def test_tunnel_url_parse_and_start(self):
-        self.assertEqual(tunnel.parse_quick_url("2026 INF |  https://abc-def-12.trycloudflare.com  |"),
-                         "https://abc-def-12.trycloudflare.com")
-        self.assertIsNone(tunnel.parse_quick_url("nothing yet"))
-
-        class P:
-            pass
-        tmp = tempfile.mktemp()
-
-        def popen(args, stdout, stderr):
-            stdout.write("https://zz-top.trycloudflare.com\n")
-            stdout.flush()
-            self.assertEqual(args[:3], ["/cf", "tunnel", "--url"])
-            return P()
-        proc, url = tunnel.start_quick(8000, binary="/cf", log_path=tmp, popen=popen, wait=2, sleep=lambda s: None)
-        self.assertEqual(url, "https://zz-top.trycloudflare.com")
-
-    def test_cloudflared_cached_on_drive(self):
-        root = tempfile.mkdtemp()
-        fetched = []
-
-        def fetch(url, path):
-            open(path, "wb").write(b"cf")
-            fetched.append(path)
-        p1 = tunnel.ensure_cloudflared(drive_dir=root, fetch=fetch)
-        p2 = tunnel.ensure_cloudflared(drive_dir=root, fetch=fetch)
-        self.assertEqual(p1, p2)
-        self.assertTrue(p1.endswith("builds/tools/cloudflared"))
-        self.assertEqual(len(fetched), 1)  # second call uses the Drive cache
 
     def test_tailscale_url_parse_and_authkey_prompt(self):
         self.assertEqual(
@@ -553,7 +523,7 @@ class ConfigureDsh(unittest.TestCase):
 
     def run_configure(self, **kw):
         from colab_llm_hub import configure_dsh
-        return configure_dsh.configure("https://h.trycloudflare.com", self.SECRET, self.path,
+        return configure_dsh.configure("https://h.tailnet.ts.net", self.SECRET, self.path,
                                        fetch=lambda u, k: self.MODELS, **kw)
 
     def test_merges_without_touching_other_settings(self):
@@ -566,7 +536,7 @@ class ConfigureDsh(unittest.TestCase):
         self.assertEqual(doc["agent-default-model"], existing["agent-default-model"])      # default untouched
         self.assertEqual(doc["other"], {"keep": 1})
         p = doc["llm-pi-ai"]["providers"]["colab-hub"]
-        self.assertEqual((p["baseURL"], p["apiKeyEnv"]), ("https://h.trycloudflare.com/v1", "COLAB_LLM_API_KEY"))
+        self.assertEqual((p["baseURL"], p["apiKeyEnv"]), ("https://h.tailnet.ts.net/v1", "COLAB_LLM_API_KEY"))
         self.assertNotIn(self.SECRET, open(self.path).read())                               # the key is never written
         self.assertTrue(os.path.exists(self.path + ".bak"))
 
@@ -679,3 +649,53 @@ class HubPackageCache(unittest.TestCase):
         boot = "".join(nb["cells"][2]["source"])
         self.assertLess(boot.index("git clone"), boot.index("shutil.copytree(cached"))
         self.assertIn("if fresh:", boot)                              # the Drive copy is refreshed after a fetch
+
+
+class SingleModelSelection(unittest.TestCase):
+    """Each notebook downloads and serves exactly the one model picked in its MODEL dropdown."""
+
+    def selection(self, engine, vram, model):
+        from colab_llm_hub import make_engine_notebooks, recommend
+        nb = make_engine_notebooks.build_notebook(engine)
+        cfg = next("".join(c["source"]) for c in nb["cells"] if 'MODEL = "recommended"' in "".join(c["source"]))
+        block = cfg[cfg.index("# The ONE model"):cfg.index("PREFETCH = [MODEL]") + len("PREFETCH = [MODEL]")]
+        block = block.replace('MODEL = "recommended"', f"MODEL = {model!r}", 1)
+        all_ = catalog.load()
+        ns = {"catalog": catalog, "ENGINE": engine, "VRAM": vram,
+              "ENTRIES": catalog.for_engines(all_, [engine]), "PLAN": recommend.for_engine(engine, vram, all_)}
+        exec(block, ns)
+        return ns
+
+    def test_dropdown_lists_only_this_engines_models(self):
+        from colab_llm_hub import make_engine_notebooks
+        choices = make_engine_notebooks._model_choices("vllm")
+        self.assertEqual(choices[0], "recommended")
+        by = catalog.by_id(catalog.load())
+        self.assertTrue(all(by[m]["backend"] == "vllm" for m in choices[1:]))
+
+    def test_recommended_resolves_to_one_fitting_model(self):
+        for engine, vram in (("llama", 24.2), ("llama", 102.6), ("vllm", 42.9), ("strata", 102.6), ("maya", 102.6)):
+            ns = self.selection(engine, vram, "recommended")
+            self.assertEqual(len(ns["PREFETCH"]), 1, engine)           # never a list of several large models
+            self.assertTrue(catalog.fits(catalog.by_id(catalog.load())[ns["MODEL"]], vram))
+
+    def test_explicit_pick_is_used_and_checked(self):
+        self.assertEqual(self.selection("llama", 102.6, "qwen3.8-27b-q8")["PREFETCH"], ["qwen3.8-27b-q8"])
+        with self.assertRaises(AssertionError):                          # does not fit an L4
+            self.selection("llama", 24.2, "ornith-1.5-122b-q4")
+        with self.assertRaises(AssertionError):                          # another engine's model
+            self.selection("llama", 102.6, "qwen3.8-27b-fp8")
+
+    def test_hub_serves_only_the_selected_model(self):
+        from colab_llm_hub import make_engine_notebooks
+        nb = make_engine_notebooks.build_notebook("llama")
+        text = "".join("".join(c["source"]) for c in nb["cells"])
+        self.assertIn('args += ["--models", MODEL]', text)
+        self.assertNotIn("cloudflare", text.lower())
+        self.assertNotIn("npx", text)                                    # no harness runs inside the notebook
+
+    def test_only_filter(self):
+        entries = catalog.load()
+        self.assertEqual([e["id"] for e in catalog.only(entries, ["qwen3.8-27b-q8"])], ["qwen3.8-27b-q8"])
+        with self.assertRaises(catalog.CatalogError):
+            catalog.only(entries, ["no-such-model"])

@@ -90,3 +90,13 @@ def chat_entries(entries):
 
 def image_entries(entries):
     return [e for e in entries if e["backend"] in IMAGE_BACKENDS]
+
+
+def only(entries, ids):
+    """Keep just the named models (in catalog order); unknown ids are an error, not silently ignored."""
+    wanted = [i.strip() for i in ids if i.strip()]
+    known = {e["id"] for e in entries}
+    missing = [i for i in wanted if i not in known]
+    if missing:
+        raise CatalogError(f"unknown model ids for these engines: {missing}")
+    return [e for e in entries if e["id"] in set(wanted)]

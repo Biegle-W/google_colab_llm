@@ -134,9 +134,6 @@ class Workspace:
         return path
 
     # ---- tool / package caches ----------------------------------------------------
-    def cloudflared_path(self):
-        return self.tools / "cloudflared"
-
     def mirror_log(self, local_path, name=None):
         """Copy a local log onto Drive (best-effort)."""
         local_path = Path(local_path)
