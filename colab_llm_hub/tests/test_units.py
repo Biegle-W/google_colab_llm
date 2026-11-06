@@ -654,15 +654,16 @@ class HubPackageCache(unittest.TestCase):
 class SingleModelSelection(unittest.TestCase):
     """Each notebook downloads and serves exactly the one model picked in its MODEL dropdown."""
 
-    def selection(self, engine, vram, model):
+    def selection(self, engine, vram, model, arch=None):
         from colab_llm_hub import make_engine_notebooks, recommend
         nb = make_engine_notebooks.build_notebook(engine)
         cfg = next("".join(c["source"]) for c in nb["cells"] if 'MODEL = "recommended"' in "".join(c["source"]))
         block = cfg[cfg.index("# The ONE model"):cfg.index("PREFETCH = [MODEL]") + len("PREFETCH = [MODEL]")]
         block = block.replace('MODEL = "recommended"', f"MODEL = {model!r}", 1)
         all_ = catalog.load()
-        ns = {"catalog": catalog, "ENGINE": engine, "VRAM": vram, "RAM_GB": None, "DISK_GB": None,
-              "ENTRIES": catalog.for_engines(all_, [engine]), "PLAN": recommend.for_engine(engine, vram, all_)}
+        ns = {"catalog": catalog, "ENGINE": engine, "VRAM": vram, "RAM_GB": None, "DISK_GB": None, "ARCH": arch,
+              "ENTRIES": catalog.for_engines(all_, [engine]),
+              "PLAN": recommend.for_engine(engine, vram, all_, arch=arch)}
         exec(block, ns)
         return ns
 
@@ -761,3 +762,136 @@ class RuntimeFit(unittest.TestCase):
         write_marker(d, "org/m")
         free = shutil.disk_usage(root).free / 1e9
         self.assertGreaterEqual(model_disk_gb(root), round(free, 1))
+
+
+class HyperQwenAndNInfer(unittest.TestCase):
+    L4, A100, G4 = (24.2, "89"), (85.9, "80"), (102.6, "120")
+
+    def ids(self, engine, gpu):
+        return [e["id"] for e in catalog.visible(catalog.for_engines(catalog.load(), [engine]), gpu[0], arch=gpu[1])]
+
+    def test_catalog_fit_by_runtime(self):
+        self.assertEqual(self.ids("hyperqwen", self.L4), [])                 # 22.5 GiB is under the 24 GB target
+        self.assertEqual(self.ids("hyperqwen", self.A100), ["hyperqwen-qwen3.8-27b-batch"])   # sm80 spec fault
+        self.assertEqual(len(self.ids("hyperqwen", self.G4)), 3)
+        self.assertEqual(self.ids("ninfer", self.A100), [])
+        self.assertEqual(self.ids("ninfer", self.L4), [])
+        self.assertEqual(len(self.ids("ninfer", self.G4)), 4)
+        e = catalog.by_id(catalog.load())["ninfer-qwen3.8-27b"]
+        self.assertIn("sm_120", catalog.why_not(e, 85.9, arch="80"))
+        self.assertIsNone(catalog.why_not(e, 85.9))                          # arch unknown -> not checked
+
+    def test_recommended_picks(self):
+        from colab_llm_hub import recommend
+
+        def rec(eng, gpu):
+            return recommend.for_engine(eng, gpu[0], arch=gpu[1])["prefetch"]
+        self.assertEqual(rec("hyperqwen", self.A100), ["hyperqwen-qwen3.8-27b-batch"])
+        self.assertEqual(rec("hyperqwen", self.G4), ["hyperqwen-qwen3.8-27b-dflash2"])
+        self.assertEqual(rec("ninfer", self.G4), ["ninfer-qwen3.8-27b-nvfp4"])
+        self.assertEqual(rec("ninfer", self.A100), [])
+
+    def test_hyperqwen_disk_counts_the_prepared_copy(self):
+        e = catalog.by_id(catalog.load())["hyperqwen-qwen3.8-27b-mtp"]
+        self.assertIsNone(catalog.why_not(e, 102.6, disk_gb=60))
+        self.assertIn("disk", catalog.why_not(e, 102.6, disk_gb=40))         # 19.5 download + 19.5 copy + 8
+
+    def test_ninfer_command_and_env(self):
+        e = catalog.by_id(catalog.load())["ninfer-qwen3.8-27b-nvfp4"]
+        cmd = backends.command(e, "/m/ninfer-qwen3.8-27b-nvfp4/qwen3_8_27b_nvfp4.ninfer", 240000,
+                               {"ninfer": "/opt/nf/apps/ninfer-serve"})
+        self.assertEqual(cmd[:2], ["/opt/nf/apps/ninfer-serve", "/m/ninfer-qwen3.8-27b-nvfp4/qwen3_8_27b_nvfp4.ninfer"])
+        flags = dict(zip(cmd[2::2], cmd[3::2]))
+        self.assertEqual((flags["--host"], flags["--port"], flags["--model-id"], flags["--max-context"]),
+                         ("127.0.0.1", "30040", "ninfer-qwen3.8-27b-nvfp4", "240000"))
+        self.assertEqual((flags["--spec"], flags["--draft-tokens"], flags["--proposal-head"]), ("mtp", "3", "optimized"))
+        env = backends.env_for(e, {"ninfer": "/opt/nf/apps/ninfer-serve"})
+        self.assertTrue(env["LD_LIBRARY_PATH"].startswith("/opt/nf/lib"))
+        from colab_llm_hub.store import ModelStore
+        tmp = tempfile.mkdtemp()
+        store = ModelStore(os.path.join(tmp, "d"), os.path.join(tmp, "l"), log=lambda *_: None)
+        self.assertEqual(store.model_path(e).name, "qwen3_8_27b_nvfp4.ninfer")
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_hyperqwen_command_and_env(self):
+        e = catalog.by_id(catalog.load())["hyperqwen-qwen3.8-27b-dflash2"]
+        cmd = backends.command(e, "/m/hq", 131072, {"hyperqwen": "/content/HyperQwen", "python": "py"})
+        self.assertEqual(cmd[:3], ["py", "-m", "colab_llm_hub.hyperqwen_launch"])
+        flags = dict(zip(cmd[3::2], cmd[4::2]))
+        self.assertEqual((flags["--mode"], flags["--spec"], flags["--port"], flags["--ctx"]),
+                         ("single", "dflash2", "30030", "131072"))
+        os.environ["VLLM_API_KEY"] = "x"
+        try:
+            self.assertNotIn("VLLM_API_KEY", backends.env_for(e))           # no key -> binds 127.0.0.1
+        finally:
+            del os.environ["VLLM_API_KEY"]
+
+    def test_hyperqwen_launch_env(self):
+        from colab_llm_hub import hyperqwen_launch as hl
+        tmp = tempfile.mkdtemp()
+        drafter = os.path.join(tmp, "dflash2")
+        os.makedirs(drafter)
+        open(os.path.join(drafter, "model.safetensors"), "w").close()
+        env = hl.launch_env("/p", 30030, 131072, "single", "dflash2", drafter=drafter, base={"VLLM_API_KEY": "k"})
+        self.assertEqual((env["MODEL"], env["PORT"], env["MAX_LEN"], env["SPEC"], env["CTX"], env["DRAFT"]),
+                         ("/p", "30030", "131072", "dflash2", "long", drafter))
+        self.assertNotIn("VLLM_API_KEY", env)
+        self.assertEqual(env["HOST"], "127.0.0.1")                          # loopback only; the hub does auth
+        self.assertEqual(hl.launch_env("/p", 1, 65536, "single", "mtp", base={})["CTX"], "fast")
+        batch = hl.launch_env("/p", 1, 150000, "batch", "off", base={})
+        self.assertNotIn("SPEC", batch)
+        self.assertTrue(hl.script_for("/r", "batch").endswith("batch/start_qwen.sh"))
+        with self.assertRaises(SystemExit):
+            hl.launch_env("/p", 1, 1, "single", "dflash2", drafter=os.path.join(tmp, "none"), base={})
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_hyperqwen_prepare_runs_once_on_a_copy(self):
+        from colab_llm_hub import hyperqwen_launch as hl
+        tmp = tempfile.mkdtemp()
+        src = os.path.join(tmp, "models", "hq")
+        os.makedirs(os.path.join(src, "dflash2"))
+        open(os.path.join(src, "config.json"), "w").write("{}")
+        open(os.path.join(src, ".complete.json"), "w").write('{"repo": "x"}')
+        calls = []
+
+        class R:
+            returncode = 0
+
+        def run(cmd, cwd=None):
+            calls.append(cmd)
+            open(os.path.join(cmd[2], "touched"), "a").write("x")          # scripts rewrite files in place
+            return R()
+        dest = hl.prepare("/root", src, "py", run=run, log=lambda *_: None)
+        self.assertEqual(len(calls), 4)
+        self.assertFalse(os.path.exists(os.path.join(src, "touched")))     # the download is never modified
+        self.assertFalse(os.path.exists(os.path.join(dest, "dflash2")))
+        hl.prepare("/root", src, "py", run=run, log=lambda *_: None)
+        self.assertEqual(len(calls), 4)                                      # reused while the source is unchanged
+        open(os.path.join(src, ".complete.json"), "w").write('{"repo": "y"}')
+        hl.prepare("/root", src, "py", run=run, log=lambda *_: None)
+        self.assertEqual(len(calls), 8)
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_ninfer_install_refuses_other_gpus(self):
+        with self.assertRaises(install.InstallError):
+            install.ensure_ninfer("/tmp/x", "80", run=lambda c: "")
+
+    def test_ninfer_dep_builds_only_when_too_old(self):
+        self.assertEqual(install.ninfer_dep_commands((2, 9), (8, 5)), [])
+        self.assertEqual(len(install.ninfer_dep_commands((2, 1), (8, 5))), 2)   # Ubuntu 22.04 liburing 2.1
+        self.assertEqual(len(install.ninfer_dep_commands((2, 9), (7, 81))), 2)  # Ubuntu 22.04 libcurl 7.81
+
+    def test_hyperqwen_build_applies_patches_to_the_venv(self):
+        cmds = install.hyperqwen_build_commands("/content/HyperQwen", install.HYPERQWEN_PIN, python="python3")
+        text = "\n".join(cmds)
+        self.assertIn("vllm==0.32.0", text)
+        self.assertIn("bash patches/apply.sh", text)
+        self.assertIn(install.HYPERQWEN_PIN, text)
+
+    def test_notebooks_exist_and_install_their_engine(self):
+        from colab_llm_hub import make_engine_notebooks
+        for engine, call in (("hyperqwen", "install.ensure_hyperqwen("), ("ninfer", "install.ensure_ninfer(")):
+            nb = make_engine_notebooks.build_notebook(engine)
+            text = "".join("".join(c["source"]) for c in nb["cells"])
+            self.assertIn(call, text)
+            self.assertIn(f'ENGINE   = "{engine}"', text)

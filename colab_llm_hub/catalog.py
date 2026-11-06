@@ -2,8 +2,9 @@
 import json
 from pathlib import Path
 
-BACKENDS = ("llama", "vllm", "sglang", "diffusers", "strata", "maya", "tensorfold", "comfyui", "sparsa")
-CHAT_BACKENDS = ("llama", "vllm", "sglang", "strata", "maya", "tensorfold", "sparsa")
+BACKENDS = ("llama", "vllm", "sglang", "diffusers", "strata", "maya", "tensorfold", "comfyui", "sparsa",
+            "hyperqwen", "ninfer")
+CHAT_BACKENDS = ("llama", "vllm", "sglang", "strata", "maya", "tensorfold", "sparsa", "hyperqwen", "ninfer")
 IMAGE_BACKENDS = ("diffusers", "comfyui")
 REQUIRED = ("id", "name", "backend", "repo", "files", "size_gb", "contexts")
 DEFAULT_PATH = Path(__file__).with_name("catalog.json")
@@ -32,8 +33,8 @@ def validate(entries):
         seen.add(e["id"])
         if e["backend"] not in BACKENDS:
             raise CatalogError(f"{e['id']}: unknown backend {e['backend']!r}")
-        if e["backend"] == "llama" and "model_file" not in e:
-            raise CatalogError(f"{e['id']}: llama entries need model_file")
+        if e["backend"] in ("llama", "ninfer") and "model_file" not in e:
+            raise CatalogError(f"{e['id']}: {e['backend']} entries need model_file")
         if e["backend"] == "diffusers" and e.get("dtype", "float16") not in ("float16", "bfloat16", "float32"):
             raise CatalogError(f"{e['id']}: dtype must be float16, bfloat16 or float32")
         ctx = e["contexts"]
@@ -42,6 +43,9 @@ def validate(entries):
             raise CatalogError(f"{e['id']}: contexts must be [[min_vram_gb, tokens_or_max_edge], ...]")
         if [c[0] for c in ctx] != sorted(c[0] for c in ctx) or [c[1] for c in ctx] != sorted(c[1] for c in ctx):
             raise CatalogError(f"{e['id']}: contexts must increase in both columns")
+        archs = e.get("gpu_arch")
+        if archs is not None and (not isinstance(archs, list) or not all(str(a).isdigit() for a in archs)):
+            raise CatalogError(f"{e['id']}: gpu_arch must be a list like [\"120\"] (compute capability without the dot)")
     return entries
 
 
@@ -63,12 +67,22 @@ def resident_gb(entry):
     return float(entry.get("resident_gb", entry["size_gb"]))
 
 
-def why_not(entry, vram_gb, ram_gb=None, disk_gb=None):
-    """None if the model can run here, else a short reason. RAM / disk are checked only when given."""
+def served_name(entry):
+    """Model name the engine itself answers to (HyperQwen hard-codes one); the hub rewrites requests to it."""
+    return entry.get("served_name", entry["id"])
+
+
+def why_not(entry, vram_gb, ram_gb=None, disk_gb=None, arch=None):
+    """None if the model can run here, else a short reason. RAM / disk / GPU arch are checked only when given."""
+    archs = entry.get("gpu_arch")
+    if arch is not None and archs and str(arch) not in [str(a) for a in archs]:
+        return "needs GPU arch " + " or ".join(f"sm_{a}" for a in archs) + f" (this GPU is sm_{arch})"
     if vram_gb < min_vram_gb(entry):
         return f"needs {min_vram_gb(entry)} GB VRAM"
-    if disk_gb is not None and entry["size_gb"] + DISK_HEADROOM_GB > disk_gb:
-        return f"needs {entry['size_gb'] + DISK_HEADROOM_GB:.0f} GB disk, {disk_gb:.0f} available"
+    # work_gb: extra local scratch the engine writes next to the download (HyperQwen's prepared copy).
+    need_disk = entry["size_gb"] + float(entry.get("work_gb", 0)) + DISK_HEADROOM_GB
+    if disk_gb is not None and need_disk > disk_gb:
+        return f"needs {need_disk:.0f} GB disk, {disk_gb:.0f} available"
     # Offload entries spill weights from VRAM into system RAM, so the two together must hold them.
     if ram_gb is not None and entry.get("offload"):
         need = resident_gb(entry) + MEMORY_HEADROOM_GB
@@ -77,8 +91,8 @@ def why_not(entry, vram_gb, ram_gb=None, disk_gb=None):
     return None
 
 
-def fits(entry, vram_gb, ram_gb=None, disk_gb=None):
-    return why_not(entry, vram_gb, ram_gb, disk_gb) is None
+def fits(entry, vram_gb, ram_gb=None, disk_gb=None, arch=None):
+    return why_not(entry, vram_gb, ram_gb, disk_gb, arch) is None
 
 
 def context_for(entry, vram_gb, override=None):
@@ -94,8 +108,8 @@ def context_for(entry, vram_gb, override=None):
     return best
 
 
-def visible(entries, vram_gb, ram_gb=None, disk_gb=None):
-    return [e for e in entries if fits(e, vram_gb, ram_gb, disk_gb)]
+def visible(entries, vram_gb, ram_gb=None, disk_gb=None, arch=None):
+    return [e for e in entries if fits(e, vram_gb, ram_gb, disk_gb, arch)]
 
 
 def by_id(entries):

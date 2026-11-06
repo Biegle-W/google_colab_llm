@@ -13,6 +13,8 @@ engine and advertises only its catalog models):
 | [`notebooks/maya/`](../notebooks/maya/) | **Maya** (GLM-5.3-Flash, DeepSeek) |
 | [`notebooks/tensorfold/`](../notebooks/tensorfold/) | **TensorFold** (Qwen3.8-27B EXL3 + DFlash2) |
 | [`notebooks/sparsa/`](../notebooks/sparsa/) | **Sparsa** (MiniMax-M3.1-Flash) |
+| [`notebooks/hyperqwen/`](../notebooks/hyperqwen/) | **HyperQwen** (Qwen3.8-27B W4A16, patched vLLM 0.32) |
+| [`notebooks/ninfer/`](../notebooks/ninfer/) | **NInfer** (native C++/CUDA, G4 only) |
 | [`notebooks/comfyui/`](../notebooks/comfyui/) | **ComfyUI** (Qwen-Image Turbo, FLUX.3 Klein, video prefetch) |
 | [`notebooks/llama/`](../notebooks/llama/) | llama.cpp (Bolt IQ2, Sage, Ornith, MoE fallbacks) |
 | [`notebooks/vllm/`](../notebooks/vllm/) | vLLM |
@@ -30,6 +32,8 @@ your machine (harness) ──HTTPS over your tailnet──> Tailscale Serve ─�
                                                ├─ llama.cpp   (:30080)  GGUF chat models
                                                ├─ vLLM        (:30010)  safetensors chat models
                                                ├─ SGLang      (:30020)  chat models
+                                               ├─ HyperQwen   (:30030)  Qwen3.8-27B (patched vLLM)
+                                               ├─ NInfer      (:30040)  native C++/CUDA (G4)
                                                ├─ Strata      (:30050)  Flash-Next / Qwen3.6 / DeepSeek
                                                ├─ Maya        (:30060)  GLM / DeepSeek
                                                ├─ Sparsa      (:30065)  MiniMax-M3.1-Flash

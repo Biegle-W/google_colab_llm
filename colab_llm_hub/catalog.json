@@ -1536,5 +1536,207 @@
       "384"
     ],
     "notes": "Workstation bolt-vllm selected entry (native IQ2 on llama.cpp). Dual-GPU host used 384 MiB fit targets; Colab single-GPU uses --fit."
+  },
+  {
+    "id": "hyperqwen-qwen3.8-27b-mtp",
+    "name": "Qwen3.8-27B W4A16 + MTP (HyperQwen single-user)",
+    "backend": "hyperqwen",
+    "repo": "dbirks/Qwen3.8-27B-W4A16-AutoRound",
+    "files": [
+      "*"
+    ],
+    "served_name": "qwen3.8-27b",
+    "size_gb": 19.47,
+    "contexts": [
+      [
+        25,
+        65536
+      ],
+      [
+        40,
+        150000
+      ]
+    ],
+    "hyperqwen_mode": "single",
+    "spec": "mtp",
+    "gpu_arch": [
+      "86",
+      "89",
+      "90",
+      "120"
+    ],
+    "notes": "HyperQwen (patched vLLM 0.32.0). Not on A100: upstream has an open speculative-decoding fault on sm80 (#98, #72); use the -batch entry there. Needs a 24 GB card, so the L4 (22.5 GiB) is out.",
+    "work_gb": 19.5
+  },
+  {
+    "id": "hyperqwen-qwen3.8-27b-dflash2",
+    "name": "Qwen3.8-27B W4A16 + DFlash2 (HyperQwen single-user)",
+    "backend": "hyperqwen",
+    "repo": "dbirks/Qwen3.8-27B-W4A16-AutoRound",
+    "files": [
+      "*"
+    ],
+    "served_name": "qwen3.8-27b",
+    "size_gb": 20.76,
+    "contexts": [
+      [
+        25,
+        65536
+      ],
+      [
+        40,
+        131072
+      ]
+    ],
+    "hyperqwen_mode": "single",
+    "spec": "dflash2",
+    "extra_downloads": [
+      {
+        "repo": "syvai/Qwen3.8-27B-DFlash2-W4A16",
+        "files": [
+          "config.json",
+          "model.safetensors"
+        ],
+        "subdir": "dflash2"
+      }
+    ],
+    "gpu_arch": [
+      "86",
+      "89",
+      "90",
+      "120"
+    ],
+    "notes": "Fastest HyperQwen single-user mode (block drafter, ~1.3 GB extra). HyperQwen (patched vLLM 0.32.0). Not on A100: upstream has an open speculative-decoding fault on sm80 (#98, #72); use the -batch entry there. Needs a 24 GB card, so the L4 (22.5 GiB) is out.",
+    "work_gb": 19.5
+  },
+  {
+    "id": "hyperqwen-qwen3.8-27b-batch",
+    "name": "Qwen3.8-27B W4A16 (HyperQwen batch / throughput)",
+    "backend": "hyperqwen",
+    "repo": "dbirks/Qwen3.8-27B-W4A16-AutoRound",
+    "files": [
+      "*"
+    ],
+    "served_name": "qwen3.8-27b",
+    "size_gb": 19.47,
+    "contexts": [
+      [
+        25,
+        150000
+      ]
+    ],
+    "hyperqwen_mode": "batch",
+    "spec": "off",
+    "notes": "HyperQwen batch launcher: W4A8 Marlin MLPs, fp8 KV, 64 concurrent requests, no speculation (so it also runs on the A100).",
+    "work_gb": 19.5
+  },
+  {
+    "id": "ninfer-qwen3.8-27b-nvfp4",
+    "name": "Qwen3.8-27B NVFP4 (NInfer)",
+    "repo": "neroued/Qwen3.8-27B-nvfp4-NInfer",
+    "files": [
+      "qwen3_8_27b_nvfp4.ninfer"
+    ],
+    "model_file": "qwen3_8_27b_nvfp4.ninfer",
+    "size_gb": 23.72,
+    "contexts": [
+      [
+        30,
+        65536
+      ],
+      [
+        90,
+        240000
+      ]
+    ],
+    "backend": "ninfer",
+    "gpu_arch": [
+      "120"
+    ],
+    "spec": "mtp",
+    "draft_tokens": 3,
+    "proposal_head": "optimized",
+    "notes": "NInfer native C++/CUDA engine; upstream builds only for Blackwell sm_120 (RTX 5090 class), so G4 only. NVFP4 tensor-core path, MTP x3."
+  },
+  {
+    "id": "ninfer-qwen3.8-27b",
+    "name": "Qwen3.8-27B group-wise int (NInfer)",
+    "repo": "neroued/Qwen3.8-27B-NInfer",
+    "files": [
+      "qwen3_8_27b.ninfer"
+    ],
+    "model_file": "qwen3_8_27b.ninfer",
+    "size_gb": 20.44,
+    "contexts": [
+      [
+        30,
+        65536
+      ],
+      [
+        90,
+        240000
+      ]
+    ],
+    "backend": "ninfer",
+    "gpu_arch": [
+      "120"
+    ],
+    "spec": "mtp",
+    "draft_tokens": 3,
+    "proposal_head": "optimized",
+    "notes": "NInfer native C++/CUDA engine; upstream builds only for Blackwell sm_120 (RTX 5090 class), so G4 only. MTP x3."
+  },
+  {
+    "id": "ninfer-qwen3.6-35b-a3b",
+    "name": "Qwen3.6-35B-A3B group-wise int (NInfer)",
+    "repo": "neroued/Qwen3.6-35B-A3B-NInfer",
+    "files": [
+      "qwen3_6_35b_a3b.ninfer"
+    ],
+    "model_file": "qwen3_6_35b_a3b.ninfer",
+    "size_gb": 22.79,
+    "contexts": [
+      [
+        30,
+        65536
+      ],
+      [
+        90,
+        240000
+      ]
+    ],
+    "backend": "ninfer",
+    "gpu_arch": [
+      "120"
+    ],
+    "spec": "mtp",
+    "draft_tokens": 3,
+    "proposal_head": "optimized",
+    "notes": "NInfer native C++/CUDA engine; upstream builds only for Blackwell sm_120 (RTX 5090 class), so G4 only. MoE, MTP x3."
+  },
+  {
+    "id": "ninfer-qwen3.8-flash-next",
+    "name": "Qwen3.8-Flash-Next mixed NVFP4/Q8 (NInfer, CPU expert offload)",
+    "repo": "neroued/Qwen3.8-Flash-Next-NInfer",
+    "files": [
+      "qwen3_8_flash_next.ninfer*"
+    ],
+    "model_file": "qwen3_8_flash_next.ninfer",
+    "size_gb": 108.5,
+    "offload": true,
+    "contexts": [
+      [
+        90,
+        131072
+      ]
+    ],
+    "backend": "ninfer",
+    "gpu_arch": [
+      "120"
+    ],
+    "spec": "mtp",
+    "draft_tokens": 3,
+    "proposal_head": "optimized",
+    "notes": "NInfer native C++/CUDA engine; upstream builds only for Blackwell sm_120 (RTX 5090 class), so G4 only. 101 GiB in 4 files: NInfer keeps hot experts on the GPU and backs the rest from host RAM (~63 GiB on a 32 GB card, less on the 96 GB G4)."
   }
 ]

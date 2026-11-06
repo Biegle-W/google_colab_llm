@@ -8,7 +8,7 @@ import tempfile
 import threading
 import unittest
 
-from colab_llm_hub import backends, hub as hubmod
+from colab_llm_hub import backends, catalog, hub as hubmod
 from colab_llm_hub.store import ModelStore
 
 FAKE = os.path.join(os.path.dirname(__file__), "fake_engine.py")
@@ -73,7 +73,7 @@ class HubCase(unittest.TestCase):
         os.makedirs(log_dir, exist_ok=True)
         log = os.path.join(log_dir, f"{entry['id']}.log")
         kind = "image" if entry.get("backend") == "diffusers" else "chat"
-        args = [sys.executable, FAKE, "--port", str(port), "--model", entry["id"],
+        args = [sys.executable, FAKE, "--port", str(port), "--model", catalog.served_name(entry),
                 "--load-delay", str(self.load_delay), "--chunk-delay", str(self.chunk_delay),
                 "--kind", kind]
         if entry["id"] in self.failing_ids:

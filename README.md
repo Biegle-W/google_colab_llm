@@ -11,6 +11,8 @@ Notebooks are grouped by engine under [`notebooks/`](notebooks/).
 | [`notebooks/maya/`](notebooks/maya/) | **Maya** — GLM-5.3-Flash + DeepSeek-V4.1 (maya-ds4) |
 | [`notebooks/tensorfold/`](notebooks/tensorfold/) | **TensorFold** — Qwen3.8-27B EXL3 2.0bpw + DFlash2 |
 | [`notebooks/sparsa/`](notebooks/sparsa/) | **Sparsa** — MiniMax-M3.1-Flash (IQ2_XS-D3 / IQ2_KT) |
+| [`notebooks/hyperqwen/`](notebooks/hyperqwen/) | **HyperQwen** — Qwen3.8-27B W4A16 on patched vLLM (MTP / DFlash2 / batch); A100 batch only, G4 all |
+| [`notebooks/ninfer/`](notebooks/ninfer/) | **NInfer** — native C++/CUDA Qwen3.8-27B, Qwen3.6-35B-A3B, Flash-Next; **G4 only** |
 | [`notebooks/comfyui/`](notebooks/comfyui/) | **ComfyUI** — Qwen-Image-2.1 Turbo, FLUX.3 Klein, video prefetch |
 | [`notebooks/llama/`](notebooks/llama/) | **llama.cpp** — `llama_gpu.ipynb` (L4/A100/G4) + `llama_cpp_t4.ipynb` (T4) |
 | [`notebooks/vllm/`](notebooks/vllm/) | **vLLM** — `vllm_gpu.ipynb` (L4/A100/G4) + `vllm_tpu.ipynb` (TPU) |
@@ -30,7 +32,7 @@ Use a Pro runtime with an **L4, A100, or G4** GPU for the GPU notebooks. That un
 ## Credit and license
 The Studio notebook is from [unslothai/unsloth](https://github.com/unslothai/unsloth); Unsloth Studio is licensed under AGPL-3.0.
 llama.cpp is from [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) (MIT).
-TensorFold is from [ashhart/TensorFold](https://github.com/ashhart/TensorFold); Sparsa from [LyJonathan/Sparsa](https://github.com/LyJonathan/Sparsa); ComfyUI from [Comfy-Org/ComfyUI](https://github.com/Comfy-Org/ComfyUI).
+TensorFold is from [ashhart/TensorFold](https://github.com/ashhart/TensorFold); Sparsa from [LyJonathan/Sparsa](https://github.com/LyJonathan/Sparsa); HyperQwen from [syv-ai/HyperQwen](https://github.com/syv-ai/HyperQwen); NInfer from [Neroued/ninfer](https://github.com/Neroued/ninfer); ComfyUI from [Comfy-Org/ComfyUI](https://github.com/Comfy-Org/ComfyUI).
 Diffusers / Comfy models keep their upstream licenses (Stability AI, Black Forest Labs, etc.); accept gated licenses on Hugging Face and set Colab secret `HF_TOKEN` when needed.
 
 ## Model and build storage
@@ -39,7 +41,7 @@ Notebooks mount Google Drive and keep **all durable state** under `MyDrive/llm_m
 | Path | Contents |
 |---|---|
 | `models/<id>/` | Weights (GGUF, safetensors, Diffusers / Comfy trees), marked complete only after a full copy |
-| `builds/` | llama.cpp tarballs; wheels; TensorFold / Sparsa / ComfyUI / Strata / Maya trees; `hub_pkg/`; `tools/tailscale` |
+| `builds/` | llama.cpp tarballs; wheels; TensorFold / Sparsa / ComfyUI / Strata / Maya trees; HyperQwen venv and NInfer build tarballs; `hub_pkg/`; `tools/tailscale` |
 | `config/settings_<engine>.json` | Per-engine selected model, ctx overrides, Tailscale hostname/port |
 | `hf_cache/` | Hugging Face / Transformers / Diffusers cache (`HF_HOME`) |
 | `hub/api_key`, `hub/tailscale_authkey`, `hub/endpoint.json` | Private Drive secrets + last public URL (not in git) |

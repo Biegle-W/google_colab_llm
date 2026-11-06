@@ -98,7 +98,7 @@ class ModelStore:
     def model_path(self, entry):
         """What the engine is pointed at: a GGUF file for llama.cpp, a model directory otherwise."""
         base = self.local_path(entry)
-        if entry["backend"] == "llama":
+        if entry["backend"] in ("llama", "ninfer"):
             return base / entry["model_file"]
         # Strata / Maya / vLLM / SGLang / Diffusers all take a directory of shards.
         return base
@@ -217,7 +217,7 @@ class ModelStore:
         finally:
             stop.set()
         write_marker(local, entry["repo"])
-        if entry["backend"] == "llama" and not (local / entry["model_file"]).is_file():
+        if entry.get("model_file") and not (local / entry["model_file"]).is_file():
             raise StoreError(f"{entry['model_file']} was not found in {entry['repo']}")
         self._set(entry, "ready", entry["size_gb"] * 1e9)
 

@@ -49,6 +49,8 @@ class H(BaseHTTPRequestHandler):
     def do_POST(self):
         n = int(self.headers.get("Content-Length", 0))
         req = json.loads(self.rfile.read(n))
+        if req.get("model") != a.model:                  # real engines reject names they do not serve
+            return self.send(404, {"error": {"message": f"model {req.get('model')} not found"}})
         if self.path == "/v1/images/generations":
             return self.send(200, {"created": 0, "model": a.model,
                                    "data": [{"b64_json": TINY_PNG}], "size": "512x512", "steps": 4})

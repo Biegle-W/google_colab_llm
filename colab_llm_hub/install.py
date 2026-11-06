@@ -441,3 +441,157 @@ def ensure_sparsa(builds_dir, refresh=False, run=sh, log=print):
     open(marker, "w").write(SPARSA_TARBALL)
     log("Sparsa ready at", root)
     return root
+
+
+# ---- HyperQwen (patched vLLM 0.32.0 for Qwen3.8-27B) ----------------------------------------------------
+HYPERQWEN_REPO = "https://github.com/syv-ai/HyperQwen.git"
+HYPERQWEN_PIN = "6ab9bd05cb84b538a6595d634f3e337ac8a80856"
+HYPERQWEN_ROOT = "/content/HyperQwen"
+# docs/install.md (bare metal): vLLM pin plus the CUDA 13 nvcc that FlashInfer's JIT needs.
+HYPERQWEN_PIP = ("vllm==0.32.0 huggingface_hub hf_transfer ninja --extra-index-url https://flashinfer.ai/whl/ "
+                 "flashinfer-cubin==0.7.0.post1 pandas nvidia-cuda-nvcc==13.0.88 nvidia-cuda-crt==13.0.88 "
+                 "nvidia-cuda-cccl==13.0.85 nvidia-nvvm==13.0.88")
+
+
+def hyperqwen_tarball(builds_dir, ref=HYPERQWEN_PIN):
+    py = f"py{sys.version_info.major}{sys.version_info.minor}"
+    return os.path.join(builds_dir, f"hyperqwen_{ref[:10]}_{py}.tar")
+
+
+def hyperqwen_build_commands(root=HYPERQWEN_ROOT, ref=HYPERQWEN_PIN, python=None):
+    """Clone the pinned HyperQwen, build its venv and apply its vLLM patches (docs/install.md)."""
+    python = python or sys.executable
+    venv_py = f"{root}/venv/bin/python"
+    return [
+        f"rm -rf {root} && mkdir -p {root}",
+        f"cd {root} && git init -q && git fetch -q --depth 1 {HYPERQWEN_REPO} {ref} && git checkout -q FETCH_HEAD",
+        f"cd {root} && {python} -m venv venv",
+        f"cd {root} && venv/bin/pip install -q --upgrade pip",
+        f"cd {root} && venv/bin/pip install -q {HYPERQWEN_PIP}",
+        f"cd {root} && SP=$({venv_py} -c 'import vllm, os; print(os.path.dirname(vllm.__file__))' | tail -n1)"
+        f" && bash patches/apply.sh \"$SP\"",
+    ]
+
+
+def ensure_hyperqwen(builds_dir, refresh=False, run=sh, log=print, root=HYPERQWEN_ROOT, ref=HYPERQWEN_PIN):
+    """HyperQwen checkout + patched venv at `root`; cached on Drive as one tarball (several GB)."""
+    tar = hyperqwen_tarball(builds_dir, ref)
+    if os.path.isfile(os.path.join(root, "venv", "bin", "vllm")) and not refresh:
+        return root
+    if os.path.isfile(tar) and not refresh:
+        log("Restoring HyperQwen (patched vLLM venv) from Drive:", tar)
+        run(f"rm -rf {root} && mkdir -p {os.path.dirname(root)} && tar -xf {tar} -C {os.path.dirname(root)}")
+        return root
+    log(f"Building HyperQwen {ref[:10]} (vLLM 0.32.0 + patches); first run takes 10-20 minutes...")
+    for cmd in hyperqwen_build_commands(root, ref):
+        run(cmd)
+    try:
+        run(f"cd {root} && bash xgrammar/install.sh")      # optional upstream tool-call fix
+    except InstallError as e:
+        log("HyperQwen xgrammar/install.sh failed (optional, tool calls still work):", str(e)[:300])
+    os.makedirs(builds_dir, exist_ok=True)
+    run(f"tar -cf {tar}.tmp -C {os.path.dirname(root)} {os.path.basename(root)} && mv {tar}.tmp {tar}")
+    log("Cached HyperQwen on Drive:", tar)
+    return root
+
+
+# ---- NInfer (native C++/CUDA, Blackwell sm_120 only) -----------------------------------------------------
+NINFER_REPO = "https://github.com/Neroued/ninfer.git"
+NINFER_PIN = "a754fcf3bf524494aa927c2f54e0cbfb58f569ab"
+NINFER_SRC = "/content/ninfer-src"
+NINFER_ROOT = "/content/ninfer"            # apps/ + lib/ (restored from Drive)
+NINFER_APT = ("ninja-build pkg-config libjpeg-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev "
+              "libhwloc-dev libssl-dev zlib1g-dev")
+NINFER_DEPS = "/content/ninfer-deps"       # liburing / libcurl newer than Ubuntu 22.04 ships
+LIBURING_TAG = "liburing-2.9"
+CURL_VERSION = "8.11.1"
+MIN_DRIVER_FOR_CUDA13 = 580
+
+
+def ninfer_tarball(builds_dir, ref=NINFER_PIN):
+    return os.path.join(builds_dir, f"ninfer_{ref[:10]}_sm120.tar")
+
+
+def _pkg_version(name, run=sh):
+    try:
+        return tuple(int(x) for x in run(f"pkg-config --modversion {name}").strip().split(".")[:2])
+    except (InstallError, ValueError):
+        return None
+
+
+def _driver_major(run=sh):
+    try:
+        return int(run("nvidia-smi --query-gpu=driver_version --format=csv,noheader").split(".")[0])
+    except (InstallError, ValueError):
+        return None
+
+
+def ninfer_dep_commands(have_uring, have_curl, prefix=NINFER_DEPS):
+    cmds = []
+    if not have_uring or have_uring < (2, 5):
+        cmds += [f"rm -rf /tmp/liburing && git clone -q --depth 1 --branch {LIBURING_TAG} "
+                 f"https://github.com/axboe/liburing.git /tmp/liburing",
+                 f"cd /tmp/liburing && ./configure --prefix={prefix} && make -j$(nproc) -C src && make install"]
+    if not have_curl or have_curl < (7, 85):
+        cmds += [f"cd /tmp && curl -fsSL https://curl.se/download/curl-{CURL_VERSION}.tar.xz -o curl.tar.xz"
+                 f" && rm -rf curl-{CURL_VERSION} && tar -xf curl.tar.xz",
+                 f"cd /tmp/curl-{CURL_VERSION} && ./configure --prefix={prefix} --with-openssl --disable-static"
+                 f" --without-libpsl --without-brotli --without-zstd --without-libidn2 --without-nghttp2 -q"
+                 f" && make -j$(nproc) && make install"]
+    return cmds
+
+
+def ensure_ninfer(builds_dir, arch, refresh=False, run=sh, log=print, ref=NINFER_PIN, root=NINFER_ROOT):
+    """Build NInfer's ninfer-serve for sm_120a and cache apps/ + lib/ on Drive. Returns the binary path."""
+    if str(arch) != "120":
+        raise InstallError(f"NInfer builds only for Blackwell sm_120 (G4 runtime); this GPU is sm_{arch}.")
+    binary = os.path.join(root, "apps", "ninfer-serve")
+    tar = ninfer_tarball(builds_dir, ref)
+    if os.path.isfile(binary) and not refresh:
+        return binary
+    run(f"apt-get -qq update && DEBIAN_FRONTEND=noninteractive apt-get -qq install -y {NINFER_APT}")
+    if os.path.isfile(tar) and not refresh:
+        log("Restoring NInfer from Drive:", tar)
+        run(f"rm -rf {root} && mkdir -p {root} && tar -xf {tar} -C {root}")
+        return binary
+    driver = _driver_major(run)
+    if driver is not None and driver < MIN_DRIVER_FOR_CUDA13:
+        raise InstallError(f"NInfer needs CUDA 13, which needs NVIDIA driver {MIN_DRIVER_FOR_CUDA13}+; "
+                           f"this runtime has {driver}.")
+    nvcc = gpu.nvcc_version(_try(run, "nvcc --version") or _try(run, "/usr/local/cuda/bin/nvcc --version"))
+    cuda_home = "/usr/local/cuda"
+    if not nvcc or nvcc < (13, 0):
+        log(f"Installing the CUDA 13 toolkit (runtime has nvcc {nvcc})...")
+        run("cd /tmp && . /etc/os-release && distro=ubuntu$(echo $VERSION_ID | tr -d .) && "
+            "curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/$distro/x86_64/cuda-keyring_1.1-1_all.deb"
+            " -o cuda-keyring.deb && dpkg -i cuda-keyring.deb && apt-get -qq update && "
+            "DEBIAN_FRONTEND=noninteractive apt-get -qq install -y cuda-toolkit-13")
+        cuda_home = sorted(glob.glob("/usr/local/cuda-13*"))[-1] if glob.glob("/usr/local/cuda-13*") else cuda_home
+    run(f"{sys.executable} -m pip install -q 'cmake>=3.28'")
+    for cmd in ninfer_dep_commands(_pkg_version("liburing", run), _pkg_version("libcurl", run)):
+        run(cmd)
+    env = (f"PATH={cuda_home}/bin:$PATH CUDACXX={cuda_home}/bin/nvcc "
+           f"PKG_CONFIG_PATH={NINFER_DEPS}/lib/pkgconfig:$PKG_CONFIG_PATH "
+           f"LD_LIBRARY_PATH={NINFER_DEPS}/lib:$LD_LIBRARY_PATH")
+    log(f"Building NInfer {ref[:10]} for sm_120a (first run takes a while)...")
+    run(f"rm -rf {NINFER_SRC} && mkdir -p {NINFER_SRC} && cd {NINFER_SRC} && git init -q && "
+        f"git fetch -q --depth 1 {NINFER_REPO} {ref} && git checkout -q FETCH_HEAD && "
+        f"git submodule update --init --depth 1 -q || true")
+    run(f"cd {NINFER_SRC} && {env} cmake --preset rtx5090-release && {env} cmake --build build/rtx5090-release -j")
+    out = os.path.join(NINFER_SRC, "build", "rtx5090-release")
+    run(f"rm -rf {root} && mkdir -p {root}/lib && cp -a {out}/apps {root}/ && "
+        f"(cp -a {out}/lib/. {root}/lib/ 2>/dev/null || true)")
+    # Bundle the non-system shared libraries (CUDA 13 runtime, liburing, libcurl) so a restored build runs.
+    run(f"{env} ldd {root}/apps/ninfer-serve | awk '/=> \\// {{print $3}}' | "
+        f"grep -E '^(/usr/local|{NINFER_DEPS})' | xargs -r -I{{}} cp -L {{}} {root}/lib/")
+    os.makedirs(builds_dir, exist_ok=True)
+    run(f"tar -cf {tar}.tmp -C {root} apps lib && mv {tar}.tmp {tar}")
+    log("Cached NInfer on Drive:", tar)
+    return binary
+
+
+def _try(run, cmd):
+    try:
+        return run(cmd)
+    except InstallError:
+        return ""

@@ -15,10 +15,10 @@ import urllib.request
 PORTS = {
     "llama": 30080, "vllm": 30010, "sglang": 30020, "diffusers": 30090,
     "strata": 30050, "maya": 30060, "tensorfold": 30070, "comfyui": 30095,
-    "sparsa": 30065,
+    "sparsa": 30065, "hyperqwen": 30030, "ninfer": 30040,
 }
 READY_TIMEOUT = 1800
-CHAT_BACKENDS = ("llama", "vllm", "sglang", "strata", "maya", "tensorfold", "sparsa")
+CHAT_BACKENDS = ("llama", "vllm", "sglang", "strata", "maya", "tensorfold", "sparsa", "hyperqwen", "ninfer")
 IMAGE_BACKENDS = ("diffusers", "comfyui")
 # Engines that advertise their own model names; readiness = OpenAI /v1/models answers.
 ALIAS_READY_BACKENDS = ("strata", "maya", "sparsa")
@@ -195,6 +195,28 @@ def sparsa_command(entry, model_path, ctx, sparsa_root, python=None, port=None):
     return args + list(entry.get("extra_args", []))
 
 
+def hyperqwen_command(entry, model_path, ctx, hyperqwen_root, python=None, port=None):
+    """HyperQwen's own launcher (single-user/ or batch/start_qwen.sh) via colab_llm_hub.hyperqwen_launch,
+    which first runs HyperQwen's CPU prepare scripts on a local copy of the downloaded checkpoint."""
+    return [python or sys.executable, "-m", "colab_llm_hub.hyperqwen_launch",
+            "--root", str(hyperqwen_root), "--model", str(model_path),
+            "--port", str(port or PORTS["hyperqwen"]), "--ctx", str(int(ctx)),
+            "--mode", entry.get("hyperqwen_mode", "single"), "--spec", entry.get("spec", "mtp")]
+
+
+def ninfer_command(entry, model_path, ctx, ninfer_bin, port=None):
+    """NInfer's OpenAI-compatible server. model_path is the .ninfer entry file (parts sit beside it)."""
+    args = [str(ninfer_bin), str(model_path),
+            "--host", "127.0.0.1", "--port", str(port or PORTS["ninfer"]),
+            "--model-id", entry["id"], "--max-context", str(int(ctx)),
+            "--kv-dtype", entry.get("kv_dtype", "fp8")]
+    if entry.get("spec") and entry["spec"] != "none":
+        args += ["--spec", entry["spec"], "--draft-tokens", str(entry.get("draft_tokens", 3))]
+        if entry.get("proposal_head"):
+            args += ["--proposal-head", entry["proposal_head"]]
+    return args + list(entry.get("extra_args", []))
+
+
 def _walk_names(root):
     out = []
     for dirpath, _, files in os.walk(root):
@@ -227,11 +249,27 @@ def command(entry, model_path, ctx, bins, port=None):
         return sparsa_command(entry, model_path, ctx,
                               bins.get("sparsa", "/content/Sparsa"),
                               bins.get("python"), port)
+    if entry["backend"] == "hyperqwen":
+        return hyperqwen_command(entry, model_path, ctx, bins.get("hyperqwen", "/content/HyperQwen"),
+                                 bins.get("python"), port)
+    if entry["backend"] == "ninfer":
+        return ninfer_command(entry, model_path, ctx,
+                              bins.get("ninfer", "/content/ninfer/apps/ninfer-serve"), port)
     return vllm_command(entry, model_path, ctx, bins.get("vllm", "vllm"), port)
 
 
-def env_for(entry):
+def env_for(entry, bins=None):
     env = dict(os.environ)
+    if entry["backend"] == "hyperqwen":
+        # No key: HyperQwen then binds 127.0.0.1 only, and the hub in front of it does the auth.
+        env.pop("VLLM_API_KEY", None)
+        env["HF_HUB_OFFLINE"] = "1"
+        env.setdefault("VLLM_ENGINE_READY_TIMEOUT_S", str(READY_TIMEOUT))
+    if entry["backend"] == "ninfer":
+        # The cached build bundles libcudart 13, liburing and libcurl next to apps/ in lib/.
+        ninfer_bin = (bins or {}).get("ninfer", "/content/ninfer/apps/ninfer-serve")
+        lib = os.path.join(os.path.dirname(os.path.dirname(str(ninfer_bin))), "lib")
+        env["LD_LIBRARY_PATH"] = lib + (":" + env["LD_LIBRARY_PATH"] if env.get("LD_LIBRARY_PATH") else "")
     if entry["backend"] in ("vllm", "sglang"):
         env.setdefault("VLLM_ENGINE_READY_TIMEOUT_S", str(READY_TIMEOUT))
         env["HF_HUB_OFFLINE"] = "1"                      # serve the local copy; never re-download
@@ -295,7 +333,7 @@ def launch(entry, model_path, ctx, bins, log_dir, port=None, popen=subprocess.Po
     os.makedirs(log_dir, exist_ok=True)
     log_path = os.path.join(log_dir, f"{entry['backend']}-{entry['id']}.log")
     with open(log_path, "ab") as log:                   # the child keeps its own copy of the descriptor
-        proc = popen(command(entry, model_path, ctx, bins, port), env=env_for(entry), stdin=subprocess.DEVNULL,
+        proc = popen(command(entry, model_path, ctx, bins, port), env=env_for(entry, bins), stdin=subprocess.DEVNULL,
                      stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
     return Engine(entry, ctx, proc, port, log_path)
 

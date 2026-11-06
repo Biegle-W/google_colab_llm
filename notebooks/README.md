@@ -16,6 +16,8 @@ single-server notebooks, because no hub model fits a T4 and the hub does not run
 | [`tensorfold/`](tensorfold/) | [`tensorfold_gpu.ipynb`](tensorfold/tensorfold_gpu.ipynb) | — |
 | [`comfyui/`](comfyui/) | [`comfyui_gpu.ipynb`](comfyui/comfyui_gpu.ipynb) | — |
 | [`sparsa/`](sparsa/) | [`sparsa_gpu.ipynb`](sparsa/sparsa_gpu.ipynb) | — |
+| [`hyperqwen/`](hyperqwen/) | [`hyperqwen_gpu.ipynb`](hyperqwen/hyperqwen_gpu.ipynb) | A100: batch entry only; L4 too small |
+| [`ninfer/`](ninfer/) | [`ninfer_gpu.ipynb`](ninfer/ninfer_gpu.ipynb) | G4 (sm_120) only |
 | [`unsloth/`](unsloth/) | — | `Unsloth_Studio_Colab.ipynb` |
 
 Regenerate the GPU notebooks from the repo root:

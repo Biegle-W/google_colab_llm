@@ -222,3 +222,33 @@ class DiffusersClamp(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ServedName(HubCase):
+    """HyperQwen always answers as `qwen3.8-27b`; clients keep using the catalog id."""
+    entries = [entry("hq-a", backend="vllm", served_name="qwen3.8-27b"), entry("b")]
+
+    def test_request_model_is_rewritten_for_the_engine(self):
+        status, data, _ = self.chat("hq-a")
+        self.assertEqual((status, data["choices"][0]["message"]["content"]), (200, "reply from qwen3.8-27b"))
+        status, body, conn = self.stream_raw("hq-a")
+        conn.close()
+        self.assertEqual(status, 200)
+        self.assertIn("qwen3.8-27b-0", body)
+        _, models, _ = self.request("GET", "/v1/models")
+        self.assertIn("hq-a", [m["id"] for m in models["data"]])     # the catalog id is what clients see
+        self.assertEqual(self.chat("b")[0], 200)                       # other models are untouched
+
+
+class GpuArch(HubCase):
+    vram = 102.6
+    entries = [entry("nf", backend="vllm", gpu_arch=["120"]), entry("b")]
+
+    def setUp(self):
+        super().setUp()
+        self.hub_a100 = hubmod.Hub(self.entries, 85.9, self.store, {}, self.tmp, arch="80", log=lambda *_: None)
+        self.hub_g4 = hubmod.Hub(self.entries, 102.6, self.store, {}, self.tmp, arch="120", log=lambda *_: None)
+
+    def test_arch_limited_models_only_on_matching_gpu(self):
+        self.assertEqual(sorted(self.hub_a100.entries), ["b"])
+        self.assertEqual(sorted(self.hub_g4.entries), ["b", "nf"])

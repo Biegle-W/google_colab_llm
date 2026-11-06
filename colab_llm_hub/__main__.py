@@ -26,15 +26,18 @@ def parse(argv=None):
     s.add_argument("--tensorfold-bin", default=None, help="tensorfold-native binary (from ensure_tensorfold)")
     s.add_argument("--comfyui-root", default=None, help="ComfyUI checkout (from ensure_comfyui)")
     s.add_argument("--sparsa-root", default=None, help="Sparsa checkout (from ensure_sparsa)")
+    s.add_argument("--hyperqwen-root", default=None, help="HyperQwen checkout with patched venv (from ensure_hyperqwen)")
+    s.add_argument("--ninfer-bin", default=None, help="ninfer-serve binary (from ensure_ninfer)")
     s.add_argument("--python", default=sys.executable, help="Python used to launch Diffusers / ComfyUI / Sparsa")
     s.add_argument("--catalog", default=None)
     s.add_argument("--engines",
-                   default="llama,vllm,sglang,diffusers,strata,maya,tensorfold,comfyui,sparsa",
+                   default=",".join(catalog.BACKENDS),
                    help="comma-separated engines")
     s.add_argument("--models", default="",
                    help="comma-separated model ids to serve (default: every catalog model that fits); "
                         "the notebooks pass only the selected model so nothing else is downloaded")
     s.add_argument("--vram-gb", type=float, default=None, help="override the detected VRAM (testing)")
+    s.add_argument("--arch", default=None, help="override the GPU compute capability, e.g. 120 (testing)")
     s.add_argument("--ram-gb", type=float, default=None, help="override the detected system RAM (testing)")
     s.add_argument("--disk-gb", type=float, default=None,
                    help="override the local disk available for models (testing)")
@@ -59,10 +62,10 @@ def main(argv=None):
         entries = catalog.only(entries, a.models.split(","))
     if a.vram_gb is None:
         g = gpu.detect()[0]
-        vram, name = g["vram_gb"], g["name"]
+        vram, name, arch = g["vram_gb"], g["name"], g["arch"]
         gpu.print_runtime(g)
     else:
-        vram, name = a.vram_gb, "override"
+        vram, name, arch = a.vram_gb, "override", a.arch
         for line in gpu.format_host():
             print(line)
     key = keyfile.load_or_create(a.key_file or os.path.join(a.drive_dir, "hub", "api_key"))
@@ -79,12 +82,14 @@ def main(argv=None):
             builds, f"tensorfold-{install.TENSORFOLD_VERSION}", "bin", "tensorfold-native"),
         "comfyui": a.comfyui_root or os.path.join(builds, "ComfyUI"),
         "sparsa": a.sparsa_root or os.path.join(builds, "Sparsa"),
+        "hyperqwen": a.hyperqwen_root or "/content/HyperQwen",
+        "ninfer": a.ninfer_bin or "/content/ninfer/apps/ninfer-serve",
     }
     ram = a.ram_gb if a.ram_gb is not None else gpu.ram()["total_gb"]
     disk = a.disk_gb if a.disk_gb is not None else model_disk_gb(a.local_dir)
     h = hub.Hub(entries, vram, store, bins, a.log_dir,
                 ctx_overrides={k: int(v) for k, v in overrides.items()}, gpu_name=name,
-                ram_gb=ram, disk_gb=disk)
+                ram_gb=ram, disk_gb=disk, arch=arch)
     server = hub.make_server(h, key, "127.0.0.1", a.port)
 
     def stop(*_):
@@ -94,7 +99,7 @@ def main(argv=None):
           f"{len(h.entries)} of {len(entries)} models fit.", flush=True)
     for e in entries:
         if e["id"] not in h.entries:
-            print(f"  not served: {e['id']} ({catalog.why_not(e, vram, ram, disk)})", flush=True)
+            print(f"  not served: {e['id']} ({catalog.why_not(e, vram, ram, disk, arch)})", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

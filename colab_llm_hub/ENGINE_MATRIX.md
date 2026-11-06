@@ -14,7 +14,7 @@ models. Settings: `config/settings_<engine>.json`.
 
 | Model | Best on Colab (researched) | Also OK | Avoid on single Colab GPU |
 |---|---|---|---|
-| **Qwen3.8-27B** | **vLLM W4A16/FP8** or **SGLang W4A16** or **TensorFold EXL3+DFlash2** | llama.cpp Q4 | — |
+| **Qwen3.8-27B** | **vLLM W4A16/FP8** or **SGLang W4A16** or **TensorFold EXL3+DFlash2**; on G4 also **HyperQwen** / **NInfer** | llama.cpp Q4 | HyperQwen speculation on A100 (sm80 fault) |
 | **Qwen3.8-Flash-Next** | **Strata** (ISTA / Gyro / Swift) | llama.cpp Unsloth GGUF | Official vLLM/SGLang (multi-GPU) |
 | **Qwen3.6-35B-A3B** | **Strata** (`--family qwen36`) or vLLM FP8 | llama.cpp Unsloth | — |
 | **GLM-5.3-Flash** | **Maya** (Maya-S24 / Maya-S / Maya-XS) | llama.cpp Unsloth GGUF (experimental) | Official vLLM/SGLang (TP4–8) |
@@ -44,6 +44,26 @@ models. Settings: `config/settings_<engine>.json`.
 - Install: clone + linux CUDA `strata-minimax` release tarball into `bin/`.
 - Serve: `python sparsa.py serve --model DIR --no-api-key --host 127.0.0.1`.
 
+### HyperQwen ([syv-ai/HyperQwen](https://github.com/syv-ai/HyperQwen))
+- Qwen3.8-27B only (`dbirks/Qwen3.8-27B-W4A16-AutoRound`), a patch series on pinned vLLM 0.32.0.
+- Install: pinned checkout + venv (`vllm==0.32.0`, FlashInfer cubin, CUDA 13 nvcc wheels) + `patches/apply.sh`;
+  the whole tree is cached on Drive as one tarball.
+- Prepare: `prepare/quant_lm_head.py`, `quant_embed.py`, `quant_mtp.py`, `build_draft_vocab.py` rewrite the
+  checkpoint in place, so the hub runs them on a local copy (`<local models>/.hyperqwen/<id>`), once per runtime.
+- Serve: `single-user/start_qwen.sh` (SPEC=mtp|dflash2) or `batch/start_qwen.sh`, with `MODEL`, `PORT`,
+  `MAX_LEN`; the server name is fixed at `qwen3.8-27b`, so the hub rewrites the request's `model` field.
+- GPUs: tuned on sm86 (3090), reproduced on sm120. sm80 (A100) has an open speculative-decoding fault
+  (#98, #72), so only the batch entry is offered there. Needs a 24 GB card: the L4 (22.5 GiB) is just under.
+
+### NInfer ([Neroued/ninfer](https://github.com/Neroued/ninfer))
+- Native C++/CUDA engine for selected models: Qwen3.8-27B (NVFP4 / group-wise int), Qwen3.6-35B-A3B,
+  Qwen3.8-Flash-Next (CPU expert offload). GLM-5.3-Flash (178 GiB) is not catalogued.
+- Build: `cmake --preset rtx5090-release` targets **sm_120a only**, so Colab G4 only. Needs CUDA 13
+  (driver 580+), hwloc ≥ 2.5, liburing ≥ 2.5, libcurl ≥ 7.85; the installer builds liburing / libcurl
+  from source when Ubuntu's are older, and bundles them with the CUDA 13 runtime in the cached `lib/`.
+- Serve: `ninfer-serve ARTIFACT.ninfer --host 127.0.0.1 --port P --model-id ID --max-context N --kv-dtype fp8
+  --spec mtp --draft-tokens 3 --proposal-head optimized`.
+
 ### Strata ([Niko1221/Strata](https://github.com/Niko1221/Strata))
 - Primary: **Qwen3.8-Flash-Next** (ISTA; also Gyro / Swift / Unsloth).
 - Also: **Qwen3.6-35B-A3B** (`--family qwen36`), DeepSeek (`--family deepseek41`).
@@ -68,6 +88,8 @@ models. Settings: `config/settings_<engine>.json`.
 | `qwen-image-2.1-turbo-comfy`, `flux3-klein-comfy` | **ComfyUI** | Interactive / API images |
 | `wan22-5b-comfy`, `minimax-h3-comfy` | **ComfyUI** | Video prefetch |
 | `minimax-m3.1-flash-iq2-*` | **Sparsa** | MiniMax-M3.1-Flash |
+| `hyperqwen-qwen3.8-27b-{mtp,dflash2,batch}` | **HyperQwen** | Qwen3.8-27B single-user / batch |
+| `ninfer-qwen3.8-27b{,-nvfp4}`, `ninfer-qwen3.6-35b-a3b`, `ninfer-qwen3.8-flash-next` | **NInfer** | G4 only |
 | `flash-next-strata-*` / `gyro-*` / `swift-*` | **Strata** | Flash-Next variants |
 | `qwen36-strata-*` | **Strata** | Qwen3.6-35B-A3B |
 | `deepseek-strata-ist-2.00` | **Strata** | DeepSeek ISTA 2.00bpw |

@@ -35,11 +35,12 @@ class HubError(Exception):
 class Hub:
     def __init__(self, entries, vram_gb, store, bins, log_dir, ctx_overrides=None, launch=backends.launch,
                  serving=backends.serving, gpu_used=gpu.used_mib, sleep=time.sleep, now=time.monotonic,
-                 ready_timeout=backends.READY_TIMEOUT, gpu_name="", log=print, ram_gb=None, disk_gb=None):
+                 ready_timeout=backends.READY_TIMEOUT, gpu_name="", log=print, ram_gb=None, disk_gb=None,
+                 arch=None):
         self.vram_gb, self.gpu_name = vram_gb, gpu_name
         self.ram_gb, self.disk_gb = ram_gb, disk_gb
         self.all_entries = catalog.by_id(entries)
-        self.entries = catalog.by_id(catalog.visible(entries, vram_gb, ram_gb, disk_gb))
+        self.entries = catalog.by_id(catalog.visible(entries, vram_gb, ram_gb, disk_gb, arch))
         self.store, self.bins, self.log_dir = store, bins, log_dir
         self.ctx_overrides = ctx_overrides or {}
         self._launch, self._serving, self._gpu_used = launch, serving, gpu_used
@@ -178,7 +179,7 @@ class Hub:
             if self.stopping:
                 engine.stop()
                 raise HubError(503, "The hub is shutting down.", "hub_stopping")
-            if self._serving(engine.port, model_id, backend=entry.get("backend")):
+            if self._serving(engine.port, catalog.served_name(entry), backend=entry.get("backend")):
                 break
             if not engine.alive:
                 tail = backends.log_tail(engine.log_path, 15).strip().splitlines()
@@ -333,6 +334,11 @@ def make_handler(hub, token):
                     return self.error_json(400, f"{model} is a chat model; use /v1/chat/completions.", "wrong_endpoint")
                 if path != "/v1/images/generations" and kind == "image":
                     return self.error_json(400, f"{model} is an image model; use /v1/images/generations.", "wrong_endpoint")
+            entry = hub.entries.get(model)
+            if entry is not None and catalog.served_name(entry) != model:
+                # The engine answers to a fixed name of its own (HyperQwen); clients keep using the catalog id.
+                data["model"] = catalog.served_name(entry)
+                body = json.dumps(data).encode()
             if data.get("stream") and path != "/v1/images/generations":
                 return self.stream(model, path, body)
             try:

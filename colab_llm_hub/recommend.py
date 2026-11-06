@@ -5,7 +5,8 @@ plus official Strata / Project Maya / TensorFold / Sparsa / ComfyUI docs and Col
 """
 from . import catalog
 
-ENGINES = ("llama", "vllm", "sglang", "diffusers", "strata", "maya", "tensorfold", "comfyui", "sparsa")
+ENGINES = ("llama", "vllm", "sglang", "diffusers", "strata", "maya", "tensorfold", "comfyui", "sparsa",
+           "hyperqwen", "ninfer")
 
 # Preferred catalog ids per engine × GPU band (best-first).
 _ENGINE_PREFETCH = {
@@ -77,6 +78,20 @@ _ENGINE_PREFETCH = {
         "a100_40": [],
         "a100_80": ["minimax-m3.1-flash-iq2-kt"],
         "g4": ["minimax-m3.1-flash-iq2-xs-d3", "minimax-m3.1-flash-iq2-kt"],
+    },
+    "hyperqwen": {
+        "t4": [],
+        "l4": [],
+        "a100_40": ["hyperqwen-qwen3.8-27b-batch"],
+        "a100_80": ["hyperqwen-qwen3.8-27b-batch"],
+        "g4": ["hyperqwen-qwen3.8-27b-dflash2"],
+    },
+    "ninfer": {
+        "t4": [],
+        "l4": [],
+        "a100_40": [],
+        "a100_80": [],
+        "g4": ["ninfer-qwen3.8-27b-nvfp4"],
     },
 }
 
@@ -190,6 +205,21 @@ _ENGINE_NOTES = {
             "G4: IQ2_XS-D3 (default Sparsa pick, ~146 GB) or IQ2_KT. Huge Drive download.",
         ],
     },
+    "hyperqwen": {
+        "t4": ["T4: HyperQwen needs a 24 GB+ Ampere-or-newer GPU."],
+        "l4": ["L4 (22.5 GiB usable) is just under HyperQwen's 24 GB target; use vLLM or llama.cpp instead."],
+        "a100_40": ["A100: batch mode only. Upstream has an open speculative-decoding fault on sm80 (#98, #72)."],
+        "a100_80": ["A100: batch mode only. Upstream has an open speculative-decoding fault on sm80 (#98, #72)."],
+        "g4": ["G4: single-user DFlash2 or MTP (low latency) or batch mode (throughput)."],
+    },
+    "ninfer": {
+        "t4": ["NInfer builds only for Blackwell sm_120: use the G4 runtime."],
+        "l4": ["NInfer builds only for Blackwell sm_120: use the G4 runtime."],
+        "a100_40": ["NInfer builds only for Blackwell sm_120: use the G4 runtime."],
+        "a100_80": ["NInfer builds only for Blackwell sm_120: use the G4 runtime."],
+        "g4": ["G4: Qwen3.8-27B NVFP4 / int, Qwen3.6-35B-A3B, Flash-Next with CPU expert offload. "
+               "First run builds NInfer with CUDA 13 (cached on Drive)."],
+    },
 }
 
 # Hub notebooks live under notebooks/<engine>/…
@@ -248,6 +278,18 @@ ENGINE_META = {
         "kind": "chat",
         "summary": "MiniMax-M3.1-Flash (IQ2_XS-D3 / IQ2_KT) via Sparsa strata-minimax",
     },
+    "hyperqwen": {
+        "title": "HyperQwen",
+        "notebook": "notebooks/hyperqwen/hyperqwen_gpu.ipynb",
+        "kind": "chat",
+        "summary": "Qwen3.8-27B W4A16 on patched vLLM 0.32: MTP / DFlash2 single-user or batch",
+    },
+    "ninfer": {
+        "title": "NInfer",
+        "notebook": "notebooks/ninfer/ninfer_gpu.ipynb",
+        "kind": "chat",
+        "summary": "Native C++/CUDA (G4 only): Qwen3.8-27B NVFP4/int, Qwen3.6-35B-A3B, Flash-Next",
+    },
 }
 INDEX_NOTEBOOK = "notebooks/llm_hub_colab.ipynb"
 
@@ -264,7 +306,7 @@ def band(vram_gb):
     return "g4"
 
 
-def for_engine(engine, vram_gb, entries=None, ram_gb=None, disk_gb=None):
+def for_engine(engine, vram_gb, entries=None, ram_gb=None, disk_gb=None, arch=None):
     """Return {engine, band, engines, prefetch, notes, visible, skipped} for one engine notebook.
 
     With ram_gb / disk_gb, models that would not fit this runtime's system RAM or local disk are left out."""
@@ -275,14 +317,14 @@ def for_engine(engine, vram_gb, entries=None, ram_gb=None, disk_gb=None):
     by = catalog.by_id(scoped)
     b = band(vram_gb)
     want = list(_ENGINE_PREFETCH[engine][b])
-    prefetch = [m for m in want if m in by and catalog.fits(by[m], vram_gb, ram_gb, disk_gb)]
+    prefetch = [m for m in want if m in by and catalog.fits(by[m], vram_gb, ram_gb, disk_gb, arch)]
     return {
         "engine": engine,
         "band": b,
         "engines": [engine],
         "prefetch": prefetch,
         "notes": list(_ENGINE_NOTES[engine][b]),
-        "visible": [e["id"] for e in catalog.visible(scoped, vram_gb, ram_gb, disk_gb)],
+        "visible": [e["id"] for e in catalog.visible(scoped, vram_gb, ram_gb, disk_gb, arch)],
         "skipped": [m for m in want if m not in prefetch],
         "meta": dict(ENGINE_META[engine]),
     }
@@ -317,9 +359,9 @@ def for_gpu(vram_gb, entries=None):
     }
 
 
-def explain(vram_gb, entries=None, engine=None, ram_gb=None, disk_gb=None):
+def explain(vram_gb, entries=None, engine=None, ram_gb=None, disk_gb=None, arch=None):
     if engine:
-        plan = for_engine(engine, vram_gb, entries, ram_gb, disk_gb)
+        plan = for_engine(engine, vram_gb, entries, ram_gb, disk_gb, arch)
         lines = [
             f"Engine: {plan['engine']} ({ENGINE_META[engine]['title']})",
             f"GPU band: {plan['band']} ({vram_gb} GB reported)",

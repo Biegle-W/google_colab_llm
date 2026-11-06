@@ -45,7 +45,7 @@ def _badge(notebook):
 SIBLING_NOTEBOOKS = (
     "`notebooks/llama/`, `notebooks/vllm/`, `notebooks/sglang/`, `notebooks/diffusers/`, "
     "`notebooks/strata/`, `notebooks/maya/`, `notebooks/tensorfold/`, `notebooks/comfyui/`, "
-    "`notebooks/sparsa/` — see `notebooks/llm_hub_colab.ipynb`"
+    "`notebooks/sparsa/`, `notebooks/hyperqwen/`, `notebooks/ninfer/` — see `notebooks/llm_hub_colab.ipynb`"
 )
 
 
@@ -128,6 +128,30 @@ def _model_table(engine):
             "",
             "Official: [LyJonathan/Sparsa](https://github.com/LyJonathan/Sparsa) "
             "`python sparsa.py serve --model … --no-api-key`.",
+        ]
+    if engine == "hyperqwen":
+        return [
+            "| Catalog id | Notes |",
+            "|---|---|",
+            "| `hyperqwen-qwen3.8-27b-dflash2` | Single-user, DFlash2 block drafter (fastest; not A100) |",
+            "| `hyperqwen-qwen3.8-27b-mtp` | Single-user, MTP speculation (not A100) |",
+            "| `hyperqwen-qwen3.8-27b-batch` | Batch / throughput, 64 concurrent, no speculation (A100 OK) |",
+            "",
+            "Official: [syv-ai/HyperQwen](https://github.com/syv-ai/HyperQwen) patched vLLM 0.32.0, "
+            "`single-user/start_qwen.sh` / `batch/start_qwen.sh`. Needs a 24 GB+ card (L4 is just under).",
+        ]
+    if engine == "ninfer":
+        return [
+            "| Catalog id | Notes |",
+            "|---|---|",
+            "| `ninfer-qwen3.8-27b-nvfp4` | Qwen3.8-27B NVFP4 + MTP x3 |",
+            "| `ninfer-qwen3.8-27b` | Qwen3.8-27B group-wise int + MTP x3 |",
+            "| `ninfer-qwen3.6-35b-a3b` | Qwen3.6-35B-A3B MoE + MTP x3 |",
+            "| `ninfer-qwen3.8-flash-next` | Flash-Next 101 GiB, CPU expert offload |",
+            "",
+            "Official: [Neroued/ninfer](https://github.com/Neroued/ninfer) `ninfer-serve`. "
+            "Builds only for Blackwell sm_120a, so **G4 runtime only**; first run builds it with CUDA 13 "
+            "and caches the build on Drive.",
         ]
     return [
         "| Catalog id | Notes |",
@@ -239,19 +263,20 @@ def build_notebook(engine: str) -> dict:
             "HOST = gpu.print_runtime(G)  # GPU + CPU + RAM + disk, every run",
             "CPU, RAM = HOST[\"cpu\"], HOST[\"ram\"]",
             "VRAM = G[\"vram_gb\"]",
+            "ARCH = G[\"arch\"]  # compute capability without the dot: 89 L4, 80 A100, 120 G4",
             "RAM_GB = RAM[\"total_gb\"]",
             "from colab_llm_hub.store import model_disk_gb",
             "DISK_GB = model_disk_gb(WS.local_models)   # free space + cached local models (they are evictable)",
             "ALL = catalog.load()",
             "ENTRIES = catalog.for_engines(ALL, [ENGINE])",
-            "PLAN = recommend.for_engine(ENGINE, VRAM, ALL, ram_gb=RAM_GB, disk_gb=DISK_GB)",
+            "PLAN = recommend.for_engine(ENGINE, VRAM, ALL, ram_gb=RAM_GB, disk_gb=DISK_GB, arch=ARCH)",
             "print()",
             "print(f\"Model files go to {WS.local_models} ({DISK_GB} GB usable); fit checks use VRAM, RAM and that disk.\")",
-            "print(recommend.explain(VRAM, ALL, engine=ENGINE, ram_gb=RAM_GB, disk_gb=DISK_GB))",
+            "print(recommend.explain(VRAM, ALL, engine=ENGINE, ram_gb=RAM_GB, disk_gb=DISK_GB, arch=ARCH))",
             "print()",
             "print(f\"{'model id':36s} {'kind':5s} {'size':>7s}  {'ctx/edge':>14s}\")",
             "for e in ENTRIES:",
-            "    reason = catalog.why_not(e, VRAM, RAM_GB, DISK_GB)",
+            "    reason = catalog.why_not(e, VRAM, RAM_GB, DISK_GB, ARCH)",
             "    fit = reason is None",
             "    kind = catalog.kind_for(e)",
             "    label = \"edge\" if kind in (\"image\", \"video\") else \"ctx\"",
@@ -275,25 +300,26 @@ def build_notebook(engine: str) -> dict:
             "HOST = gpu.print_runtime(G)  # re-detect GPU + CPU + RAM every config run",
             "CPU, RAM = HOST[\"cpu\"], HOST[\"ram\"]",
             "VRAM = G[\"vram_gb\"]",
+            "ARCH = G[\"arch\"]  # compute capability without the dot: 89 L4, 80 A100, 120 G4",
             "RAM_GB = RAM[\"total_gb\"]",
             "from colab_llm_hub.store import model_disk_gb",
             "DISK_GB = model_disk_gb(WS.local_models)   # free space + cached local models (they are evictable)",
             "ALL = catalog.load()",
             "ENTRIES = catalog.for_engines(ALL, [ENGINE])",
-            "PLAN = recommend.for_engine(ENGINE, VRAM, ALL, ram_gb=RAM_GB, disk_gb=DISK_GB)",
+            "PLAN = recommend.for_engine(ENGINE, VRAM, ALL, ram_gb=RAM_GB, disk_gb=DISK_GB, arch=ARCH)",
             "saved = WS.load_settings()",
             "",
             "# The ONE model this session downloads to Drive and serves. Nothing else is fetched.",
             f"MODEL = \"recommended\"  # @param {json.dumps(_model_choices(engine))}",
             "SERVE_ONLY_SELECTED = True  # @param {type:\"boolean\"}",
-            "fitting = [e[\"id\"] for e in ENTRIES if catalog.fits(e, VRAM, RAM_GB, DISK_GB)]",
+            "fitting = [e[\"id\"] for e in ENTRIES if catalog.fits(e, VRAM, RAM_GB, DISK_GB, ARCH)]",
             "if MODEL == \"recommended\":",
             "    MODEL = (PLAN[\"prefetch\"] or fitting or [None])[0]",
             "    print(\"Recommended model for this GPU:\", MODEL)",
             "assert MODEL, f\"No {ENGINE} model fits this GPU ({VRAM} GB); try a larger runtime.\"",
             "assert MODEL in {e[\"id\"] for e in ENTRIES}, f\"{MODEL} is not a {ENGINE} model\"",
             "assert MODEL in fitting, (f\"{MODEL} does not fit this runtime: \"",
-            "                         f\"{catalog.why_not(catalog.by_id(ENTRIES)[MODEL], VRAM, RAM_GB, DISK_GB)}\")",
+            "                         f\"{catalog.why_not(catalog.by_id(ENTRIES)[MODEL], VRAM, RAM_GB, DISK_GB, ARCH)}\")",
             "PREFETCH = [MODEL]",
             "ENGINES = [ENGINE]  # never install other engines from this notebook",
             "CTX_OVERRIDE = saved.get(\"ctx_override\") or {}",
@@ -336,6 +362,8 @@ def build_notebook(engine: str) -> dict:
             "TENSORFOLD_BIN = \"tensorfold-native\"",
             "COMFYUI_ROOT = str(WS.builds / \"ComfyUI\")",
             "SPARSA_ROOT = str(WS.builds / \"Sparsa\")",
+            "HYPERQWEN_ROOT = install.HYPERQWEN_ROOT",
+            "NINFER_BIN = install.NINFER_ROOT + \"/apps/ninfer-serve\"",
             "install.ensure_hub_deps(BUILDS, refresh=REFRESH_WHEELS)",
             f'if ENGINE == "llama":',
             "    LLAMA_BIN = install.ensure_llama(BUILDS, G[\"arch\"], ref=LLAMA_CPP_REF, rebuild=REBUILD_LLAMA)",
@@ -361,6 +389,12 @@ def build_notebook(engine: str) -> dict:
             f'elif ENGINE == "sparsa":',
             "    SPARSA_ROOT = install.ensure_sparsa(BUILDS, refresh=REFRESH_WHEELS)",
             "    print(\"sparsa:\", SPARSA_ROOT)",
+            f'elif ENGINE == "hyperqwen":',
+            "    HYPERQWEN_ROOT = install.ensure_hyperqwen(BUILDS, refresh=REFRESH_WHEELS)",
+            "    print(\"hyperqwen:\", HYPERQWEN_ROOT)",
+            f'elif ENGINE == "ninfer":',
+            "    NINFER_BIN = install.ensure_ninfer(BUILDS, G[\"arch\"], refresh=REFRESH_WHEELS)",
+            "    print(\"ninfer-serve:\", NINFER_BIN)",
             "print(\"Install log →\", WS.logs / \"install.log\")",
         ]),
         _md([
@@ -427,6 +461,7 @@ def build_notebook(engine: str) -> dict:
             "        \"--strata-bin\", STRATA_BIN, \"--maya-root\", MAYA_ROOT,",
             "        \"--tensorfold-bin\", TENSORFOLD_BIN, \"--comfyui-root\", COMFYUI_ROOT,",
             "        \"--sparsa-root\", SPARSA_ROOT,",
+            "        \"--hyperqwen-root\", HYPERQWEN_ROOT, \"--ninfer-bin\", NINFER_BIN,",
             "        \"--engines\", ENGINE]",
             "if SERVE_ONLY_SELECTED:",
             "    args += [\"--models\", MODEL]   # the harness cannot trigger downloads of other models",
