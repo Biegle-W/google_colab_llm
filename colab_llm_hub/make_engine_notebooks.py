@@ -176,7 +176,7 @@ def build_notebook(engine: str) -> dict:
             "",
             f'ENGINE   = "{engine}"  # locked for this notebook',
             f'HUB_REPO  = "{REPO}"',
-            f'HUB_REF   = "{BRANCH}"  # pin until merged; then set None for default branch',
+            f'HUB_REF   = "main"  # always clone hub package from main',
             'DRIVE_DIR = "/content/drive/MyDrive/llm_models"',
             'HUB_DIR   = "/content/hub_repo"',
             "",
