@@ -181,6 +181,26 @@ class Gpu(unittest.TestCase):
         self.assertEqual((g[0]["arch"], g[0]["vram_gb"]), ("89", 24.2))
         self.assertEqual((g[1]["arch"], g[1]["vram_gb"]), ("120", 102.6))
 
+    def test_parse_cpuinfo_and_meminfo(self):
+        cpuinfo = (
+            "processor\t: 0\nmodel name\t: Intel(R) Xeon(R) CPU @ 2.20GHz\n"
+            "physical id\t: 0\ncore id\t\t: 0\n\n"
+            "processor\t: 1\nmodel name\t: Intel(R) Xeon(R) CPU @ 2.20GHz\n"
+            "physical id\t: 0\ncore id\t\t: 0\n\n"
+            "processor\t: 2\nmodel name\t: Intel(R) Xeon(R) CPU @ 2.20GHz\n"
+            "physical id\t: 0\ncore id\t\t: 1\n\n"
+            "processor\t: 3\nmodel name\t: Intel(R) Xeon(R) CPU @ 2.20GHz\n"
+            "physical id\t: 0\ncore id\t\t: 1\n\n"
+        )
+        c = gpu.parse_cpuinfo(cpuinfo, logical=4)
+        self.assertEqual(c["model"], "Intel(R) Xeon(R) CPU @ 2.20GHz")
+        self.assertEqual((c["cores"], c["threads"], c["sockets"]), (2, 4, 1))
+        mem = gpu.parse_meminfo("MemTotal:       32899012 kB\nMemAvailable:   20000000 kB\nMemFree: 1000 kB\n")
+        self.assertEqual((mem["total_gb"], mem["available_gb"], mem["used_gb"]), (32.9, 20.0, 12.9))
+        lines = gpu.format_host({"cpu": c, "ram": mem})
+        self.assertIn("2 cores / 4 threads", lines[0])
+        self.assertIn("32.9 GB total", lines[1])
+
     def test_cmake_arch(self):
         self.assertEqual(gpu.cmake_arch("89", (12, 4)), "89")
         self.assertEqual(gpu.cmake_arch("120", (12, 4)), "90-virtual")

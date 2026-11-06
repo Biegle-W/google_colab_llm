@@ -52,8 +52,11 @@ def main(argv=None):
     if a.vram_gb is None:
         g = gpu.detect()[0]
         vram, name = g["vram_gb"], g["name"]
+        gpu.print_runtime(g)
     else:
         vram, name = a.vram_gb, "override"
+        for line in gpu.format_host():
+            print(line)
     key = keyfile.load_or_create(a.key_file or os.path.join(a.drive_dir, "hub", "api_key"))
     store = ModelStore(a.drive_dir, a.local_dir, token=os.environ.get(a.hf_token_env))
     overrides = dict(x.split("=", 1) for x in a.ctx)
