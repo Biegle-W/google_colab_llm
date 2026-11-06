@@ -437,8 +437,6 @@ class Misc(unittest.TestCase):
             tunnel.parse_tailscale_url("Available on the tailnet:\nhttps://colab-vllm.tailnet.ts.net/\n"),
             "https://colab-vllm.tailnet.ts.net")
         self.assertIsNone(tunnel.parse_tailscale_url("no url yet"))
-        import builtins
-        real_getpass = None
         calls = []
 
         def fake_getpass(prompt=""):
@@ -456,6 +454,29 @@ class Misc(unittest.TestCase):
         self.assertTrue(calls)
         with self.assertRaises(ValueError):
             tunnel.start_tailscale(8000, authkey="not-a-key")
+
+    def test_tailscale_authkey_saved_on_drive_not_settings(self):
+        root = tempfile.mkdtemp()
+        path = os.path.join(root, "hub", "tailscale_authkey")
+        import getpass as getpass_mod
+        real = getpass_mod.getpass
+        getpass_mod.getpass = lambda prompt="": "tskey-auth-DRIVEKEY123456"
+        try:
+            k1 = tunnel.load_or_ask_tailscale_authkey(path, log=lambda *_: None)
+            k2 = tunnel.load_or_ask_tailscale_authkey(path, log=lambda *_: None)  # no second prompt
+        finally:
+            getpass_mod.getpass = real
+        self.assertEqual(k1, "tskey-auth-DRIVEKEY123456")
+        self.assertEqual(k2, k1)
+        self.assertTrue(os.path.isfile(path))
+        self.assertEqual(open(path).read().strip(), k1)
+        getpass_mod.getpass = lambda prompt="": "tskey-auth-REFRESHED999999"
+        try:
+            k3 = tunnel.load_or_ask_tailscale_authkey(path, refresh=True, log=lambda *_: None)
+        finally:
+            getpass_mod.getpass = real
+        self.assertEqual(k3, "tskey-auth-REFRESHED999999")
+        shutil.rmtree(root, ignore_errors=True)
 
     def test_llama_fetch_commands(self):
         pinned = install.llama_fetch_commands(install.LLAMA_PIN, "/s")

@@ -80,8 +80,9 @@ The notebook prints the base URL, the API key and a dsh provider block (chat mod
 repository, `python -m colab_llm_hub.configure_dsh --url <URL> --key <KEY> --settings <dsh settings.yaml>` asks the
 hub which models it serves and merges one provider into the settings (other providers and settings are left alone,
 a `.bak` is written, and the key is never saved in the file: dsh reads it from `COLAB_LLM_API_KEY`).
-Default remote access is **Tailscale Serve**: each fresh Colab run prompts for an auth key (not stored on Drive).
-Cloudflare quick / named tunnels remain available by setting `TUNNEL` to `quick` or `named`.
+Default remote access is **Tailscale Serve**: the auth key is prompted once and saved only under the user's
+private Drive (`hub/tailscale_authkey`, gitignored). Cloudflare quick / named tunnels remain available by
+setting `TUNNEL` to `quick` or `named`.
 
 Image clients call the same base URL:
 

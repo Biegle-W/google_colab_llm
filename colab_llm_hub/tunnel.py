@@ -131,11 +131,7 @@ def _run_ts(ts_bin, socket_path, args, check=True, timeout=120):
 
 
 def ask_tailscale_authkey(prompt=None):
-    """Always prompt for a Tailscale auth key (never read from Drive settings).
-
-    Colab secret ``TAILSCALE_AUTHKEY`` is accepted only when the user presses Enter
-    on an empty prompt, so every fresh run still asks.
-    """
+    """Prompt for a Tailscale auth key (getpass). Empty Enter may use Colab secret."""
     from getpass import getpass
     prompt = prompt or (
         "Tailscale auth key (tskey-auth-…; reusable+ephemeral recommended).\n"
@@ -157,6 +153,27 @@ def ask_tailscale_authkey(prompt=None):
         "No Tailscale auth key provided. Generate a reusable ephemeral key at "
         "https://login.tailscale.com/admin/settings/keys and re-run this cell."
     )
+
+
+def load_or_ask_tailscale_authkey(drive_path=None, refresh=False, log=print):
+    """Load the auth key from private Google Drive, or prompt once and save it there.
+
+    The key lives only under the user's Drive (e.g. ``MyDrive/llm_models/hub/tailscale_authkey``).
+    It is never written into notebook settings JSON or the public git repo.
+    """
+    from . import keyfile
+    if drive_path and not refresh:
+        existing = keyfile.read_secret(drive_path, prefix="tskey-", min_len=16)
+        if existing:
+            log(f"Using Tailscale auth key from private Drive: {drive_path}")
+            return existing
+    key = ask_tailscale_authkey()
+    if not key.startswith("tskey-"):
+        raise ValueError("Tailscale auth key must look like tskey-auth-… / tskey-…")
+    if drive_path:
+        keyfile.write_secret(drive_path, key)
+        log(f"Saved Tailscale auth key to private Drive (not in git): {drive_path}")
+    return key
 
 
 def start_tailscale(port, authkey, hostname=None, drive_dir=None, funnel=False,

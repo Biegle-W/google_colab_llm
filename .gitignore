@@ -1,2 +1,14 @@
 __pycache__/
 *.pyc
+
+# Never commit private Colab Drive secrets if someone syncs/copies them into the repo
+hub/api_key
+hub/tailscale_authkey
+**/hub/api_key
+**/hub/tailscale_authkey
+**/tailscale_authkey
+*.authkey
+.tskey
+.env
+.env.*
+!.env.example
