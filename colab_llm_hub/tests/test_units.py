@@ -432,6 +432,31 @@ class Misc(unittest.TestCase):
         self.assertTrue(p1.endswith("builds/tools/cloudflared"))
         self.assertEqual(len(fetched), 1)  # second call uses the Drive cache
 
+    def test_tailscale_url_parse_and_authkey_prompt(self):
+        self.assertEqual(
+            tunnel.parse_tailscale_url("Available on the tailnet:\nhttps://colab-vllm.tailnet.ts.net/\n"),
+            "https://colab-vllm.tailnet.ts.net")
+        self.assertIsNone(tunnel.parse_tailscale_url("no url yet"))
+        import builtins
+        real_getpass = None
+        calls = []
+
+        def fake_getpass(prompt=""):
+            calls.append(prompt)
+            return "tskey-auth-TESTKEY"
+
+        import getpass as getpass_mod
+        real = getpass_mod.getpass
+        getpass_mod.getpass = fake_getpass
+        try:
+            key = tunnel.ask_tailscale_authkey()
+        finally:
+            getpass_mod.getpass = real
+        self.assertEqual(key, "tskey-auth-TESTKEY")
+        self.assertTrue(calls)
+        with self.assertRaises(ValueError):
+            tunnel.start_tailscale(8000, authkey="not-a-key")
+
     def test_llama_fetch_commands(self):
         pinned = install.llama_fetch_commands(install.LLAMA_PIN, "/s")
         self.assertTrue(any(f"fetch -q --depth 1 {install.LLAMA_URL} {install.LLAMA_PIN}" in c for c in pinned))

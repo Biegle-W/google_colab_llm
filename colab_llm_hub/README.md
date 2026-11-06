@@ -25,7 +25,7 @@ Regenerate notebooks with `python3 -m colab_llm_hub.make_engine_notebooks`.
 ## How it works
 
 ```
-your client ──HTTPS──> Cloudflare tunnel ──> hub (127.0.0.1:8000, Bearer key)
+your client ──HTTPS──> Tailscale Serve (default) or Cloudflare ──> hub (127.0.0.1:8000, Bearer key)
                                                ├─ llama.cpp   (:30080)  GGUF chat models
                                                ├─ vLLM        (:30010)  safetensors chat models
                                                ├─ SGLang      (:30020)  chat models
@@ -55,7 +55,7 @@ later sessions: Drive ──copy──> local ──> engine   (wheels/builds/hu
 | Drive layout: per-engine settings, HF cache, logs, outputs | `workspace.py` |
 | GPU detection (including Blackwell/CUDA handling) | `gpu.py` |
 | Engine builds and wheels cached on Drive | `install.py` |
-| Cloudflare quick or named tunnel | `tunnel.py` |
+| Tailscale Serve (default) + Cloudflare quick/named tunnels | `tunnel.py` |
 | dsh provider block, stable API key | `provider.py`, `keyfile.py` |
 | Local script: add the hub to dsh's settings | `configure_dsh.py` |
 
@@ -79,8 +79,9 @@ limit) and then get `503` with `Retry-After`; the load keeps going, so a retry s
 The notebook prints the base URL, the API key and a dsh provider block (chat models only). On your own computer, in a clone of this
 repository, `python -m colab_llm_hub.configure_dsh --url <URL> --key <KEY> --settings <dsh settings.yaml>` asks the
 hub which models it serves and merges one provider into the settings (other providers and settings are left alone,
-a `.bak` is written, and the key is never saved in the file: dsh reads it from `COLAB_LLM_API_KEY`). A quick-tunnel
-URL changes every session; a Cloudflare named tunnel (see the notebook's notes) gives a fixed one.
+a `.bak` is written, and the key is never saved in the file: dsh reads it from `COLAB_LLM_API_KEY`).
+Default remote access is **Tailscale Serve**: each fresh Colab run prompts for an auth key (not stored on Drive).
+Cloudflare quick / named tunnels remain available by setting `TUNNEL` to `quick` or `named`.
 
 Image clients call the same base URL:
 

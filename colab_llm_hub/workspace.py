@@ -17,7 +17,7 @@ DEFAULT_SETTINGS = {
     "engines": ["llama", "diffusers"],
     "ctx_override": {},
     "port": 8000,
-    "tunnel": "quick",
+    "tunnel": "tailscale",
     "llama_cpp_ref": "4c3c5810f87efe177949f1b85ae509d38a2a311f",
     "rebuild_llama": False,
     "refresh_wheels": False,
