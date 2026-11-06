@@ -86,6 +86,10 @@ class Workspace:
     def save_settings(self, settings):
         self.config.mkdir(parents=True, exist_ok=True)
         data = dict(settings)
+        # Never persist secrets into settings JSON (those live under hub/ on Drive only).
+        for banned in ("tailscale_authkey", "ts_authkey", "authkey", "api_key",
+                       "TAILSCALE_AUTHKEY", "CLOUDFLARE_TUNNEL_TOKEN"):
+            data.pop(banned, None)
         data["updated"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         tmp = self.settings_path.with_suffix(".json.part")
         tmp.write_text(json.dumps(data, indent=2) + "\n")
