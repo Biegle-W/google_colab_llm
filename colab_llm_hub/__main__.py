@@ -44,11 +44,32 @@ def parse(argv=None):
     s.add_argument("--ctx", action="append", default=[], metavar="MODEL=TOKENS",
                    help="override a model's context tokens (chat) or max edge px (image)")
     s.add_argument("--hf-token-env", default="HF_TOKEN")
+    r = sub.add_parser("prepare", help="download a model and build its engine on Drive for a GPU runtime, "
+                                         "from any runtime (no GPU needed)")
+    r.add_argument("--target", required=True, help="GPU runtime to prepare for: l4, a100 or g4")
+    r.add_argument("--engine", required=True)
+    r.add_argument("--model", default="recommended", help="catalog id, or 'recommended' for the target")
+    r.add_argument("--drive-dir", default="/content/drive/MyDrive/llm_models")
+    r.add_argument("--staging-dir", default="/content/prepare_staging", help="local disk for files in transit")
+    r.add_argument("--no-engine", action="store_true", help="only download the model")
+    r.add_argument("--no-download", action="store_true", help="only build / cache the engine")
+    r.add_argument("--refresh", action="store_true", help="rebuild the engine cache")
+    r.add_argument("--hf-token-env", default="HF_TOKEN")
     return p.parse_args(argv)
+
+
+def run_prepare(a):
+    from . import prepare
+    result = prepare.prepare(a.target, a.engine, a.model, drive_dir=a.drive_dir, staging=a.staging_dir,
+                             token=os.environ.get(a.hf_token_env), do_engine=not a.no_engine,
+                             do_download=not a.no_download, refresh=a.refresh)
+    return 1 if result["errors"] else 0
 
 
 def main(argv=None):
     a = parse(argv)
+    if a.cmd == "prepare":
+        return run_prepare(a)
     # Prefer Drive-backed logs / HF cache when the workspace module is available.
     try:
         from .workspace import open_workspace

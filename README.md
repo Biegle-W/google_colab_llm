@@ -18,9 +18,20 @@ Notebooks are grouped by engine under [`notebooks/`](notebooks/).
 | [`notebooks/vllm/`](notebooks/vllm/) | **vLLM** — `vllm_gpu.ipynb` (L4/A100/G4) + `vllm_tpu.ipynb` (TPU) |
 | [`notebooks/sglang/`](notebooks/sglang/) | **SGLang** — Qwen3.8-27B W4A16 AutoRound |
 | [`notebooks/diffusers/`](notebooks/diffusers/) | **Diffusers** — Qwen-Image-2.1, FLUX, SDXL |
+| [`notebooks/prepare/prepare_cpu.ipynb`](notebooks/prepare/prepare_cpu.ipynb) | **Save GPU time:** on a cheap CPU runtime, download a model to Drive and build its engine for the GPU you will use |
 | [`notebooks/unsloth/`](notebooks/unsloth/) | Official Unsloth Studio |
 
 Engine picks and workstation notes: [`colab_llm_hub/ENGINE_MATRIX.md`](colab_llm_hub/ENGINE_MATRIX.md). Each `<engine>_gpu.ipynb` runs the hub, installs **only its engine** and lists **only that engine’s catalog models**. Settings are `config/settings_<engine>.json`; weights/builds still share Drive.
+
+## Prepare on a CPU runtime, serve on a GPU runtime
+
+Downloading a model and building an engine need no GPU, so do them on a **CPU** runtime with
+[`notebooks/prepare/prepare_cpu.ipynb`](notebooks/prepare/prepare_cpu.ipynb): pick the GPU you will use
+(L4, A100 or G4), the engine and the model. It downloads the model straight to Drive one file at a time
+(resumable; Drive accepts about 750 GB of uploads per day) while it builds or caches the engine for that GPU:
+wheels, HyperQwen's venv, llama.cpp / NInfer compiled for the GPU's architecture. The GPU notebook then only
+copies them from Drive and loads the model. Without a browser:
+`python -m colab_llm_hub prepare --target g4 --engine ninfer --model recommended`.
 
 ## Google AI Pro / Colab Pro
 

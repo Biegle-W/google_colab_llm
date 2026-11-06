@@ -52,6 +52,7 @@ later sessions: Drive ──copy──> local ──> engine   (wheels/builds/Ta
 |---|---|
 | Hub server: auth, routing, loading, switching, keep-alives | `hub.py` |
 | Model files: download once, save to Drive, restore, evict | `store.py` |
+| Prepare on a CPU runtime: Drive-direct download + engine build for a target GPU | `prepare.py`, `runtimes.py` |
 | Engine command lines and process control | `backends.py` |
 | Diffusers OpenAI images server (incl. Qwen-Image-2.1 / NF4) | `diffusers_server.py` |
 | ComfyUI OpenAI images wrapper + stock API workflows | `comfyui_server.py`, `workflows/` |

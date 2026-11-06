@@ -12,6 +12,7 @@ from . import catalog
 from .recommend import ENGINE_META, ENGINES, INDEX_NOTEBOOK
 
 REPO = "https://github.com/Biegle-W/google_colab_llm"
+PREPARE_NOTEBOOK = "notebooks/prepare/prepare_cpu.ipynb"
 BRANCH = "main"
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -399,6 +400,9 @@ def build_notebook(engine: str) -> dict:
         ]),
         _md([
             "## 5. Download the models to Google Drive (skipped for anything already saved)",
+            "",
+            "To spend less GPU time, run `notebooks/prepare/prepare_cpu.ipynb` on a CPU runtime first: it "
+            "downloads the model and builds this engine on Drive, and this cell and cell 4 then just restore them.",
         ]),
         _code([
             "import threading, time",
@@ -648,6 +652,120 @@ def build_notebook(engine: str) -> dict:
     }
 
 
+def build_prepare_notebook() -> dict:
+    """CPU-runtime notebook: download a model and build its engine on Drive for a GPU runtime."""
+    from . import runtimes
+    boot = json.loads(json.dumps(build_notebook("llama")["cells"][1:3]))      # same bootstrap as the GPU notebooks
+    src = boot[1]["source"]
+    i = next(k for k, line in enumerate(src) if line.startswith("ENGINE   ="))
+    src[i] = 'ENGINE   = "prepare"  # settings go to config/settings_prepare.json\n'
+    all_ids = ["recommended"] + [e["id"] for e in catalog.load()]
+    cells = [
+        _md([
+            _badge(PREPARE_NOTEBOOK),
+            "",
+            "# Prepare a model and its engine on a cheap CPU runtime",
+            "",
+            "Runtime → Change runtime type → **CPU** (High-RAM is not needed). This notebook does the slow, "
+            "GPU-free work so the expensive GPU runtime only loads and serves:",
+            "",
+            "- **Model:** downloaded from Hugging Face straight to `MyDrive/llm_models/models/<id>/`, one file "
+            "at a time (local disk only ever holds two files). Re-running resumes; files already on Drive are "
+            "skipped. Google Drive accepts about 750 GB of uploads per day, so the largest models may need two days.",
+            "- **Engine:** built or cached on Drive for the GPU you pick: wheels (vLLM, SGLang, Diffusers), "
+            "HyperQwen's patched venv, llama.cpp / NInfer compiled for that GPU's architecture (nvcc does not "
+            "need the GPU), release downloads (Strata, Maya, TensorFold, ComfyUI, Sparsa).",
+            "- Both run at the same time: the download uses the network, the build uses the CPU.",
+            "",
+            "Then open `notebooks/<engine>/<engine>_gpu.ipynb` on the GPU runtime and pick the same model: it "
+            "restores both from Drive.",
+            "",
+            "Can also be run without a browser: "
+            "`python -m colab_llm_hub prepare --target g4 --engine ninfer --model recommended`.",
+        ]),
+        *boot,
+        _md([
+            "## 2. Check this runtime",
+            "",
+            "Compiling llama.cpp or NInfer is limited by CPU cores, and the GPU runtime restores Python wheels "
+            "and HyperQwen's venv only if its Python version matches this one.",
+        ]),
+        _code([
+            "import platform, shutil",
+            "print(\"CPU threads :\", os.cpu_count())",
+            "print(\"Python      :\", platform.python_version(), \"(the GPU runtime must match for wheels / venvs)\")",
+            "print(\"Free disk   :\", round(shutil.disk_usage(\"/content\").free / 1e9), \"GB in /content\")",
+            "nvcc = subprocess.run(\"PATH=$PATH:/usr/local/cuda/bin nvcc --version | tail -2\", shell=True,",
+            "                      capture_output=True, text=True).stdout.strip()",
+            "print(\"nvcc        :\", nvcc or \"not found (llama.cpp builds need it; NInfer installs CUDA 13)\")",
+            "if shutil.which(\"nvidia-smi\"):",
+            "    print(\"Note: this runtime has a GPU. Preparing works here too, but a CPU runtime costs far less.\")",
+        ]),
+        _md(["## 3. Pick the GPU runtime, engine and model"]),
+        _code([
+            "from colab_llm_hub import catalog, prepare, runtimes",
+            "",
+            f"TARGET = \"g4\"  # @param {json.dumps(list(runtimes.TARGETS))}",
+            f"ENGINE_TO_PREP = \"vllm\"  # @param {json.dumps(list(ENGINES))}",
+            f"MODEL = \"recommended\"  # @param {json.dumps(all_ids)}",
+            "BUILD_ENGINE = True  # @param {type:\"boolean\"}",
+            "DOWNLOAD_MODEL = True  # @param {type:\"boolean\"}",
+            "REFRESH_ENGINE = False  # @param {type:\"boolean\"}",
+            "",
+            "VRAM, RAM_GB, DISK_GB, ARCH = runtimes.specs(TARGET)",
+            "print(f\"Target: {runtimes.target(TARGET)['name']} ({VRAM} GB VRAM, {RAM_GB} GB RAM, sm_{ARCH})\\n\")",
+            "for e in catalog.for_engines(catalog.load(), [ENGINE_TO_PREP]):",
+            "    reason = catalog.why_not(e, VRAM, RAM_GB, DISK_GB, ARCH)",
+            "    print(f\"  {e['id']:40s} {e['size_gb']:7.1f} GB  \" + (\"ok\" if reason is None else reason))",
+            "ENTRY = prepare.pick(ENGINE_TO_PREP, TARGET, MODEL)",
+            "print(f\"\\nWill prepare {ENTRY['id']} ({ENTRY['size_gb']:.1f} GB) for {ENGINE_TO_PREP} on {TARGET}\")",
+        ]),
+        _md([
+            "## 4. Download the model and build the engine",
+            "",
+            "Safe to stop and re-run: finished files and builds are kept on Drive. Progress prints every 30 s.",
+        ]),
+        _code([
+            "import threading",
+            "from colab_llm_hub.store import ModelStore",
+            "",
+            "try:",
+            "    from google.colab import userdata",
+            "    os.environ[\"HF_TOKEN\"] = userdata.get(\"HF_TOKEN\")",
+            "except Exception:",
+            "    pass",
+            "",
+            "store = ModelStore(DRIVE_DIR, prepare.DEFAULT_STAGING, token=os.environ.get(\"HF_TOKEN\"))",
+            "done = threading.Event()",
+            "def report():",
+            "    while not done.wait(30):",
+            "        p = store.progress.get(ENTRY[\"id\"])",
+            "        if p:",
+            "            print(f\"  {ENTRY['id']}: {p['done_bytes'] / 1e9:.1f} / {p['total_bytes'] / 1e9:.1f} GB on Drive\")",
+            "threading.Thread(target=report, daemon=True).start()",
+            "try:",
+            "    RESULT = prepare.prepare(TARGET, ENGINE_TO_PREP, ENTRY[\"id\"], drive_dir=DRIVE_DIR, store=store,",
+            "                             do_engine=BUILD_ENGINE, do_download=DOWNLOAD_MODEL, refresh=REFRESH_ENGINE)",
+            "finally:",
+            "    done.set()",
+            "print(RESULT)",
+            "print(\"Install log →\", WS.logs / \"install.log\")",
+        ]),
+        _md([
+            "## 5. Next",
+            "",
+            "Disconnect this runtime (Runtime → Disconnect and delete runtime) so it stops using compute units. "
+            "Then switch to the GPU runtime, open `notebooks/<engine>/<engine>_gpu.ipynb` and pick the same model.",
+        ]),
+    ]
+    return {
+        "cells": cells,
+        "metadata": {"colab": {"provenance": []}, "kernelspec": {"name": "python3", "display_name": "Python 3"}},
+        "nbformat": 4,
+        "nbformat_minor": 0,
+    }
+
+
 def build_index() -> dict:
     rows = [
         "| Notebook | Engine | Models |",
@@ -670,6 +788,10 @@ def build_index() -> dict:
             "`MyDrive/llm_models/`. For a T4 use `llama/llama_cpp_t4.ipynb`; for a TPU, `vllm/vllm_tpu.ipynb`.",
             "",
             *rows,
+            "",
+            f"**Save GPU time:** run [`{PREPARE_NOTEBOOK}`](prepare/prepare_cpu.ipynb) on a cheap CPU runtime "
+            "first. It downloads the model to Drive and builds the engine for your GPU, so the GPU notebook "
+            "only restores them.",
             "",
             "Older single-model notebooks live in the same engine folders "
             "(`notebooks/llama/llama_cpp_*.ipynb`, `notebooks/vllm/vllm_*.ipynb`, …). "
@@ -698,6 +820,10 @@ def write_all(root: Path | None = None):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(build_notebook(eng), indent=1) + "\n")
         written.append(path)
+    prep = root / PREPARE_NOTEBOOK
+    prep.parent.mkdir(parents=True, exist_ok=True)
+    prep.write_text(json.dumps(build_prepare_notebook(), indent=1) + "\n")
+    written.append(prep)
     index = root / INDEX_NOTEBOOK
     index.parent.mkdir(parents=True, exist_ok=True)
     index.write_text(json.dumps(build_index(), indent=1) + "\n")

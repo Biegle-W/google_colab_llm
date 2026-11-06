@@ -53,8 +53,11 @@ def llama_tarball(builds_dir, ref, arch_cmake):
     return os.path.join(builds_dir, f"llama.cpp_{(ref or 'latest')[:10]}_cuda_sm{arch_cmake}.tar")
 
 
-def ensure_llama(builds_dir, arch, ref=LLAMA_PIN, rebuild=False, run=sh, log=print, src=SRC):
-    """Return the path to llama-server for this GPU, restoring a cached build or building (and caching) one."""
+def ensure_llama(builds_dir, arch, ref=LLAMA_PIN, rebuild=False, run=sh, log=print, src=SRC, check=True):
+    """Return the path to llama-server for this GPU, restoring a cached build or building (and caching) one.
+
+    check=False builds for `arch` without running the binary, for a CPU runtime preparing a GPU's build:
+    nvcc does not need the GPU, only the CUDA toolkit."""
     os.environ["PATH"] += ":/usr/local/cuda/bin"
     cuda = gpu.nvcc_version(subprocess.run("nvcc --version", shell=True, capture_output=True, text=True).stdout)
     if cuda is None:
@@ -64,6 +67,9 @@ def ensure_llama(builds_dir, arch, ref=LLAMA_PIN, rebuild=False, run=sh, log=pri
         log(f"CUDA {cuda[0]}.{cuda[1]} cannot compile sm_{arch}; using {arch_cmake} (works, may be slightly slower).")
     os.makedirs(builds_dir, exist_ok=True)
     tarball, binary = llama_tarball(builds_dir, ref, arch_cmake), f"{src}/build/bin/llama-server"
+    if not check and not rebuild and os.path.exists(tarball):
+        log("llama.cpp build for sm_%s is already on Drive: %s" % (arch_cmake, tarball))
+        return tarball
 
     def works():
         try:
@@ -83,19 +89,38 @@ def ensure_llama(builds_dir, arch, ref=LLAMA_PIN, rebuild=False, run=sh, log=pri
     run(f"cd {src} && cmake --build build --config Release -j $(nproc) --target llama-server")
     run(f"tar -cf {tarball}.part -C {src}/build bin && mv {tarball}.part {tarball}")
     log("Saved the build to Drive:", tarball)
+    if not check:
+        return tarball
     if not works():
         raise InstallError("llama-server was built but does not start; see /content/install.log")
     return binary
+
+
+def _cache_wheels(wheels, pkgs, refresh, run, log):
+    """Fill a Drive wheelhouse without installing (wheels are the same with or without a GPU)."""
+    marker = os.path.join(wheels, "COMPLETE")
+    if os.path.isfile(marker) and not refresh:
+        log("Wheels already on Drive:", wheels)
+        return wheels
+    log(f"Downloading wheels for {pkgs} to Drive (one time)...")
+    os.makedirs(wheels, exist_ok=True)
+    run(f"{sys.executable} -m pip wheel -q -w {wheels} {pkgs}")
+    open(marker, "w").write(pkgs)                      # an interrupted download is not marked complete
+    return wheels
 
 
 def vllm_wheelhouse(builds_dir):
     return os.path.join(builds_dir, f"vllm_gpu_py{sys.version_info.major}{sys.version_info.minor}")
 
 
-def ensure_vllm(builds_dir, refresh=False, run=sh, log=print):
-    """Install vLLM from wheels cached on Drive (downloading them once)."""
+def ensure_vllm(builds_dir, refresh=False, run=sh, log=print, install_now=True):
+    """Install vLLM from wheels cached on Drive (downloading them once).
+
+    install_now=False only fills the wheel cache (a CPU runtime preparing for a GPU one)."""
     wheels = vllm_wheelhouse(builds_dir)
     pip = f"{sys.executable} -m pip"
+    if not install_now:
+        return _cache_wheels(wheels, "vllm", refresh, run, log)
     cached = bool(glob.glob(f"{wheels}/*.whl")) and not refresh
     if cached:
         log("Installing vLLM from the wheels saved on Drive...")
@@ -121,11 +146,13 @@ def diffusers_wheelhouse(builds_dir):
     return os.path.join(builds_dir, f"diffusers_gpu_py{sys.version_info.major}{sys.version_info.minor}")
 
 
-def ensure_diffusers(builds_dir, refresh=False, run=sh, log=print):
+def ensure_diffusers(builds_dir, refresh=False, run=sh, log=print, install_now=True):
     """Install Diffusers (+ transformers/accelerate/bitsandbytes) from wheels cached on Drive."""
     wheels = diffusers_wheelhouse(builds_dir)
     pip = f"{sys.executable} -m pip"
     pkgs = " ".join(DIFFUSERS_PKGS)
+    if not install_now:
+        return _cache_wheels(wheels, pkgs, refresh, run, log)
     cached = bool(glob.glob(f"{wheels}/*.whl")) and not refresh
     if cached:
         log("Installing Diffusers from the wheels saved on Drive...")
@@ -199,10 +226,12 @@ def sglang_wheelhouse(builds_dir):
     return os.path.join(builds_dir, f"sglang_gpu_py{sys.version_info.major}{sys.version_info.minor}")
 
 
-def ensure_sglang(builds_dir, refresh=False, run=sh, log=print):
+def ensure_sglang(builds_dir, refresh=False, run=sh, log=print, install_now=True):
     """Install SGLang from wheels cached on Drive (chat serving; diffusion/H3 is separate)."""
     wheels = sglang_wheelhouse(builds_dir)
     pip = f"{sys.executable} -m pip"
+    if not install_now:
+        return _cache_wheels(wheels, "'sglang[all]'", refresh, run, log)
     cached = bool(glob.glob(f"{wheels}/*.whl")) and not refresh
     if cached:
         log("Installing SGLang from the wheels saved on Drive...")
@@ -473,9 +502,15 @@ def hyperqwen_build_commands(root=HYPERQWEN_ROOT, ref=HYPERQWEN_PIN, python=None
     ]
 
 
-def ensure_hyperqwen(builds_dir, refresh=False, run=sh, log=print, root=HYPERQWEN_ROOT, ref=HYPERQWEN_PIN):
-    """HyperQwen checkout + patched venv at `root`; cached on Drive as one tarball (several GB)."""
+def ensure_hyperqwen(builds_dir, refresh=False, run=sh, log=print, root=HYPERQWEN_ROOT, ref=HYPERQWEN_PIN,
+                     install_now=True):
+    """HyperQwen checkout + patched venv at `root`; cached on Drive as one tarball (several GB).
+
+    Needs no GPU, so a CPU runtime can build the tarball (install_now=False returns once it is on Drive)."""
     tar = hyperqwen_tarball(builds_dir, ref)
+    if not install_now and os.path.isfile(tar) and not refresh:
+        log("HyperQwen build already on Drive:", tar)
+        return tar
     if os.path.isfile(os.path.join(root, "venv", "bin", "vllm")) and not refresh:
         return root
     if os.path.isfile(tar) and not refresh:
@@ -492,7 +527,7 @@ def ensure_hyperqwen(builds_dir, refresh=False, run=sh, log=print, root=HYPERQWE
     os.makedirs(builds_dir, exist_ok=True)
     run(f"tar -cf {tar}.tmp -C {os.path.dirname(root)} {os.path.basename(root)} && mv {tar}.tmp {tar}")
     log("Cached HyperQwen on Drive:", tar)
-    return root
+    return root if install_now else tar
 
 
 # ---- NInfer (native C++/CUDA, Blackwell sm_120 only) -----------------------------------------------------
@@ -541,12 +576,19 @@ def ninfer_dep_commands(have_uring, have_curl, prefix=NINFER_DEPS):
     return cmds
 
 
-def ensure_ninfer(builds_dir, arch, refresh=False, run=sh, log=print, ref=NINFER_PIN, root=NINFER_ROOT):
-    """Build NInfer's ninfer-serve for sm_120a and cache apps/ + lib/ on Drive. Returns the binary path."""
+def ensure_ninfer(builds_dir, arch, refresh=False, run=sh, log=print, ref=NINFER_PIN, root=NINFER_ROOT,
+                  install_now=True):
+    """Build NInfer's ninfer-serve for sm_120a and cache apps/ + lib/ on Drive. Returns the binary path.
+
+    `arch` is the GPU it is built for, which need not be present: a CPU runtime can compile for the G4
+    (install_now=False returns the Drive tarball and skips the restore)."""
     if str(arch) != "120":
         raise InstallError(f"NInfer builds only for Blackwell sm_120 (G4 runtime); this GPU is sm_{arch}.")
     binary = os.path.join(root, "apps", "ninfer-serve")
     tar = ninfer_tarball(builds_dir, ref)
+    if not install_now and os.path.isfile(tar) and not refresh:
+        log("NInfer build already on Drive:", tar)
+        return tar
     if os.path.isfile(binary) and not refresh:
         return binary
     run(f"apt-get -qq update && DEBIAN_FRONTEND=noninteractive apt-get -qq install -y {NINFER_APT}")
@@ -587,7 +629,7 @@ def ensure_ninfer(builds_dir, arch, refresh=False, run=sh, log=print, ref=NINFER
     os.makedirs(builds_dir, exist_ok=True)
     run(f"tar -cf {tar}.tmp -C {root} apps lib && mv {tar}.tmp {tar}")
     log("Cached NInfer on Drive:", tar)
-    return binary
+    return binary if install_now else tar
 
 
 def _try(run, cmd):

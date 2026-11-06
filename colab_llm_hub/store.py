@@ -5,6 +5,7 @@ sessions (engines load much faster from local disk than through the Drive mount)
 last makes copies atomic: a half-copied model is never mistaken for a complete one.
 """
 import fcntl
+import fnmatch
 import json
 import os
 import shutil
@@ -25,6 +26,29 @@ def hf_download(repo, patterns, dest, token=None, exclude=None):
     from huggingface_hub import snapshot_download
     snapshot_download(repo_id=repo, allow_patterns=patterns, ignore_patterns=exclude or None,
                       local_dir=str(dest), token=token)
+
+
+def hf_list_files(repo, token=None):
+    """[(path, size_bytes)] for every file in a Hugging Face model repo."""
+    from huggingface_hub import HfApi
+    info = HfApi().model_info(repo, files_metadata=True, token=token)
+    return [(s.rfilename, s.size) for s in info.siblings]
+
+
+def hf_fetch_file(repo, path, dest, token=None):
+    """Download one file into dest (keeping its repo path) and return the local path."""
+    from huggingface_hub import hf_hub_download
+    return hf_hub_download(repo_id=repo, filename=path, local_dir=str(dest), token=token)
+
+
+def select_files(files, allow=None, exclude=None):
+    """Filter [(path, size)] the way snapshot_download's allow_patterns / ignore_patterns do."""
+    def norm(patterns):
+        return [p + "*" if p.endswith("/") else p for p in patterns] if patterns else None
+    allow, exclude = norm(allow), norm(exclude)
+    return [(p, n) for p, n in files
+            if (allow is None or any(fnmatch.fnmatchcase(p, a) for a in allow))
+            and not (exclude and any(fnmatch.fnmatchcase(p, x) for x in exclude))]
 
 
 def _download_kwargs(entry):
@@ -248,6 +272,76 @@ class ModelStore:
     def wait_for_drive_copies(self):
         for t in self._threads:
             t.join()
+
+    def download_to_drive(self, entry, staging=None, lister=hf_list_files, fetch=hf_fetch_file, copier=None):
+        """Download a model straight to Drive one file at a time; local disk only holds two files at once.
+
+        For preparing models on a small CPU runtime. Files already on Drive with the right size are skipped,
+        so an interrupted run (or Drive's daily upload limit) resumes where it stopped."""
+        drive = self.drive_path(entry)
+        if is_complete(drive):
+            self.log(f"[store] {entry['id']}: already on Drive")
+            return drive
+        if entry.get("engine_download"):
+            raise StoreError(f"{entry['id']} is downloaded by {entry['backend']} itself on first start; "
+                             "prepare it on the GPU runtime")
+        sources = [(entry["repo"], entry["files"], entry.get("exclude"), "")]
+        sources += [(x["repo"], x.get("files") or ["*"], x.get("exclude"), x.get("subdir", "extra"))
+                    for x in entry.get("extra_downloads") or []]
+        jobs = []
+        for repo, allow, exclude, sub in sources:
+            files = select_files(lister(repo, self.token), allow, exclude)
+            if not files:
+                raise StoreError(f"no files in {repo} match {allow}")
+            jobs += [(repo, path, size, f"{sub}/{path}" if sub else path) for path, size in files]
+        total = sum(size or 0 for *_, size, _ in jobs)
+        self.progress[entry["id"]] = {"phase": "downloading to Drive", "done_bytes": 0, "total_bytes": total}
+        self.log(f"[store] {entry['id']}: {len(jobs)} files, {total / 1e9:.1f} GB, straight to {drive}")
+        if (drive / MARKER).exists():
+            (drive / MARKER).unlink()                     # incomplete: rebuild the file list at the end
+        staging = Path(staging or self.local_root / ".staging" / entry["id"])
+        biggest = max((size or 0) for *_, size, _ in jobs) / 1e9
+        staging.mkdir(parents=True, exist_ok=True)
+        if shutil.disk_usage(staging).free / 1e9 < 2 * biggest + 1:
+            raise StoreError(f"{entry['id']}: local disk needs room for two {biggest:.1f} GB files")
+        copier = copier or copy_file_atomic
+        pending = None                                    # (thread, local file): copy overlaps the next download
+
+        def finish(job):
+            if job:
+                job[0].join()
+                if job[2]:
+                    raise job[2][0]
+        try:
+            for repo, path, size, rel in jobs:
+                dst = drive / rel
+                if dst.is_file() and size is not None and dst.stat().st_size == size:
+                    self._add(entry, size)
+                    continue
+                local = Path(fetch(repo, path, staging, self.token))
+                finish(pending)
+                errors = []
+
+                def copy(local=local, dst=dst, errors=errors):
+                    try:
+                        copier(local, dst, lambda n: self._add(entry, n))
+                        os.remove(local)
+                    except Exception as e:                # surfaced by finish()
+                        errors.append(e)
+                t = threading.Thread(target=copy, daemon=True)
+                t.start()
+                pending = (t, local, errors)
+            finish(pending)
+        finally:
+            if pending:
+                pending[0].join()
+        shutil.rmtree(staging, ignore_errors=True)
+        write_marker(drive, entry["repo"])
+        if entry.get("model_file") and not (drive / entry["model_file"]).is_file():
+            raise StoreError(f"{entry['model_file']} was not found in {entry['repo']}")
+        self.progress[entry["id"]]["phase"] = "on Drive"
+        self.log(f"[store] {entry['id']}: saved to Drive")
+        return drive
 
     def prefetch(self, entry, protect=()):
         """Make sure the model is saved on Drive (downloading it if needed) without keeping the hub waiting on it."""

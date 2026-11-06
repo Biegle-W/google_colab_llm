@@ -2,6 +2,7 @@ import json
 import os
 import shutil
 import tempfile
+import threading
 import time
 import unittest
 
@@ -895,3 +896,156 @@ class HyperQwenAndNInfer(unittest.TestCase):
             text = "".join("".join(c["source"]) for c in nb["cells"])
             self.assertIn(call, text)
             self.assertIn(f'ENGINE   = "{engine}"', text)
+
+
+class PrepareOnCpu(unittest.TestCase):
+    """A CPU runtime downloads models straight to Drive and builds engines for a GPU it does not have."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.repo_files = {"org/m": [("config.json", 2), ("model-1.safetensors", 5), ("model-2.safetensors", 7),
+                                     ("onnx/model.onnx", 9), ("README.md", 3)],
+                           "org/draft": [("config.json", 4), ("model.safetensors", 6)]}
+        self.fetched = []
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def lister(self, repo, token=None):
+        return self.repo_files[repo]
+
+    def fetch(self, repo, path, dest, token=None):
+        self.fetched.append((repo, path))
+        size = dict(self.repo_files[repo])[path]
+        out = os.path.join(dest, path)
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        open(out, "wb").write(b"x" * size)
+        return out
+
+    def store(self):
+        return ModelStore(os.path.join(self.tmp, "drive"), os.path.join(self.tmp, "local"), log=lambda *_: None)
+
+    def entry(self, **kw):
+        e = {"id": "m", "backend": "vllm", "repo": "org/m", "files": ["*.json", "*.safetensors"],
+             "exclude": ["onnx/*"], "size_gb": 0.0, "contexts": [[1, 1024]],
+             "extra_downloads": [{"repo": "org/draft", "files": ["*"], "subdir": "drafter"}]}
+        e.update(kw)
+        return e
+
+    def test_select_files_matches_snapshot_semantics(self):
+        from colab_llm_hub.store import select_files
+        files = self.repo_files["org/m"]
+        self.assertEqual([p for p, _ in select_files(files, ["*.safetensors"])],
+                         ["model-1.safetensors", "model-2.safetensors"])
+        self.assertEqual([p for p, _ in select_files(files, ["onnx/"])], ["onnx/model.onnx"])
+        self.assertEqual(len(select_files(files, None, ["*.md"])), 4)
+
+    def test_download_to_drive_one_file_at_a_time_then_resume(self):
+        st = self.store()
+        drive = st.download_to_drive(self.entry(), lister=self.lister, fetch=self.fetch)
+        self.assertTrue(is_complete(drive))
+        listed = json.load(open(os.path.join(drive, MARKER)))["files"]
+        self.assertEqual(sorted(listed), ["config.json", "drafter/config.json", "drafter/model.safetensors",
+                                          "model-1.safetensors", "model-2.safetensors"])
+        self.assertFalse(os.path.exists(os.path.join(self.tmp, "local", ".staging", "m")))  # staging cleaned
+        os.remove(os.path.join(drive, "model-2.safetensors"))
+        os.remove(os.path.join(drive, MARKER))
+        self.fetched.clear()
+        st.download_to_drive(self.entry(), lister=self.lister, fetch=self.fetch)
+        self.assertEqual(self.fetched, [("org/m", "model-2.safetensors")])           # only the missing file
+        self.fetched.clear()
+        st.download_to_drive(self.entry(), lister=self.lister, fetch=self.fetch)
+        self.assertEqual(self.fetched, [])                                           # complete: nothing to do
+        self.assertTrue(st.state(self.entry())["on_drive"])
+
+    def test_failed_copy_leaves_drive_incomplete(self):
+        def bad_copy(src, dst, on_bytes=None):
+            raise OSError("Drive upload limit")
+        with self.assertRaises(OSError):
+            self.store().download_to_drive(self.entry(), lister=self.lister, fetch=self.fetch, copier=bad_copy)
+        self.assertFalse(is_complete(os.path.join(self.tmp, "drive", "models", "m")))
+
+    def test_download_to_drive_refuses_engine_managed_and_checks_model_file(self):
+        with self.assertRaises(StoreError):
+            self.store().download_to_drive(self.entry(engine_download=True), lister=self.lister, fetch=self.fetch)
+        with self.assertRaises(StoreError):
+            self.store().download_to_drive(self.entry(id="m2", model_file="missing.gguf"),
+                                           lister=self.lister, fetch=self.fetch)
+
+    def test_pick_uses_the_target_not_this_runtime(self):
+        from colab_llm_hub import prepare
+        self.assertEqual(prepare.pick("ninfer", "g4")["id"], "ninfer-qwen3.8-27b-nvfp4")
+        self.assertEqual(prepare.pick("hyperqwen", "a100")["id"], "hyperqwen-qwen3.8-27b-batch")
+        with self.assertRaises(ValueError):
+            prepare.pick("ninfer", "a100")                                           # no NInfer model on sm_80
+        with self.assertRaises(ValueError):
+            prepare.pick("llama", "l4", "ornith-1.5-122b-q4")                        # does not fit an L4
+        with self.assertRaises(ValueError):
+            prepare.pick("llama", "g4", "qwen3.8-27b-fp8")                           # another engine's model
+        with self.assertRaises(ValueError):
+            prepare.pick("llama", "h100")
+
+    def test_prepare_runs_download_and_build_together(self):
+        from colab_llm_hub import prepare
+        started = []
+        both = threading.Barrier(2, timeout=10)                  # deadlocks unless the two run concurrently
+
+        class FakeStore:
+            def download_to_drive(self, entry):
+                started.append("download")
+                both.wait()
+                return "/drive/models/" + entry["id"]
+
+        def builder(engine, target, builds, refresh=False, log=None):
+            started.append("build")
+            both.wait()
+            return builds + "/cache"
+        r = prepare.prepare("g4", "vllm", "recommended", drive_dir="/d", store=FakeStore(), engine_builder=builder,
+                            log=lambda *_: None)
+        self.assertEqual(r["errors"], {})
+        self.assertEqual((r["engine_cache"], r["drive_path"]), ("/d/builds/cache", "/drive/models/" + r["model"]))
+
+        def broken(*a, **k):
+            raise install.InstallError("nvcc not found")
+        r = prepare.prepare("g4", "vllm", do_download=False, engine_builder=broken, log=lambda *_: None)
+        self.assertIn("nvcc not found", r["errors"]["engine"])
+
+    def test_engine_caches_skip_the_local_install(self):
+        builds = os.path.join(self.tmp, "builds")
+        os.makedirs(builds)
+        for tar in (install.ninfer_tarball(builds), install.hyperqwen_tarball(builds)):
+            open(tar, "w").close()
+        never = lambda cmd: self.fail(f"ran {cmd}")                                   # noqa: E731
+        self.assertEqual(install.ensure_ninfer(builds, "120", run=never, install_now=False, log=lambda *a: None),
+                         install.ninfer_tarball(builds))
+        self.assertEqual(install.ensure_hyperqwen(builds, run=never, install_now=False, log=lambda *a: None),
+                         install.hyperqwen_tarball(builds))
+        ran = []
+        wheels = install.ensure_vllm(builds, run=ran.append, install_now=False, log=lambda *a: None)
+        self.assertEqual(len(ran), 1)
+        self.assertIn("pip wheel", ran[0])                                          # cached, never installed here
+        install.ensure_vllm(builds, run=ran.append, install_now=False, log=lambda *a: None)
+        self.assertEqual(len(ran), 1)                                                # COMPLETE marker: no re-download
+        self.assertTrue(os.path.isfile(os.path.join(wheels, "COMPLETE")))
+
+    def test_runtime_targets(self):
+        from colab_llm_hub import runtimes
+        self.assertEqual(runtimes.specs("G4")[3], "120")
+        self.assertEqual(runtimes.specs("a100")[3], "80")
+
+    def test_prepare_notebook(self):
+        from colab_llm_hub import make_engine_notebooks
+        nb = make_engine_notebooks.build_prepare_notebook()
+        self.assertNotIn("accelerator", nb["metadata"])                            # opens on a CPU runtime
+        text = "".join("".join(c["source"]) for c in nb["cells"])
+        self.assertIn("prepare.prepare(", text)
+        self.assertIn('ENGINE   = "prepare"', text)
+        self.assertNotIn("gpu.detect", text)                                         # no GPU required
+        gpu_boot = "".join(make_engine_notebooks.build_notebook("vllm")["cells"][2]["source"])
+        self.assertIn(gpu_boot.split("OFFLINE_HUB")[1][:400], text)                  # same bootstrap code
+
+    def test_cli(self):
+        from colab_llm_hub import __main__ as cli
+        a = cli.parse(["prepare", "--target", "g4", "--engine", "ninfer", "--no-engine"])
+        self.assertEqual((a.cmd, a.target, a.engine, a.model, a.no_engine), ("prepare", "g4", "ninfer",
+                                                                             "recommended", True))
