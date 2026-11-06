@@ -169,10 +169,12 @@ def cache_hub_package(src_dir, builds_dir, ref="default", log=print):
         raise InstallError(f"no colab_llm_hub package under {src_dir}")
     dest = os.path.join(builds_dir, "hub_pkg", (ref or "default").replace("/", "_")[:80], "colab_llm_hub")
     os.makedirs(os.path.dirname(dest), exist_ok=True)
+    marker = os.path.join(os.path.dirname(dest), "COMPLETE")
+    if os.path.exists(marker):
+        os.remove(marker)          # an interrupted refresh must not look complete
     if os.path.isdir(dest):
         shutil.rmtree(dest)
     shutil.copytree(src, dest, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".git"))
-    marker = os.path.join(os.path.dirname(dest), "COMPLETE")
     open(marker, "w").write(ref or "default")
     log("Cached hub package on Drive:", dest)
     return dest

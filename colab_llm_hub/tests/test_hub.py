@@ -121,7 +121,7 @@ class SlowLoad(HubCase):
 
 
 class Failures(HubCase):
-    fail = {"a"}
+    failing_ids = {"a"}
 
     def test_failed_start_is_reported_and_cached_briefly(self):
         status, data, _ = self.chat("a")
@@ -141,14 +141,14 @@ class Failures(HubCase):
 
     def test_retry_after_ttl_relaunches(self):
         self.chat("a")
-        type(self).fail = set()
+        type(self).failing_ids = set()
         old = hubmod.ERROR_TTL
         hubmod.ERROR_TTL = 0
         try:
             self.assertEqual(self.chat("a")[0], 200)
         finally:
             hubmod.ERROR_TTL = old
-            type(self).fail = {"a"}
+            type(self).failing_ids = {"a"}
 
 
 class StoreIntegration(HubCase):
@@ -178,7 +178,11 @@ class StoreIntegration(HubCase):
 
     def test_status_endpoint(self):
         self.chat("a")
-        _, st, _ = self.request("GET", "/v1/hub/status")
+        for _ in range(50):            # the reply reaches the client just before the hub releases the request
+            _, st, _ = self.request("GET", "/v1/hub/status")
+            if st["inflight"] == 0:
+                break
+            time.sleep(0.05)
         self.assertEqual((st["active"], st["gpu"], st["inflight"]), ("a", "fake", 0))
         self.assertIn("a", st["downloads"])
 

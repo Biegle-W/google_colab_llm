@@ -86,7 +86,8 @@ def sglang_command(entry, model_path, ctx, sglang_bin=None, port=None):
     if entry.get("reasoning_parser"):
         args += ["--reasoning-parser", entry["reasoning_parser"]]
     if not entry.get("thinking", False):
-        args += ["--chat-template-kwargs", json.dumps({"enable_thinking": False})]
+        # SGLang's flag is --default-chat-template-kwargs (there is no --chat-template-kwargs).
+        args += ["--default-chat-template-kwargs", json.dumps({"enable_thinking": False})]
     return args + list(entry.get("extra_args", []))
 
 

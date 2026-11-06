@@ -38,7 +38,7 @@ _ENGINE_PREFETCH = {
         "l4": ["qwen-image-2.1-nf4", "sdxl-turbo", "sdxl-base"],
         "a100_40": ["qwen-image-2.1", "flux-schnell", "sdxl-turbo"],
         "a100_80": ["qwen-image-2.1", "flux-schnell"],
-        "g4": ["qwen-image-2.1", "flux-schnell", "minimax-h3"],
+        "g4": ["qwen-image-2.1", "flux-schnell"],   # minimax-h3 is prefetch-only here (210 GB); use the ComfyUI notebook
     },
     "strata": {
         "t4": [],

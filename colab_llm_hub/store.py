@@ -21,9 +21,15 @@ class StoreError(RuntimeError):
     pass
 
 
-def hf_download(repo, patterns, dest, token=None):
+def hf_download(repo, patterns, dest, token=None, exclude=None):
     from huggingface_hub import snapshot_download
-    snapshot_download(repo_id=repo, allow_patterns=patterns, local_dir=str(dest), token=token)
+    snapshot_download(repo_id=repo, allow_patterns=patterns, ignore_patterns=exclude or None,
+                      local_dir=str(dest), token=token)
+
+
+def _download_kwargs(entry):
+    """Optional catalog field `exclude`: patterns to skip (duplicate weight variants, legacy checkpoints)."""
+    return {"exclude": list(entry["exclude"])} if entry.get("exclude") else {}
 
 
 def _files(root):
@@ -191,7 +197,7 @@ class ModelStore:
         t.start()
         try:
             local.mkdir(parents=True, exist_ok=True)
-            self.downloader(entry["repo"], entry["files"], local, self.token)
+            self.downloader(entry["repo"], entry["files"], local, self.token, **_download_kwargs(entry))
             # Optional companion packs (e.g. TensorFold DFlash2 drafter) land in a subdirectory.
             for extra in entry.get("extra_downloads") or []:
                 dest = local / extra.get("subdir", "extra")

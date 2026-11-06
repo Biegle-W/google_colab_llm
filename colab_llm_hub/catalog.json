@@ -380,9 +380,14 @@
     "backend": "diffusers",
     "repo": "stable-diffusion-v1-5/stable-diffusion-v1-5",
     "files": [
-      "*"
+      "model_index.json",
+      "*/*.json",
+      "*/*.txt",
+      "*/*.model",
+      "*/*.jinja",
+      "*/*.safetensors"
     ],
-    "size_gb": 5.1,
+    "size_gb": 5.48,
     "contexts": [
       [
         6,
@@ -400,7 +405,11 @@
     "pipeline": "AutoPipelineForText2Image",
     "dtype": "float16",
     "default_steps": 30,
-    "default_guidance": 7.5
+    "default_guidance": 7.5,
+    "exclude": [
+      "*.fp16.safetensors",
+      "*non_ema*"
+    ]
   },
   {
     "id": "sdxl-base",
@@ -408,12 +417,17 @@
     "backend": "diffusers",
     "repo": "stabilityai/stable-diffusion-xl-base-1.0",
     "files": [
-      "*"
+      "model_index.json",
+      "*/*.json",
+      "*/*.txt",
+      "*/*.model",
+      "*/*.jinja",
+      "*/*.safetensors"
     ],
-    "size_gb": 13.0,
+    "size_gb": 14.21,
     "contexts": [
       [
-        14,
+        15,
         768
       ],
       [
@@ -428,7 +442,11 @@
     "pipeline": "AutoPipelineForText2Image",
     "dtype": "float16",
     "default_steps": 30,
-    "default_guidance": 7.5
+    "default_guidance": 7.5,
+    "exclude": [
+      "*.fp16.safetensors",
+      "*non_ema*"
+    ]
   },
   {
     "id": "sdxl-turbo",
@@ -436,9 +454,14 @@
     "backend": "diffusers",
     "repo": "stabilityai/sdxl-turbo",
     "files": [
-      "*"
+      "model_index.json",
+      "*/*.json",
+      "*/*.txt",
+      "*/*.model",
+      "*/*.jinja",
+      "*/*.safetensors"
     ],
-    "size_gb": 13.0,
+    "size_gb": 13.88,
     "contexts": [
       [
         14,
@@ -456,7 +479,11 @@
     "pipeline": "AutoPipelineForText2Image",
     "dtype": "float16",
     "default_steps": 4,
-    "default_guidance": 0.0
+    "default_guidance": 0.0,
+    "exclude": [
+      "*.fp16.safetensors",
+      "*non_ema*"
+    ]
   },
   {
     "id": "flux-schnell",
@@ -464,9 +491,14 @@
     "backend": "diffusers",
     "repo": "black-forest-labs/FLUX.1-schnell",
     "files": [
-      "*"
+      "model_index.json",
+      "*/*.json",
+      "*/*.txt",
+      "*/*.model",
+      "*/*.jinja",
+      "*/*.safetensors"
     ],
-    "size_gb": 32.0,
+    "size_gb": 33.73,
     "contexts": [
       [
         36,
@@ -484,7 +516,11 @@
     "pipeline": "AutoPipelineForText2Image",
     "dtype": "bfloat16",
     "default_steps": 4,
-    "default_guidance": 0.0
+    "default_guidance": 0.0,
+    "exclude": [
+      "*.fp16.safetensors",
+      "*non_ema*"
+    ]
   },
   {
     "id": "qwen3.8-27b-w4a16",
@@ -621,9 +657,14 @@
     "backend": "diffusers",
     "repo": "Qwen/Qwen-Image-2.1",
     "files": [
-      "*"
+      "model_index.json",
+      "*/*.json",
+      "*/*.txt",
+      "*/*.model",
+      "*/*.jinja",
+      "*/*.safetensors"
     ],
-    "size_gb": 33.0,
+    "size_gb": 33.13,
     "contexts": [
       [
         18,
@@ -647,7 +688,11 @@
     "default_steps": 40,
     "default_guidance": 0.0,
     "offload": true,
-    "notes": "Download size (~33 GB) exceeds GPU-resident footprint. ComfyUI Turbo workflows remain preferred for interactive editing; Diffusers is the Colab API path."
+    "notes": "Download size (~33 GB) exceeds GPU-resident footprint. ComfyUI Turbo workflows remain preferred for interactive editing; Diffusers is the Colab API path.",
+    "exclude": [
+      "*.fp16.safetensors",
+      "*non_ema*"
+    ]
   },
   {
     "id": "qwen-image-2.1-nf4",
@@ -655,9 +700,14 @@
     "backend": "diffusers",
     "repo": "Qwen/Qwen-Image-2.1",
     "files": [
-      "*"
+      "model_index.json",
+      "*/*.json",
+      "*/*.txt",
+      "*/*.model",
+      "*/*.jinja",
+      "*/*.safetensors"
     ],
-    "size_gb": 33.0,
+    "size_gb": 33.13,
     "contexts": [
       [
         10,
@@ -678,7 +728,11 @@
     "default_steps": 20,
     "default_guidance": 0.0,
     "offload": true,
-    "notes": "Community Colab T4/L4 path: NF4 on transformer + text encoder."
+    "notes": "Community Colab T4/L4 path: NF4 on transformer + text encoder.",
+    "exclude": [
+      "*.fp16.safetensors",
+      "*non_ema*"
+    ]
   },
   {
     "id": "minimax-h3",
@@ -688,7 +742,7 @@
     "files": [
       "*"
     ],
-    "size_gb": 108.0,
+    "size_gb": 210.4,
     "contexts": [
       [
         70,
@@ -706,7 +760,14 @@
     "offload": true,
     "experimental": true,
     "kind": "video",
-    "notes": "Not an LLM. Prefer the ComfyUI notebook (`minimax-h3-comfy`) or SGLang diffusion with layerwise offload. Prefetch stores weights on Drive; the Diffusers hub server will refuse to start this id."
+    "notes": "Not an LLM. Prefer the ComfyUI notebook (`minimax-h3-comfy`) or SGLang diffusion with layerwise offload. Prefetch stores weights on Drive; the Diffusers hub server will refuse to start this id.",
+    "exclude": [
+      "FL2VA/*",
+      "Ref2VA/*",
+      "assets/*",
+      "scripts/*",
+      "docs/*"
+    ]
   },
   {
     "id": "glm-5.3-flash-iq1s",
@@ -774,8 +835,7 @@
     "backend": "llama",
     "repo": "unsloth/DeepSeek-V4.1-Flash-1017-GGUF",
     "files": [
-      "UD-IQ1_S/*.gguf",
-      "engram/*"
+      "UD-IQ1_S/*.gguf"
     ],
     "model_file": "UD-IQ1_S/DeepSeek-V4.1-Flash-1017-UD-IQ1_S-00001-of-00005.gguf",
     "size_gb": 233.0,
@@ -896,9 +956,10 @@
     "backend": "strata",
     "repo": "ISTA-DASLab/DeepSeek-V4.1-Flash-1017-GSQ-RCO-GGUF",
     "files": [
-      "*"
+      "*IQ2_XXS*",
+      "*Engram*"
     ],
-    "size_gb": 257.0,
+    "size_gb": 248.84,
     "contexts": [
       [
         40,
@@ -1151,9 +1212,11 @@
     "backend": "comfyui",
     "repo": "Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
     "files": [
-      "*"
+      "split_files/diffusion_models/wan2.2_ti2v_5B_fp16.safetensors",
+      "split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+      "split_files/vae/wan2.2_vae.safetensors"
     ],
-    "size_gb": 20.0,
+    "size_gb": 18.15,
     "contexts": [
       [
         18,
@@ -1180,11 +1243,14 @@
     "id": "minimax-h3-comfy",
     "name": "MiniMax-H3 (ComfyUI video; prefetch)",
     "backend": "comfyui",
-    "repo": "MiniMaxAI/MiniMax-H3",
+    "repo": "Comfy-Org/MiniMax-H3",
     "files": [
-      "*"
+      "diffusion_models/minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "vae/minimax_h3_video_vae_fp16.safetensors",
+      "vae/minimax_h3_audio_vae_fp32.safetensors"
     ],
-    "size_gb": 108.0,
+    "size_gb": 42.48,
     "contexts": [
       [
         70,
@@ -1209,9 +1275,7 @@
     "backend": "strata",
     "repo": "agentionai/Qwen3.8-Flash-Next-Gyro-GGUF",
     "files": [
-      "*Gyro-S*",
-      "*gyro-s*",
-      "*TQ1*"
+      "Qwen3.8-Flash-Next-Gyro-S-TQ1_0.gguf"
     ],
     "size_gb": 58.5,
     "contexts": [
@@ -1240,9 +1304,7 @@
     "backend": "strata",
     "repo": "agentionai/Qwen3.8-Flash-Next-Gyro-GGUF",
     "files": [
-      "*Gyro-M*",
-      "*gyro-m*",
-      "*TQ2*"
+      "Qwen3.8-Flash-Next-Gyro-M-TQ2_0.gguf"
     ],
     "size_gb": 92.0,
     "contexts": [
@@ -1274,7 +1336,7 @@
       "IQ2_XS/*",
       "*IQ2_XS*"
     ],
-    "size_gb": 55.0,
+    "size_gb": 68.2,
     "contexts": [
       [
         20,

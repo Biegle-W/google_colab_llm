@@ -40,7 +40,8 @@ your client ──HTTPS──> Tailscale Serve (default) or Cloudflare ──> h
 Drive root MyDrive/llm_models/
   models/  builds/  config/  hf_cache/  hub/  logs/  outputs/
 Hugging Face ──once──> local disk ──copy──> Drive models/
-later sessions: Drive ──copy──> local ──> engine   (wheels/builds/hub_pkg/cloudflared restored too)
+later sessions: Drive ──copy──> local ──> engine   (wheels/builds/cloudflared restored too;
+                hub code is fetched from GitHub each run, hub_pkg/ on Drive is only the offline fallback)
 ```
 
 | Piece | File |

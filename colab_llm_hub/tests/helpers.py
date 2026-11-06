@@ -46,7 +46,7 @@ class HubCase(unittest.TestCase):
     entries = None
     load_delay = 0.0
     chunk_delay = 0.0
-    fail = set()                 # model ids whose engine exits at once
+    failing_ids = set()          # model ids whose engine exits at once (not `fail`: that shadows TestCase.fail)
 
     def setUp(self):
         self.tmp = tempfile.mkdtemp(prefix="hubtest-")
@@ -76,7 +76,7 @@ class HubCase(unittest.TestCase):
         args = [sys.executable, FAKE, "--port", str(port), "--model", entry["id"],
                 "--load-delay", str(self.load_delay), "--chunk-delay", str(self.chunk_delay),
                 "--kind", kind]
-        if entry["id"] in self.fail:
+        if entry["id"] in self.failing_ids:
             args += ["--exit-code", "3"]
         with open(log, "ab") as f:
             proc = subprocess.Popen(args, stdout=f, stderr=subprocess.STDOUT, start_new_session=True)

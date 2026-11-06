@@ -23,20 +23,25 @@ opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 WORKFLOWS = Path(__file__).with_name("workflows")
 
 
+FOLDERS = ("  checkpoints: checkpoints\n"
+           "  diffusion_models: diffusion_models\n"
+           "  text_encoders: text_encoders\n"
+           "  clip: text_encoders\n"
+           "  vae: vae\n"
+           "  loras: loras\n"
+           "  unet: diffusion_models\n")
+
+
 def write_extra_model_paths(model_path, dest):
-    """Point ComfyUI at the hub's restored model tree (diffusion_models / text_encoders / vae)."""
+    """Point ComfyUI at the hub's restored model tree (diffusion_models / text_encoders / vae).
+
+    Comfy-Org "Repackaged" repos (e.g. Wan 2.2) keep the same folders under split_files/, so that
+    layout is registered as well.
+    """
     root = Path(model_path).resolve()
-    text = (
-        "colab_hub:\n"
-        f"  base_path: {root}\n"
-        "  checkpoints: checkpoints\n"
-        "  diffusion_models: diffusion_models\n"
-        "  text_encoders: text_encoders\n"
-        "  clip: text_encoders\n"
-        "  vae: vae\n"
-        "  loras: loras\n"
-        "  unet: diffusion_models\n"
-    )
+    text = f"colab_hub:\n  base_path: {root}\n" + FOLDERS
+    if (root / "split_files").is_dir():
+        text += f"colab_hub_split_files:\n  base_path: {root / 'split_files'}\n" + FOLDERS
     Path(dest).write_text(text)
     return dest
 

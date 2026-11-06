@@ -260,6 +260,9 @@ class Commands(unittest.TestCase):
         self.assertEqual((val("--model-path"), val("--served-model-name"), val("--context-length")),
                          ("/models/s", "s", "32768"))
         self.assertEqual(val("--tool-call-parser"), "qwen3_coder")
+        # SGLang only accepts --default-chat-template-kwargs; --chat-template-kwargs makes launch_server exit.
+        self.assertEqual(json.loads(val("--default-chat-template-kwargs")), {"enable_thinking": False})
+        self.assertNotIn("--chat-template-kwargs", args)
 
     def test_env(self):
         self.assertEqual(backends.env_for(entry("v", backend="vllm"))["HF_HUB_OFFLINE"], "1")
@@ -591,3 +594,88 @@ class ConfigureDsh(unittest.TestCase):
     def test_creates_missing_file(self):
         self.run_configure()
         self.assertIn("colab-hub", self.yaml.safe_load(open(self.path))["llm-pi-ai"]["providers"])
+
+
+class DownloadScope(unittest.TestCase):
+    """Patterns must fetch one copy of a model, not every variant a repo carries."""
+
+    def test_diffusers_entries_fetch_only_the_diffusers_layout(self):
+        for e in catalog.load():
+            if e["backend"] != "diffusers" or e.get("pipeline", "").startswith("unsupported"):
+                continue
+            self.assertNotIn("*", e["files"], e["id"])               # "*" pulled .ckpt/.bin/fp16/non-EMA copies
+            # Repo-root single-file checkpoints (v1-5-pruned.safetensors, flux1-schnell.safetensors...) need a "/".
+            weights = [p for p in e["files"] if p.endswith(".safetensors")]
+            self.assertTrue(weights and all("/" in p for p in weights), e["id"])
+            self.assertIn("*.fp16.safetensors", e.get("exclude", []), e["id"])
+
+    def test_unsloth_deepseek_skips_swap_in_engram_tables(self):
+        e = catalog.by_id(catalog.load())["deepseek-v4.1-flash-1017-iq1s"]
+        # Each Unsloth quant already holds its Engram table as its last shard; engram/ is 610 GB of alternatives.
+        self.assertFalse(any(p.startswith("engram") for p in e["files"]))
+
+    def test_exclude_is_passed_to_the_downloader(self):
+        tmp = tempfile.mkdtemp(prefix="exclude-")
+        seen = {}
+
+        def downloader(repo, patterns, dest, token=None, **kw):
+            seen.update(kw, patterns=patterns)
+            (dest / "unet").mkdir(parents=True, exist_ok=True)
+            (dest / "unet" / "w.safetensors").write_bytes(b"x")
+            (dest / (repo.split("/")[1] + ".gguf")).write_bytes(b"x")     # what a llama entry loads
+        store = ModelStore(tmp + "/drive", tmp + "/local", downloader=downloader, min_free_gb=0, log=lambda *_: None)
+        store.ensure_local(entry("d", backend="diffusers", files=["*/*.safetensors"], exclude=["*.fp16.safetensors"]))
+        self.assertEqual(seen["exclude"], ["*.fp16.safetensors"])
+        seen.clear()
+        store.ensure_local(entry("l", backend="llama"))
+        self.assertNotIn("exclude", seen)                             # entries without it keep the old call
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+class ComfyPaths(unittest.TestCase):
+    def test_split_files_layout_is_registered(self):
+        from colab_llm_hub.comfyui_server import write_extra_model_paths
+        root = tempfile.mkdtemp(prefix="comfy-")
+        out = os.path.join(root, "extra.yaml")
+        write_extra_model_paths(root, out)
+        self.assertNotIn("split_files", open(out).read())
+        os.makedirs(os.path.join(root, "split_files", "diffusion_models"))
+        write_extra_model_paths(root, out)
+        text = open(out).read()
+        self.assertIn(f"base_path: {os.path.realpath(root)}/split_files", text)
+        self.assertEqual(text.count("diffusion_models: diffusion_models"), 2)
+        try:
+            import yaml
+        except ImportError:
+            return
+        self.assertEqual(set(yaml.safe_load(text)), {"colab_hub", "colab_hub_split_files"})
+        shutil.rmtree(root, ignore_errors=True)
+
+
+class HubPackageCache(unittest.TestCase):
+    def test_interrupted_refresh_is_not_marked_complete(self):
+        tmp = tempfile.mkdtemp(prefix="hubpkg-")
+        src = os.path.join(tmp, "src")
+        os.makedirs(os.path.join(src, "colab_llm_hub"))
+        open(os.path.join(src, "colab_llm_hub", "__init__.py"), "w").write("")
+        builds = os.path.join(tmp, "builds")
+        install.cache_hub_package(src, builds, ref="main", log=lambda *a: None)
+        marker = os.path.join(builds, "hub_pkg", "main", "COMPLETE")
+        self.assertTrue(os.path.exists(marker))
+        orig = install.shutil.copytree
+        install.shutil.copytree = lambda *a, **k: (_ for _ in ()).throw(OSError("Drive went away"))
+        try:
+            with self.assertRaises(OSError):
+                install.cache_hub_package(src, builds, ref="main", log=lambda *a: None)
+        finally:
+            install.shutil.copytree = orig
+        self.assertFalse(os.path.exists(marker))                      # the half-copied cache is not trusted
+        self.assertFalse(install.restore_hub_package(builds, os.path.join(tmp, "out"), ref="main", log=lambda *a: None))
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_notebooks_fetch_from_github_before_using_the_drive_copy(self):
+        nb = json.load(open(os.path.join(os.path.dirname(__file__), "..", "..", "notebooks", "llama",
+                                         "llama_hub_colab.ipynb")))
+        boot = "".join(nb["cells"][2]["source"])
+        self.assertLess(boot.index("git clone"), boot.index("shutil.copytree(cached"))
+        self.assertIn("if fresh:", boot)                              # the Drive copy is refreshed after a fetch
