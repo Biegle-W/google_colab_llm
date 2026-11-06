@@ -6,23 +6,23 @@ Notebooks are grouped by engine under [`notebooks/`](notebooks/).
 
 | Notebook | What it does |
 |---|---|
-| [`notebooks/llm_hub_colab.ipynb`](notebooks/llm_hub_colab.ipynb) | **Index:** links to one hub notebook per engine |
+| [`notebooks/llm_hub_colab.ipynb`](notebooks/llm_hub_colab.ipynb) | **Index:** links to the GPU notebook of each engine |
 | [`notebooks/strata/`](notebooks/strata/) | **Strata** — Flash-Next (ISTA/Gyro/Swift) + Qwen3.6 + DeepSeek |
 | [`notebooks/maya/`](notebooks/maya/) | **Maya** — GLM-5.3-Flash + DeepSeek-V4.1 (maya-ds4) |
 | [`notebooks/tensorfold/`](notebooks/tensorfold/) | **TensorFold** — Qwen3.8-27B EXL3 2.0bpw + DFlash2 |
 | [`notebooks/sparsa/`](notebooks/sparsa/) | **Sparsa** — MiniMax-M3.1-Flash (IQ2_XS-D3 / IQ2_KT) |
 | [`notebooks/comfyui/`](notebooks/comfyui/) | **ComfyUI** — Qwen-Image-2.1 Turbo, FLUX.3 Klein, video prefetch |
-| [`notebooks/llama/`](notebooks/llama/) | **llama.cpp** hub + older `llama_cpp_*.ipynb` |
-| [`notebooks/vllm/`](notebooks/vllm/) | **vLLM** hub + older `vllm_gpu` / `vllm_tpu` |
+| [`notebooks/llama/`](notebooks/llama/) | **llama.cpp** — `llama_gpu.ipynb` (L4/A100/G4) + `llama_cpp_t4.ipynb` (T4) |
+| [`notebooks/vllm/`](notebooks/vllm/) | **vLLM** — `vllm_gpu.ipynb` (L4/A100/G4) + `vllm_tpu.ipynb` (TPU) |
 | [`notebooks/sglang/`](notebooks/sglang/) | **SGLang** — Qwen3.8-27B W4A16 AutoRound |
 | [`notebooks/diffusers/`](notebooks/diffusers/) | **Diffusers** — Qwen-Image-2.1, FLUX, SDXL |
 | [`notebooks/unsloth/`](notebooks/unsloth/) | Official Unsloth Studio |
 
-Engine picks and workstation notes: [`colab_llm_hub/ENGINE_MATRIX.md`](colab_llm_hub/ENGINE_MATRIX.md). Each `*_hub_colab.ipynb` installs **only its engine** and lists **only that engine’s catalog models**. Settings are `config/settings_<engine>.json`; weights/builds still share Drive.
+Engine picks and workstation notes: [`colab_llm_hub/ENGINE_MATRIX.md`](colab_llm_hub/ENGINE_MATRIX.md). Each `<engine>_gpu.ipynb` runs the hub, installs **only its engine** and lists **only that engine’s catalog models**. Settings are `config/settings_<engine>.json`; weights/builds still share Drive.
 
 ## Google AI Pro / Colab Pro
 
-Use a Pro runtime with an **L4, A100, or G4** GPU for the hub notebooks. That unlocks the larger catalog LLMs and FLUX / SDXL / ComfyUI image models. A free T4 is fine for `notebooks/llama/llama_cpp_t4.ipynb` and Diffusers NF4 / `sd15` / ComfyUI Turbo, but most hub LLMs will not fit.
+Use a Pro runtime with an **L4, A100, or G4** GPU for the GPU notebooks. That unlocks the larger catalog LLMs and FLUX / SDXL / ComfyUI image models. A free T4 is fine for `notebooks/llama/llama_cpp_t4.ipynb` and Diffusers NF4 / `sd15` / ComfyUI Turbo, but most catalog LLMs will not fit.
 
 ## Code
 `colab_llm_hub/` is the Python package behind the hub notebooks (hub server, Drive model store, catalog, backends, tests). Each notebook fetches it from this repository each run. Regenerate engine notebooks with `python3 -m colab_llm_hub.make_engine_notebooks`.

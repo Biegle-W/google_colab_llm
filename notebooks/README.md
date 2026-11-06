@@ -1,20 +1,24 @@
 # Colab notebooks by engine
 
-| Folder | Hub notebook | Other |
+Each engine has one GPU notebook (L4, A100 or G4). It runs the hub: one authenticated OpenAI-compatible
+endpoint for the model you pick, with model files kept on Google Drive. The T4 and TPU have their own
+single-server notebooks, because no hub model fits a T4 and the hub does not run on TPUs.
+
+| Folder | GPU notebook | Other |
 |---|---|---|
 | _(root)_ | [`llm_hub_colab.ipynb`](llm_hub_colab.ipynb) index | — |
-| [`llama/`](llama/) | [`llama_hub_colab.ipynb`](llama/llama_hub_colab.ipynb) | `llama_cpp_gpu.ipynb`, `llama_cpp_t4.ipynb` |
-| [`vllm/`](vllm/) | [`vllm_hub_colab.ipynb`](vllm/vllm_hub_colab.ipynb) | `vllm_gpu.ipynb`, `vllm_tpu.ipynb` |
-| [`sglang/`](sglang/) | [`sglang_hub_colab.ipynb`](sglang/sglang_hub_colab.ipynb) | — |
-| [`diffusers/`](diffusers/) | [`diffusers_hub_colab.ipynb`](diffusers/diffusers_hub_colab.ipynb) | — |
-| [`strata/`](strata/) | [`strata_hub_colab.ipynb`](strata/strata_hub_colab.ipynb) | — |
-| [`maya/`](maya/) | [`maya_hub_colab.ipynb`](maya/maya_hub_colab.ipynb) | — |
-| [`tensorfold/`](tensorfold/) | [`tensorfold_hub_colab.ipynb`](tensorfold/tensorfold_hub_colab.ipynb) | — |
-| [`comfyui/`](comfyui/) | [`comfyui_hub_colab.ipynb`](comfyui/comfyui_hub_colab.ipynb) | — |
-| [`sparsa/`](sparsa/) | [`sparsa_hub_colab.ipynb`](sparsa/sparsa_hub_colab.ipynb) | — |
+| [`llama/`](llama/) | [`llama_gpu.ipynb`](llama/llama_gpu.ipynb) | [`llama_cpp_t4.ipynb`](llama/llama_cpp_t4.ipynb) (T4) |
+| [`vllm/`](vllm/) | [`vllm_gpu.ipynb`](vllm/vllm_gpu.ipynb) | [`vllm_tpu.ipynb`](vllm/vllm_tpu.ipynb) (TPU) |
+| [`sglang/`](sglang/) | [`sglang_gpu.ipynb`](sglang/sglang_gpu.ipynb) | — |
+| [`diffusers/`](diffusers/) | [`diffusers_gpu.ipynb`](diffusers/diffusers_gpu.ipynb) | — |
+| [`strata/`](strata/) | [`strata_gpu.ipynb`](strata/strata_gpu.ipynb) | — |
+| [`maya/`](maya/) | [`maya_gpu.ipynb`](maya/maya_gpu.ipynb) | — |
+| [`tensorfold/`](tensorfold/) | [`tensorfold_gpu.ipynb`](tensorfold/tensorfold_gpu.ipynb) | — |
+| [`comfyui/`](comfyui/) | [`comfyui_gpu.ipynb`](comfyui/comfyui_gpu.ipynb) | — |
+| [`sparsa/`](sparsa/) | [`sparsa_gpu.ipynb`](sparsa/sparsa_gpu.ipynb) | — |
 | [`unsloth/`](unsloth/) | — | `Unsloth_Studio_Colab.ipynb` |
 
-Regenerate hub notebooks from the repo root:
+Regenerate the GPU notebooks from the repo root:
 
 ```bash
 python3 -m colab_llm_hub.make_engine_notebooks

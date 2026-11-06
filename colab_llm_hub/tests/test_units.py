@@ -645,7 +645,7 @@ class HubPackageCache(unittest.TestCase):
 
     def test_notebooks_fetch_from_github_before_using_the_drive_copy(self):
         nb = json.load(open(os.path.join(os.path.dirname(__file__), "..", "..", "notebooks", "llama",
-                                         "llama_hub_colab.ipynb")))
+                                         "llama_gpu.ipynb")))
         boot = "".join(nb["cells"][2]["source"])
         self.assertLess(boot.index("git clone"), boot.index("shutil.copytree(cached"))
         self.assertIn("if fresh:", boot)                              # the Drive copy is refreshed after a fetch

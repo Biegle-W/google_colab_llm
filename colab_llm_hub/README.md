@@ -53,7 +53,7 @@ later sessions: Drive ──copy──> local ──> engine   (wheels/builds/Ta
 | ComfyUI OpenAI images wrapper + stock API workflows | `comfyui_server.py`, `workflows/` |
 | Model list, what fits which GPU, context / max edge | `catalog.json`, `catalog.py` |
 | Per-engine × GPU recommendations | `recommend.py`, `ENGINE_MATRIX.md` |
-| Generate the `*_hub_colab.ipynb` notebooks | `make_engine_notebooks.py` |
+| Generate the `<engine>_gpu.ipynb` notebooks | `make_engine_notebooks.py` |
 | Drive layout: per-engine settings, HF cache, logs, outputs | `workspace.py` |
 | GPU detection (including Blackwell/CUDA handling) | `gpu.py` |
 | Engine builds and wheels cached on Drive | `install.py` |

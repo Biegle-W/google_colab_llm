@@ -627,11 +627,12 @@ def build_index() -> dict:
         _md([
             _badge(INDEX_NOTEBOOK),
             "",
-            "# Colab inference hubs (one notebook per engine)",
+            "# Colab GPU notebooks (one per engine)",
             "",
-            "Notebooks are grouped under `notebooks/<engine>/`. Each hub installs **only that "
-            "engine**, lists **only its supported models**, and saves settings under "
-            "`config/settings_<engine>.json`. Weights and builds still share `MyDrive/llm_models/`.",
+            "Notebooks are grouped under `notebooks/<engine>/`. Each `<engine>_gpu.ipynb` runs the hub on an "
+            "L4, A100 or G4: it installs **only that engine**, lists **only its supported models**, and saves "
+            "settings under `config/settings_<engine>.json`. Weights and builds still share "
+            "`MyDrive/llm_models/`. For a T4 use `llama/llama_cpp_t4.ipynb`; for a TPU, `vllm/vllm_tpu.ipynb`.",
             "",
             *rows,
             "",
