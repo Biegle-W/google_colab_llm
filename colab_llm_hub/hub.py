@@ -35,10 +35,11 @@ class HubError(Exception):
 class Hub:
     def __init__(self, entries, vram_gb, store, bins, log_dir, ctx_overrides=None, launch=backends.launch,
                  serving=backends.serving, gpu_used=gpu.used_mib, sleep=time.sleep, now=time.monotonic,
-                 ready_timeout=backends.READY_TIMEOUT, gpu_name="", log=print):
+                 ready_timeout=backends.READY_TIMEOUT, gpu_name="", log=print, ram_gb=None, disk_gb=None):
         self.vram_gb, self.gpu_name = vram_gb, gpu_name
+        self.ram_gb, self.disk_gb = ram_gb, disk_gb
         self.all_entries = catalog.by_id(entries)
-        self.entries = catalog.by_id(catalog.visible(entries, vram_gb))
+        self.entries = catalog.by_id(catalog.visible(entries, vram_gb, ram_gb, disk_gb))
         self.store, self.bins, self.log_dir = store, bins, log_dir
         self.ctx_overrides = ctx_overrides or {}
         self._launch, self._serving, self._gpu_used = launch, serving, gpu_used

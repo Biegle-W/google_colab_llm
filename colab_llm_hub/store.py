@@ -70,6 +70,16 @@ def copy_file_atomic(src, dst, on_bytes=None):
     os.replace(part, dst)
 
 
+def model_disk_gb(local_dir):
+    """GB a model can use on the local disk: free space plus complete cached models, which the store evicts
+    (they stay on Drive) when it needs room."""
+    root = Path(local_dir)
+    root.mkdir(parents=True, exist_ok=True)
+    cached = sum(p.stat().st_size for d in root.iterdir() if d.is_dir() and is_complete(d)
+                 for p in d.rglob("*") if p.is_file())
+    return round((shutil.disk_usage(root).free + cached) / 1e9, 1)
+
+
 class ModelStore:
     def __init__(self, drive_dir, local_dir, token=None, downloader=hf_download, min_free_gb=8, log=print):
         self.drive_root = Path(drive_dir) / "models"

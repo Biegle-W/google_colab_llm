@@ -661,7 +661,7 @@ class SingleModelSelection(unittest.TestCase):
         block = cfg[cfg.index("# The ONE model"):cfg.index("PREFETCH = [MODEL]") + len("PREFETCH = [MODEL]")]
         block = block.replace('MODEL = "recommended"', f"MODEL = {model!r}", 1)
         all_ = catalog.load()
-        ns = {"catalog": catalog, "ENGINE": engine, "VRAM": vram,
+        ns = {"catalog": catalog, "ENGINE": engine, "VRAM": vram, "RAM_GB": None, "DISK_GB": None,
               "ENTRIES": catalog.for_engines(all_, [engine]), "PLAN": recommend.for_engine(engine, vram, all_)}
         exec(block, ns)
         return ns
@@ -699,3 +699,65 @@ class SingleModelSelection(unittest.TestCase):
         self.assertEqual([e["id"] for e in catalog.only(entries, ["qwen3.8-27b-q8"])], ["qwen3.8-27b-q8"])
         with self.assertRaises(catalog.CatalogError):
             catalog.only(entries, ["no-such-model"])
+
+
+class RuntimeFit(unittest.TestCase):
+    """Fit checks use VRAM, system RAM and local disk. Numbers are the user's real Colab runtimes."""
+    L4 = dict(vram_gb=24.2, ram_gb=55.5, disk_gb=253.0)
+    A100 = dict(vram_gb=85.9, ram_gb=175.2, disk_gb=350.0)    # /mnt/local-scratch
+    G4 = dict(vram_gb=102.6, ram_gb=185.5, disk_gb=253.0)     # no scratch disk
+
+    def why(self, mid, rt):
+        return catalog.why_not(catalog.by_id(catalog.load())[mid], **rt)
+
+    def test_offload_models_must_fit_vram_plus_ram(self):
+        self.assertIn("VRAM+RAM", self.why("glm-maya-s24", self.L4))      # 96 GB pack, 80 GB of memory
+        self.assertIsNone(self.why("glm-maya-s24", self.A100))
+        self.assertIsNone(self.why("flash-next-strata-q2", self.L4))        # 66 GB fits 24 + 55
+
+    def test_downloads_must_fit_the_local_disk(self):
+        self.assertIn("disk", self.why("deepseek-maya-xs", self.G4))      # 282 GB on a 253 GB disk
+        self.assertIsNone(self.why("deepseek-maya-xs", self.A100))         # fits the 350 GB scratch SSD
+        self.assertIsNone(self.why("deepseek-v4.1-flash-1017-iq1s", self.G4))   # 233 GB + headroom < 253
+
+    def test_streamed_engram_does_not_count_as_resident(self):
+        e = catalog.by_id(catalog.load())["deepseek-v4.1-flash-1017-iq1s"]
+        self.assertLess(catalog.resident_gb(e), e["size_gb"])
+        self.assertTrue(catalog.fits(e, 85.9, ram_gb=60, disk_gb=300))     # 122 GB resident < 86 + 60
+
+    def test_vram_only_check_is_unchanged_without_ram_and_disk(self):
+        e = catalog.by_id(catalog.load())["glm-maya-s24"]
+        self.assertTrue(catalog.fits(e, 24.2))
+
+    def test_recommendations_respect_ram_and_disk(self):
+        from colab_llm_hub import recommend
+        plan = recommend.for_engine("maya", **self.L4)
+        by = catalog.by_id(catalog.load())
+        self.assertTrue(all(catalog.fits(by[m], **self.L4) for m in plan["prefetch"]))
+        self.assertNotIn("deepseek-maya-xs", recommend.for_engine("maya", **self.G4)["prefetch"])
+
+    def test_local_models_dir_prefers_the_larger_disk(self):
+        from colab_llm_hub import workspace
+        a, b = tempfile.mkdtemp(), tempfile.mkdtemp()
+        free = {a: 350e9, b: 250e9}
+        old = os.environ.pop("COLAB_LLM_LOCAL_MODELS", None)
+        try:
+            self.assertEqual(str(workspace.pick_local_models((a, b), free_bytes=free.get)), os.path.join(a, "models"))
+            self.assertEqual(str(workspace.pick_local_models(("/nonexistent-disk", b), free_bytes=free.get)),
+                             os.path.join(b, "models"))
+            os.environ["COLAB_LLM_LOCAL_MODELS"] = "/x/models"
+            self.assertEqual(str(workspace.pick_local_models((a, b), free_bytes=free.get)), "/x/models")
+        finally:
+            os.environ.pop("COLAB_LLM_LOCAL_MODELS", None)
+            if old is not None:
+                os.environ["COLAB_LLM_LOCAL_MODELS"] = old
+
+    def test_model_disk_counts_cached_models_as_available(self):
+        from colab_llm_hub.store import model_disk_gb
+        root = tempfile.mkdtemp()
+        d = os.path.join(root, "m")
+        os.makedirs(d)
+        open(os.path.join(d, "w.gguf"), "wb").write(b"x" * 10**6)
+        write_marker(d, "org/m")
+        free = shutil.disk_usage(root).free / 1e9
+        self.assertGreaterEqual(model_disk_gb(root), round(free, 1))

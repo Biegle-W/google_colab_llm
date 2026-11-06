@@ -264,8 +264,10 @@ def band(vram_gb):
     return "g4"
 
 
-def for_engine(engine, vram_gb, entries=None):
-    """Return {engine, band, engines, prefetch, notes, visible, skipped} for one engine notebook."""
+def for_engine(engine, vram_gb, entries=None, ram_gb=None, disk_gb=None):
+    """Return {engine, band, engines, prefetch, notes, visible, skipped} for one engine notebook.
+
+    With ram_gb / disk_gb, models that would not fit this runtime's system RAM or local disk are left out."""
     if engine not in ENGINES:
         raise ValueError(f"unknown engine {engine!r}; choose from {ENGINES}")
     entries = entries if entries is not None else catalog.load()
@@ -273,14 +275,14 @@ def for_engine(engine, vram_gb, entries=None):
     by = catalog.by_id(scoped)
     b = band(vram_gb)
     want = list(_ENGINE_PREFETCH[engine][b])
-    prefetch = [m for m in want if m in by and catalog.fits(by[m], vram_gb)]
+    prefetch = [m for m in want if m in by and catalog.fits(by[m], vram_gb, ram_gb, disk_gb)]
     return {
         "engine": engine,
         "band": b,
         "engines": [engine],
         "prefetch": prefetch,
         "notes": list(_ENGINE_NOTES[engine][b]),
-        "visible": [e["id"] for e in catalog.visible(scoped, vram_gb)],
+        "visible": [e["id"] for e in catalog.visible(scoped, vram_gb, ram_gb, disk_gb)],
         "skipped": [m for m in want if m not in prefetch],
         "meta": dict(ENGINE_META[engine]),
     }
@@ -315,9 +317,9 @@ def for_gpu(vram_gb, entries=None):
     }
 
 
-def explain(vram_gb, entries=None, engine=None):
+def explain(vram_gb, entries=None, engine=None, ram_gb=None, disk_gb=None):
     if engine:
-        plan = for_engine(engine, vram_gb, entries)
+        plan = for_engine(engine, vram_gb, entries, ram_gb, disk_gb)
         lines = [
             f"Engine: {plan['engine']} ({ENGINE_META[engine]['title']})",
             f"GPU band: {plan['band']} ({vram_gb} GB reported)",

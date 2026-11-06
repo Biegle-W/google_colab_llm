@@ -5,7 +5,7 @@ import signal
 import sys
 
 from . import catalog, gpu, hub, keyfile, install
-from .store import ModelStore
+from .store import ModelStore, model_disk_gb
 
 
 def parse(argv=None):
@@ -35,6 +35,9 @@ def parse(argv=None):
                    help="comma-separated model ids to serve (default: every catalog model that fits); "
                         "the notebooks pass only the selected model so nothing else is downloaded")
     s.add_argument("--vram-gb", type=float, default=None, help="override the detected VRAM (testing)")
+    s.add_argument("--ram-gb", type=float, default=None, help="override the detected system RAM (testing)")
+    s.add_argument("--disk-gb", type=float, default=None,
+                   help="override the local disk available for models (testing)")
     s.add_argument("--ctx", action="append", default=[], metavar="MODEL=TOKENS",
                    help="override a model's context tokens (chat) or max edge px (image)")
     s.add_argument("--hf-token-env", default="HF_TOKEN")
@@ -77,14 +80,21 @@ def main(argv=None):
         "comfyui": a.comfyui_root or os.path.join(builds, "ComfyUI"),
         "sparsa": a.sparsa_root or os.path.join(builds, "Sparsa"),
     }
+    ram = a.ram_gb if a.ram_gb is not None else gpu.ram()["total_gb"]
+    disk = a.disk_gb if a.disk_gb is not None else model_disk_gb(a.local_dir)
     h = hub.Hub(entries, vram, store, bins, a.log_dir,
-                ctx_overrides={k: int(v) for k, v in overrides.items()}, gpu_name=name)
+                ctx_overrides={k: int(v) for k, v in overrides.items()}, gpu_name=name,
+                ram_gb=ram, disk_gb=disk)
     server = hub.make_server(h, key, "127.0.0.1", a.port)
 
     def stop(*_):
         raise KeyboardInterrupt
     signal.signal(signal.SIGTERM, stop)
-    print(f"Hub on 127.0.0.1:{a.port}; {name}, {vram} GB; {len(h.entries)} of {len(entries)} models fit.", flush=True)
+    print(f"Hub on 127.0.0.1:{a.port}; {name}, {vram} GB VRAM, {ram} GB RAM, {disk} GB disk for models; "
+          f"{len(h.entries)} of {len(entries)} models fit.", flush=True)
+    for e in entries:
+        if e["id"] not in h.entries:
+            print(f"  not served: {e['id']} ({catalog.why_not(e, vram, ram, disk)})", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

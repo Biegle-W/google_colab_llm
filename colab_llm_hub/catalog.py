@@ -53,15 +53,39 @@ def min_vram_gb(entry):
     return entry["contexts"][0][0]
 
 
-def fits(entry, vram_gb):
-    return vram_gb >= min_vram_gb(entry)
+DISK_HEADROOM_GB = 8     # matches ModelStore.min_free_gb: never fill the local disk completely
+MEMORY_HEADROOM_GB = 8   # OS, Python, engine buffers on top of the weights
+
+
+def resident_gb(entry):
+    """GB that must sit in VRAM + system RAM. Defaults to the whole download; entries whose large tables are
+    memory-mapped and read sparsely from disk (DeepSeek Engram) set `resident_gb` lower."""
+    return float(entry.get("resident_gb", entry["size_gb"]))
+
+
+def why_not(entry, vram_gb, ram_gb=None, disk_gb=None):
+    """None if the model can run here, else a short reason. RAM / disk are checked only when given."""
+    if vram_gb < min_vram_gb(entry):
+        return f"needs {min_vram_gb(entry)} GB VRAM"
+    if disk_gb is not None and entry["size_gb"] + DISK_HEADROOM_GB > disk_gb:
+        return f"needs {entry['size_gb'] + DISK_HEADROOM_GB:.0f} GB disk, {disk_gb:.0f} available"
+    # Offload entries spill weights from VRAM into system RAM, so the two together must hold them.
+    if ram_gb is not None and entry.get("offload"):
+        need = resident_gb(entry) + MEMORY_HEADROOM_GB
+        if need > vram_gb + ram_gb:
+            return f"needs ~{need:.0f} GB VRAM+RAM, {vram_gb + ram_gb:.0f} available"
+    return None
+
+
+def fits(entry, vram_gb, ram_gb=None, disk_gb=None):
+    return why_not(entry, vram_gb, ram_gb, disk_gb) is None
 
 
 def context_for(entry, vram_gb, override=None):
     """Largest listed context / max edge whose VRAM threshold the GPU meets (or the caller's override)."""
     if override:
         return int(override)
-    if not fits(entry, vram_gb):
+    if vram_gb < min_vram_gb(entry):
         raise CatalogError(f"{entry['id']} needs at least {min_vram_gb(entry)} GB of VRAM")
     best = entry["contexts"][0][1]
     for need, tokens in entry["contexts"]:
@@ -70,8 +94,8 @@ def context_for(entry, vram_gb, override=None):
     return best
 
 
-def visible(entries, vram_gb):
-    return [e for e in entries if fits(e, vram_gb)]
+def visible(entries, vram_gb, ram_gb=None, disk_gb=None):
+    return [e for e in entries if fits(e, vram_gb, ram_gb, disk_gb)]
 
 
 def by_id(entries):

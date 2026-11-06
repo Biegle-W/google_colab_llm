@@ -11,6 +11,31 @@ from pathlib import Path
 
 DEFAULT_DRIVE = "/content/drive/MyDrive/llm_models"
 DEFAULT_LOCAL_MODELS = "/content/models"
+# Some runtimes (the A100 80 GB) add a fast local NVMe disk here; the G4 and L4 do not.
+LOCAL_DISK_CANDIDATES = ("/mnt/local-scratch", "/content")
+
+
+def pick_local_models(candidates=LOCAL_DISK_CANDIDATES, free_bytes=None):
+    """Directory for the working copy of model files: the writable disk with the most free space.
+
+    The working copy is a cache (models stay on Drive), so the largest fast local disk wins; on the A100 that
+    is /mnt/local-scratch (~350 GB free) rather than /content (~250 GB). COLAB_LLM_LOCAL_MODELS overrides.
+    """
+    override = os.environ.get("COLAB_LLM_LOCAL_MODELS")
+    if override:
+        return Path(override)
+    free_bytes = free_bytes or (lambda p: shutil.disk_usage(p).free)
+    best, best_free = None, -1
+    for root in candidates:
+        if not (os.path.isdir(root) and os.access(root, os.W_OK)):
+            continue
+        try:
+            free = free_bytes(root)
+        except OSError:
+            continue
+        if free > best_free:
+            best, best_free = root, free
+    return Path(best) / "models" if best else Path(DEFAULT_LOCAL_MODELS)
 SETTINGS_NAME = "settings.json"
 DEFAULT_SETTINGS = {
     "prefetch": [],
@@ -28,7 +53,7 @@ DEFAULT_SETTINGS = {
 class Workspace:
     def __init__(self, drive_dir=None, local_models=None, settings_name=None, engine=None):
         self.drive = Path(drive_dir or os.environ.get("COLAB_LLM_DRIVE", DEFAULT_DRIVE))
-        self.local_models = Path(local_models or DEFAULT_LOCAL_MODELS)
+        self.local_models = Path(local_models) if local_models else pick_local_models()
         self.engine = engine
         self.models = self.drive / "models"
         self.builds = self.drive / "builds"

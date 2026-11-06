@@ -861,7 +861,8 @@
       "--cache-type-v",
       "q4_0"
     ],
-    "notes": "Fallback llama.cpp path. Prefer Strata (deepseek41) or Maya (maya-ds4) notebooks when possible."
+    "notes": "Fallback llama.cpp path. Prefer Strata (deepseek41) or Maya (maya-ds4) notebooks when possible.",
+    "resident_gb": 122.4
   },
   {
     "id": "flash-next-strata-q2",
@@ -972,7 +973,8 @@
     "strata_model": "ist-das-2.00bpw",
     "vision": "off",
     "engine_download": true,
-    "notes": "Official Strata DeepSeek path (docs/DEEPSEEK41.md). ~257 GB download; SSD expert streaming. Prefer G4 + high host RAM/disk."
+    "notes": "Official Strata DeepSeek path (docs/DEEPSEEK41.md). ~257 GB download; SSD expert streaming. Prefer G4 + high host RAM/disk.",
+    "resident_gb": 138.2
   },
   {
     "id": "glm-maya-s24",
@@ -1061,9 +1063,9 @@
     "repo": "peasantsmith/DeepSeek-V4.1-Flash-1017-Maya-GGUF",
     "files": [
       "Maya-XS/*.gguf",
-      "dspark/*"
+      "dspark/dspark-xs2.*"
     ],
-    "size_gb": 280.9,
+    "size_gb": 282.4,
     "contexts": [
       [
         40,
@@ -1078,7 +1080,8 @@
     "experimental": true,
     "maya_model": "deepseek-maya-xs",
     "ds4_quant": "maya-xs",
-    "notes": "Official Maya DeepSeek path for ~128 GB memory pool (Engram on SSD). Huge Drive download."
+    "notes": "Official Maya DeepSeek path for ~128 GB memory pool (Engram on SSD). Huge Drive download.",
+    "resident_gb": 121.1
   },
   {
     "id": "deepseek-maya-s",
@@ -1087,7 +1090,8 @@
     "repo": "peasantsmith/DeepSeek-V4.1-Flash-1017-Maya-GGUF",
     "files": [
       "Maya-S/*.gguf",
-      "dspark/*"
+      "dspark/dspark.bin",
+      "dspark/dspark.json"
     ],
     "size_gb": 347.5,
     "contexts": [
@@ -1104,7 +1108,8 @@
     "experimental": true,
     "maya_model": "deepseek-maya-s",
     "ds4_quant": "maya-s",
-    "notes": "Closer-to-original Maya DeepSeek quant (~340 GB). Prefer workstation unless Colab G4 + large disk."
+    "notes": "Closer-to-original Maya DeepSeek quant (~340 GB). Prefer workstation unless Colab G4 + large disk.",
+    "resident_gb": 186.2
   },
   {
     "id": "qwen3.8-27b-exl3-2bpw",

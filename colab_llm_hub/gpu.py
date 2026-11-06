@@ -164,13 +164,16 @@ def print_runtime(gpu_info=None, run=subprocess.run, read=_read, logical=None, d
               f"{g['compute_cap']} (sm_{g['arch']})")
     for line in format_host(read=read, logical=logical):
         print(line)
-    try:
-        usage = os.statvfs(disk_path)
-        free_gb = round(usage.f_bavail * usage.f_frsize / 1_000_000_000, 1)
-        total_gb = round(usage.f_blocks * usage.f_frsize / 1_000_000_000, 1)
-        print(f"Disk ({disk_path}): {free_gb} GB free / {total_gb} GB total")
-    except OSError:
-        pass
+    for path in (disk_path, "/mnt/local-scratch"):        # the A100 80 GB adds a fast NVMe scratch disk
+        if path != disk_path and not os.path.isdir(path):
+            continue
+        try:
+            usage = os.statvfs(path)
+            free_gb = round(usage.f_bavail * usage.f_frsize / 1_000_000_000, 1)
+            total_gb = round(usage.f_blocks * usage.f_frsize / 1_000_000_000, 1)
+            print(f"Disk ({path}): {free_gb} GB free / {total_gb} GB total")
+        except OSError:
+            pass
     return {"gpu": g, **host(read=read, logical=logical)}
 
 
