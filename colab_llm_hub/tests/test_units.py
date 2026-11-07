@@ -802,7 +802,7 @@ class HyperQwenAndNInfer(unittest.TestCase):
         cmd = backends.command(e, "/m/ninfer-qwen3.8-27b-nvfp4/qwen3_8_27b_nvfp4.ninfer", 240000,
                                {"ninfer": "/opt/nf/apps/ninfer-serve"})
         self.assertEqual(cmd[:2], ["/opt/nf/apps/ninfer-serve", "/m/ninfer-qwen3.8-27b-nvfp4/qwen3_8_27b_nvfp4.ninfer"])
-        flags = dict(zip(cmd[2::2], cmd[3::2]))
+        flags = {a: b for a, b in zip(cmd[2:], cmd[3:]) if a.startswith("--") and not b.startswith("--")}
         self.assertEqual((flags["--host"], flags["--port"], flags["--model-id"], flags["--max-context"]),
                          ("127.0.0.1", "30040", "ninfer-qwen3.8-27b-nvfp4", "240000"))
         self.assertEqual((flags["--spec"], flags["--draft-tokens"], flags["--proposal-head"]), ("mtp", "3", "optimized"))
