@@ -543,7 +543,8 @@ NINFER_PIN = "a754fcf3bf524494aa927c2f54e0cbfb58f569ab"
 NINFER_SRC = "/content/ninfer-src"
 NINFER_ROOT = "/content/ninfer"            # apps/ + lib/ (restored from Drive)
 NINFER_APT = ("ninja-build pkg-config libjpeg-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev "
-              "libhwloc-dev libssl-dev zlib1g-dev")
+              "libhwloc-dev libssl-dev zlib1g-dev liburing-dev libcurl4-openssl-dev")
+# Ubuntu 24.04 (current Colab) ships liburing 2.5 / libcurl 8.5; older images get them built from source.
 NINFER_DEPS = "/content/ninfer-deps"       # liburing / libcurl newer than Ubuntu 22.04 ships
 LIBURING_TAG = "liburing-2.9"
 CURL_VERSION = "8.11.1"
