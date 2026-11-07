@@ -24,6 +24,9 @@ PREPARE = (
 )
 MARKER = ".hyperqwen_prepared.json"
 SHORT_CTX = 65536          # HyperQwen's CTX=fast profile (bf16 KV); above it CTX=long (fp8 KV)
+# Qwen3.8 thinks by default and HyperQwen keeps that; like the reference stack, the hub turns it off unless a
+# catalog entry asks for it. A client can still send chat_template_kwargs {"enable_thinking": true}.
+NO_THINKING = '--default-chat-template-kwargs={"enable_thinking":false}'
 
 
 def source_stamp(src):
@@ -62,10 +65,12 @@ def prepare(root, src, python, run=subprocess.run, log=print):
     return dest
 
 
-def launch_env(model, port, ctx, mode, spec, drafter=None, base=None):
+def launch_env(model, port, ctx, mode, spec, drafter=None, base=None, thinking=False):
     env = dict(os.environ if base is None else base)
     env.pop("VLLM_API_KEY", None)        # no key -> HyperQwen binds 127.0.0.1; the hub does the auth
     env.update(MODEL=str(model), PORT=str(port), MAX_LEN=str(int(ctx)), HF_HUB_OFFLINE="1", HOST="127.0.0.1")
+    if not thinking:     # HyperQwen splits EXTRA_ARGS on spaces, so the JSON carries none
+        env["EXTRA_ARGS"] = (env.get("EXTRA_ARGS", "") + " " + NO_THINKING).strip()
     if mode == "single":
         env["SPEC"] = spec
         env["CTX"] = "fast" if int(ctx) <= SHORT_CTX else "long"
@@ -89,6 +94,7 @@ def main(argv=None):
     p.add_argument("--ctx", type=int, default=SHORT_CTX)
     p.add_argument("--mode", choices=("single", "batch"), default="single")
     p.add_argument("--spec", choices=("mtp", "dflash2", "off"), default="mtp")
+    p.add_argument("--thinking", choices=("on", "off"), default="off")
     a = p.parse_args(argv)
     root = Path(a.root)
     python = str(root / "venv" / "bin" / "python")
@@ -96,7 +102,8 @@ def main(argv=None):
         raise SystemExit(f"[hyperqwen] {python} not found; run install.ensure_hyperqwen first")
     model = prepare(root, a.model, python)
     # The drafter is a separate checkpoint; it stays in the download, not in the prepared copy.
-    env = launch_env(model, a.port, a.ctx, a.mode, a.spec, drafter=Path(a.model) / "dflash2")
+    env = launch_env(model, a.port, a.ctx, a.mode, a.spec, drafter=Path(a.model) / "dflash2",
+                     thinking=a.thinking == "on")
     script = script_for(root, a.mode)
     print(f"[hyperqwen] exec bash {script} (mode {a.mode}, spec {a.spec}, ctx {a.ctx})", flush=True)
     os.chdir(root)

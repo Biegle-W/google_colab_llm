@@ -201,7 +201,8 @@ def hyperqwen_command(entry, model_path, ctx, hyperqwen_root, python=None, port=
     return [python or sys.executable, "-m", "colab_llm_hub.hyperqwen_launch",
             "--root", str(hyperqwen_root), "--model", str(model_path),
             "--port", str(port or PORTS["hyperqwen"]), "--ctx", str(int(ctx)),
-            "--mode", entry.get("hyperqwen_mode", "single"), "--spec", entry.get("spec", "mtp")]
+            "--mode", entry.get("hyperqwen_mode", "single"), "--spec", entry.get("spec", "mtp"),
+            "--thinking", "on" if entry.get("thinking") else "off"]
 
 
 def ninfer_command(entry, model_path, ctx, ninfer_bin, port=None):

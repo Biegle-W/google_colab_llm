@@ -838,6 +838,9 @@ class HyperQwenAndNInfer(unittest.TestCase):
                          ("/p", "30030", "131072", "dflash2", "long", drafter))
         self.assertNotIn("VLLM_API_KEY", env)
         self.assertEqual(env["HOST"], "127.0.0.1")                          # loopback only; the hub does auth
+        self.assertIn('{"enable_thinking":false}', env["EXTRA_ARGS"])           # reasoning off, as in the reference
+        self.assertNotIn(" ", env["EXTRA_ARGS"].split("=", 1)[1])               # survives HyperQwen's word split
+        self.assertNotIn("EXTRA_ARGS", hl.launch_env("/p", 1, 1, "batch", "off", base={}, thinking=True))
         self.assertEqual(hl.launch_env("/p", 1, 65536, "single", "mtp", base={})["CTX"], "fast")
         batch = hl.launch_env("/p", 1, 150000, "batch", "off", base={})
         self.assertNotIn("SPEC", batch)
