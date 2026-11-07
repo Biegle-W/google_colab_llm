@@ -108,6 +108,7 @@ def main(argv=None):
         "sparsa": a.sparsa_root or os.path.join(builds, "Sparsa"),
         "hyperqwen": a.hyperqwen_root or "/content/HyperQwen",
         "ninfer": a.ninfer_bin or "/content/ninfer/apps/ninfer-serve",
+        "work_dir": a.local_dir,            # engine scratch on local disk (models themselves stay on Drive)
     }
     ram = a.ram_gb if a.ram_gb is not None else gpu.ram()["total_gb"]
     disk = a.disk_gb if a.disk_gb is not None else model_disk_gb(a.local_dir)

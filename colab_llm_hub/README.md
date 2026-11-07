@@ -43,8 +43,10 @@ your machine (harness) ──HTTPS──> Tailscale Serve (tailnet) or Cloudflar
 
 Drive root MyDrive/llm_models/
   models/  builds/  config/  hf_cache/  hub/  logs/  outputs/
-Hugging Face ──once──> local disk ──copy──> Drive models/
-later sessions: Drive ──copy──> local ──> engine   (wheels/builds/Tailscale restored too;
+Hugging Face ──once, file by file──> Drive models/
+every session:  VRAM+RAM models: engine reads Drive directly
+                SSD-streamed models: streamed files Drive ──copy──> local disk, the rest read from Drive
+                (wheels/builds/Tailscale restored too;
                 hub code is fetched from GitHub each run, hub_pkg/ on Drive is only the offline fallback)
 ```
 

@@ -155,7 +155,7 @@ class Hub:
         # 1. Get the files while the current model keeps serving.
         self._set_phase("getting model files")
         protect = [self.entries[self.active]] if self.active in self.entries else []
-        path = self.store.ensure_local(entry, protect=protect)
+        path = self.store.resolve(entry, protect=protect)
         ctx = self.context(model_id)
         # 2. Wait for in-flight replies, then stop the old engine.
         self._set_phase("waiting for the current model's replies to finish")

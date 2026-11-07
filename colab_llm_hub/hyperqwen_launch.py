@@ -37,14 +37,16 @@ def source_stamp(src):
     return json.dumps(sorted((p.name, p.stat().st_size) for p in Path(src).iterdir() if p.is_file()))
 
 
-def prepared_dir(src):
+def prepared_dir(src, work_dir=None):
+    """Local copy the prepare scripts rewrite. With the model read from Drive, work_dir (the runtime's
+    local model disk) keeps that 20 GB copy off Drive."""
     src = Path(src)
-    return src.parent / ".hyperqwen" / src.name
+    return Path(work_dir or src.parent) / ".hyperqwen" / src.name
 
 
-def prepare(root, src, python, run=subprocess.run, log=print):
+def prepare(root, src, python, run=subprocess.run, log=print, work_dir=None):
     """Return a prepared copy of `src` (a downloaded dbirks/Qwen3.8-27B-W4A16-AutoRound directory)."""
-    dest = prepared_dir(src)
+    dest = prepared_dir(src, work_dir)
     stamp = source_stamp(src)
     marker = dest / MARKER
     if marker.is_file() and json.loads(marker.read_text()).get("source") == stamp:
@@ -95,12 +97,13 @@ def main(argv=None):
     p.add_argument("--mode", choices=("single", "batch"), default="single")
     p.add_argument("--spec", choices=("mtp", "dflash2", "off"), default="mtp")
     p.add_argument("--thinking", choices=("on", "off"), default="off")
+    p.add_argument("--work-dir", default=None, help="local disk for the prepared copy (default: beside --model)")
     a = p.parse_args(argv)
     root = Path(a.root)
     python = str(root / "venv" / "bin" / "python")
     if not Path(python).is_file():
         raise SystemExit(f"[hyperqwen] {python} not found; run install.ensure_hyperqwen first")
-    model = prepare(root, a.model, python)
+    model = prepare(root, a.model, python, work_dir=a.work_dir)
     # The drafter is a separate checkpoint; it stays in the download, not in the prepared copy.
     env = launch_env(model, a.port, a.ctx, a.mode, a.spec, drafter=Path(a.model) / "dflash2",
                      thinking=a.thinking == "on")

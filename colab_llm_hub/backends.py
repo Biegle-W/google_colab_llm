@@ -25,6 +25,23 @@ ALIAS_READY_BACKENDS = ("strata", "maya", "sparsa")
 opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
+def on_network_fs(path, mounts="/proc/mounts"):
+    """True when path is on a FUSE mount such as Colab's Google Drive (/content/drive)."""
+    try:
+        target = os.path.realpath(str(path))
+        best, fstype = "", ""
+        with open(mounts) as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) > 2:
+                    mnt = parts[1].replace("\\040", " ")
+                    if (target == mnt or target.startswith(mnt.rstrip("/") + "/")) and len(mnt) > len(best):
+                        best, fstype = mnt, parts[2]
+        return "fuse" in fstype
+    except OSError:
+        return False
+
+
 def _context_flag(ctx):
     """Strata prefers 32k/64k/128k labels; Maya takes a token count."""
     n = int(ctx)
@@ -52,6 +69,8 @@ def llama_command(entry, model_path, ctx, llama_bin, port=None):
             "--cache-ram", "0", "--ctx-checkpoints", "0"]
     if not entry.get("thinking", False):
         args += ["--reasoning", "off", "--chat-template-kwargs", json.dumps({"enable_thinking": False})]
+    if on_network_fs(model_path):
+        args += ["--no-mmap"]         # read the GGUF from Drive in one sequential pass, not by page faults
     return args + list(entry.get("extra_args", []))
 
 
@@ -68,6 +87,8 @@ def vllm_command(entry, model_path, ctx, vllm_bin="vllm", port=None, gpu_util=0.
         args += ["--language-model-only"]
     if not entry.get("thinking", False):
         args += ["--default-chat-template-kwargs", json.dumps({"enable_thinking": False})]
+    if on_network_fs(model_path):
+        args += ["--safetensors-load-strategy", "eager"]   # whole files from Drive, no random mmap reads
     return args + list(entry.get("extra_args", []))
 
 
@@ -195,14 +216,15 @@ def sparsa_command(entry, model_path, ctx, sparsa_root, python=None, port=None):
     return args + list(entry.get("extra_args", []))
 
 
-def hyperqwen_command(entry, model_path, ctx, hyperqwen_root, python=None, port=None):
+def hyperqwen_command(entry, model_path, ctx, hyperqwen_root, python=None, port=None, work_dir=None):
     """HyperQwen's own launcher (single-user/ or batch/start_qwen.sh) via colab_llm_hub.hyperqwen_launch,
     which first runs HyperQwen's CPU prepare scripts on a local copy of the downloaded checkpoint."""
     return [python or sys.executable, "-m", "colab_llm_hub.hyperqwen_launch",
             "--root", str(hyperqwen_root), "--model", str(model_path),
             "--port", str(port or PORTS["hyperqwen"]), "--ctx", str(int(ctx)),
             "--mode", entry.get("hyperqwen_mode", "single"), "--spec", entry.get("spec", "mtp"),
-            "--thinking", "on" if entry.get("thinking") else "off"]
+            "--thinking", "on" if entry.get("thinking") else "off"] + (
+            ["--work-dir", str(work_dir)] if work_dir else [])
 
 
 def ninfer_command(entry, model_path, ctx, ninfer_bin, port=None):
@@ -254,7 +276,7 @@ def command(entry, model_path, ctx, bins, port=None):
                               bins.get("python"), port)
     if entry["backend"] == "hyperqwen":
         return hyperqwen_command(entry, model_path, ctx, bins.get("hyperqwen", "/content/HyperQwen"),
-                                 bins.get("python"), port)
+                                 bins.get("python"), port, work_dir=bins.get("work_dir"))
     if entry["backend"] == "ninfer":
         return ninfer_command(entry, model_path, ctx,
                               bins.get("ninfer", "/content/ninfer/apps/ninfer-serve"), port)

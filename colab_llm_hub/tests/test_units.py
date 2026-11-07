@@ -794,8 +794,8 @@ class HyperQwenAndNInfer(unittest.TestCase):
 
     def test_hyperqwen_disk_counts_the_prepared_copy(self):
         e = catalog.by_id(catalog.load())["hyperqwen-qwen3.8-27b-mtp"]
-        self.assertIsNone(catalog.why_not(e, 102.6, disk_gb=60))
-        self.assertIn("disk", catalog.why_not(e, 102.6, disk_gb=40))         # 19.5 download + 19.5 copy + 8
+        self.assertIsNone(catalog.why_not(e, 102.6, disk_gb=30))             # model read from Drive
+        self.assertIn("disk", catalog.why_not(e, 102.6, disk_gb=25))         # its 19.5 GB prepared copy + 8
 
     def test_ninfer_command_and_env(self):
         e = catalog.by_id(catalog.load())["ninfer-qwen3.8-27b-nvfp4"]
@@ -1195,3 +1195,101 @@ class TailscaleKeyFile(unittest.TestCase):
         os.remove(path + ".txt")
         self.assertEqual(tunnel.load_or_ask_tailscale_authkey(path, log=lambda *a: None), key)
         shutil.rmtree(tmp, ignore_errors=True)
+
+
+class ReadFromDrive(unittest.TestCase):
+    """VRAM + RAM models are read from Drive; SSD-streamed files are copied to local disk every run."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.fetched = []
+        files = {"org/m": [("config.json", 2), ("model.gguf", 50), ("engram/table-1.bin", 30),
+                           ("engram/table-1.map", 3)]}
+
+        def lister(repo, token=None):
+            return files[repo]
+
+        def fetch(repo, path, dest, token=None):
+            self.fetched.append(path)
+            out = os.path.join(dest, path)
+            os.makedirs(os.path.dirname(out), exist_ok=True)
+            open(out, "wb").write(b"x" * dict(files[repo])[path])
+            return out
+        self.lister, self.fetch = lister, fetch
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def store(self):
+        st = ModelStore(os.path.join(self.tmp, "drive"), os.path.join(self.tmp, "local"), min_free_gb=0,
+                        log=lambda *_: None)
+        orig = st.download_to_drive
+        st.download_to_drive = lambda e, **kw: orig(e, lister=self.lister, fetch=self.fetch, **kw)
+        return st
+
+    def entry(self, **kw):
+        e = {"id": "m", "name": "M", "backend": "llama", "repo": "org/m", "files": ["*"], "size_gb": 85e-9,
+             "model_file": "model.gguf", "contexts": [[1, 1024]]}
+        e.update(kw)
+        return e
+
+    def test_ram_model_is_read_from_drive(self):
+        st = self.store()
+        path = st.resolve(self.entry())
+        self.assertEqual(path, st.drive_path(self.entry()) / "model.gguf")
+        self.assertFalse(st.local_path(self.entry()).exists())                  # nothing copied locally
+        self.fetched.clear()
+        st.resolve(self.entry())
+        self.assertEqual(self.fetched, [])                                        # next run: Drive only
+
+    def test_streamed_files_copied_rest_linked_every_run(self):
+        e = self.entry(resident_gb=50e-9, stream_files=["engram/*"])           # 85 bytes, 50 resident
+        self.assertTrue(catalog.streams_from_disk(e))
+        st = self.store()
+        path = st.resolve(e)
+        local = st.local_path(e)
+        self.assertEqual(path, local / "model.gguf")
+        self.assertTrue((local / "model.gguf").is_symlink())                      # not streamed: from Drive
+        for rel in ("engram/table-1.bin", "engram/table-1.map"):                 # streamed weights + their map
+            self.assertTrue((local / rel).is_file() and not (local / rel).is_symlink())
+        self.assertTrue(is_complete(local))
+        shutil.rmtree(local)                                                      # a new runtime: local disk is empty
+        st.resolve(e)
+        self.assertTrue((local / "engram/table-1.bin").is_file())
+
+    def test_streamed_without_patterns_copies_everything(self):
+        e = self.entry(disk_stream=True)
+        st = self.store()
+        st.resolve(e)
+        self.assertFalse(any(p.is_symlink() for p in st.local_path(e).rglob("*")))
+
+    def test_disk_fit_counts_only_local_files(self):
+        big = {"id": "x", "backend": "vllm", "size_gb": 200, "contexts": [[10, 1024]]}
+        self.assertIsNone(catalog.why_not(big, 24, disk_gb=50))                   # read from Drive
+        stream = dict(big, resident_gb=100, stream_gb=120)
+        self.assertIn("local disk", catalog.why_not(stream, 24, disk_gb=50))
+        self.assertEqual(catalog.local_disk_gb(stream), 120)
+
+    def test_network_fs_detection_and_engine_flags(self):
+        mounts = os.path.join(self.tmp, "mounts")
+        open(mounts, "w").write("overlay / overlay rw 0 0\ndrive /content/drive fuse.drive rw 0 0\n")
+        self.assertTrue(backends.on_network_fs("/content/drive/MyDrive/llm_models/models/x", mounts))
+        self.assertFalse(backends.on_network_fs("/content/models/x", mounts))
+        orig = backends.on_network_fs
+        backends.on_network_fs = lambda p, mounts=None: str(p).startswith("/content/drive")
+        try:
+            e = self.entry()
+            self.assertIn("--no-mmap", backends.llama_command(e, "/content/drive/m/model.gguf", 1024, "llama"))
+            self.assertNotIn("--no-mmap", backends.llama_command(e, "/content/models/m/model.gguf", 1024, "llama"))
+            v = backends.vllm_command(dict(e, backend="vllm"), "/content/drive/m", 1024)
+            self.assertEqual(v[v.index("--safetensors-load-strategy") + 1], "eager")
+        finally:
+            backends.on_network_fs = orig
+
+    def test_hyperqwen_prepared_copy_stays_off_drive(self):
+        from colab_llm_hub import hyperqwen_launch as hl
+        self.assertEqual(str(hl.prepared_dir("/content/drive/MyDrive/llm_models/models/hq", "/content/models")),
+                         "/content/models/.hyperqwen/hq")
+        cmd = backends.command(catalog.by_id(catalog.load())["hyperqwen-qwen3.8-27b-mtp"], "/d/hq", 65536,
+                               {"work_dir": "/content/models"})
+        self.assertEqual(cmd[cmd.index("--work-dir") + 1], "/content/models")

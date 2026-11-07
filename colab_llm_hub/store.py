@@ -1,8 +1,9 @@
-"""Model files: a permanent copy on Google Drive, a fast working copy on the Colab VM's local disk.
+"""Model files live on Google Drive; the Colab VM's local disk holds only what streams from SSD.
 
-Models are downloaded from Hugging Face once, saved to Drive, and copied back to local disk in later
-sessions (engines load much faster from local disk than through the Drive mount). A marker file written
-last makes copies atomic: a half-copied model is never mistaken for a complete one.
+Models are downloaded from Hugging Face straight to Drive once. A model that fits in VRAM + RAM is then
+read directly from the Drive mount (resolve()); a model that streams part of its weights from disk during
+inference gets those files copied to the runtime's local disk every run, with the rest linked from Drive.
+A marker file written last makes copies atomic: a half-copied model is never mistaken for a complete one.
 """
 import fcntl
 import fnmatch
@@ -119,9 +120,9 @@ class ModelStore:
     def drive_path(self, entry): return self.drive_root / entry["id"]
     def local_path(self, entry): return self.local_root / entry["id"]
 
-    def model_path(self, entry):
+    def model_path(self, entry, base=None):
         """What the engine is pointed at: a GGUF file for llama.cpp, a model directory otherwise."""
-        base = self.local_path(entry)
+        base = Path(base) if base is not None else self.local_path(entry)
         if entry["backend"] in ("llama", "ninfer"):
             return base / entry["model_file"]
         # Strata / Maya / vLLM / SGLang / Diffusers all take a directory of shards.
@@ -285,6 +286,12 @@ class ModelStore:
         if entry.get("engine_download"):
             raise StoreError(f"{entry['id']} is downloaded by {entry['backend']} itself on first start; "
                              "prepare it on the GPU runtime")
+        if self.downloader is not hf_download and lister is hf_list_files:
+            # A custom whole-repo downloader (tests, mirrors): fetch locally, save to Drive, drop the local copy.
+            self._download(entry, self.local_path(entry))
+            self.save_to_drive(entry)
+            shutil.rmtree(self.local_path(entry), ignore_errors=True)
+            return drive
         sources = [(entry["repo"], entry["files"], entry.get("exclude"), "")]
         sources += [(x["repo"], x.get("files") or ["*"], x.get("exclude"), x.get("subdir", "extra"))
                     for x in entry.get("extra_downloads") or []]
@@ -343,9 +350,64 @@ class ModelStore:
         self.log(f"[store] {entry['id']}: saved to Drive")
         return drive
 
+    def resolve(self, entry, protect=()):
+        """Where the engine reads the model this session.
+
+        VRAM + RAM models: straight from Drive (downloaded there first if missing), nothing local.
+        SSD-streamed models: their streamed files (`stream_files`, default all) copied to local disk every
+        run, the rest symlinked from Drive, so the engine still sees one directory."""
+        from . import catalog
+        if entry.get("engine_download"):
+            return self.ensure_local(entry, protect=protect)     # the engine fetches these itself
+        drive = self.drive_path(entry)
+        if not is_complete(drive):
+            if is_complete(self.local_path(entry)):              # downloaded locally by an older version
+                self.save_to_drive(entry)
+            else:
+                self.download_to_drive(entry, staging=self.local_root / ".staging" / entry["id"])
+        if not catalog.streams_from_disk(entry):
+            self._set(entry, "reading from Drive", entry["size_gb"] * 1e9)
+            return self.model_path(entry, base=drive)
+        return self._stage_streamed(entry, drive, protect)
+
+    def _stage_streamed(self, entry, drive, protect):
+        lock = self._lock(entry)
+        try:
+            local = self.local_path(entry)
+            if is_complete(local):
+                self.touch(entry)
+                return self.model_path(entry)
+            marker = json.loads((drive / MARKER).read_text())
+            patterns = entry.get("stream_files") or ["*"]
+            streamed = {rel: n for rel, n in marker["files"].items()
+                        if any(fnmatch.fnmatchcase(rel, p) for p in patterns)}
+            need = sum(streamed.values()) / 1e9
+            self.evict_for(dict(entry, size_gb=need), protect)
+            self._set(entry, "copying streamed files to local disk")
+            self.progress[entry["id"]]["total_bytes"] = int(need * 1e9)
+            self.log(f"[store] {entry['id']}: copying {len(streamed)} streamed files ({need:.1f} GB) to {local}")
+            for rel, n in marker["files"].items():
+                dst = local / rel
+                if rel in streamed:
+                    if not (dst.is_file() and not dst.is_symlink() and dst.stat().st_size == n):
+                        copy_file_atomic(drive / rel, dst, lambda b: self._add(entry, b))
+                    else:
+                        self._add(entry, n)
+                elif not dst.is_symlink():
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    if dst.exists():
+                        dst.unlink()
+                    dst.symlink_to(drive / rel)                 # read from Drive like any other model
+            shutil.copyfile(drive / MARKER, local / MARKER)     # marker last
+            self._set(entry, "ready", entry["size_gb"] * 1e9)
+            self.touch(entry)
+            return self.model_path(entry)
+        finally:
+            fcntl.flock(lock, fcntl.LOCK_UN)
+            lock.close()
+
     def prefetch(self, entry, protect=()):
         """Make sure the model is saved on Drive (downloading it if needed) without keeping the hub waiting on it."""
-        if is_complete(self.drive_path(entry)):
+        if is_complete(self.drive_path(entry)) or entry.get("engine_download"):
             return
-        self.ensure_local(entry, protect=protect, background_drive_copy=False)
-        self.save_to_drive(entry)
+        self.download_to_drive(entry, staging=self.local_root / ".staging" / entry["id"])

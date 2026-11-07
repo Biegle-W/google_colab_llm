@@ -59,7 +59,7 @@ Notebooks mount Google Drive and keep **all durable state** under `MyDrive/llm_m
 | `logs/` | `install.log`, `hub.log`, `tailscaled.log`, engine `hub_logs/` |
 | `outputs/images/`, `outputs/chat/`, `outputs/status/` | Generation results and status snapshots |
 
-A model is downloaded from Hugging Face once, saved to Drive, and copied to local disk in later sessions (engines load faster from local disk than through the Drive FUSE mount). The first run asks you to authorize Drive access. Set `REFRESH_WHEELS` / `REBUILD_LLAMA` in Drive settings to force updates.
+A model is downloaded from Hugging Face straight to Drive, once. A model that fits in VRAM + RAM is then read directly from Drive every session (llama.cpp reads it with `--no-mmap` and vLLM with `--safetensors-load-strategy eager`, so the mount is read sequentially). A model that streams weights from SSD during inference (the DeepSeek Engram packs, a GGUF larger than memory) gets its streamed files copied from Drive to the runtime's local disk every session, with the rest read from Drive. The first run asks you to authorize Drive access. Set `REFRESH_WHEELS` / `REBUILD_LLAMA` in Drive settings to force updates.
 
 ## Remote access
 Hub notebooks default to **Tailscale**. On first run you paste a Tailscale auth key (reusable + ephemeral recommended); it is saved only on **your private Google Drive** at `MyDrive/llm_models/hub/tailscale_authkey` (gitignored; never committed). Later Colab sessions reuse that Drive file. Optional Colab secret `TAILSCALE_AUTHKEY` if you press Enter on an empty prompt. The hub API key is also Drive-only (`hub/api_key`).
@@ -74,7 +74,7 @@ Set `TUNNEL` in cell 3 to choose how your machine connects:
 
 The Cloudflare link is printed only after the tunnel has registered and the hub answers through it. Your harness (dsh or any OpenAI client) runs on your own machine, never in a notebook. The T4 / TPU notebooks offer `tailscale` and `cloudflare` too.
 
-Fit checks use the GPU's VRAM, system RAM (for models that spill into it) and the local disk the model files go to; the model table says why a model is excluded. Model files go to the larger of `/content` and `/mnt/local-scratch` (the A100 80 GB's extra ~350 GB NVMe disk).
+Fit checks use the GPU's VRAM, system RAM (for models that spill into it) and, for SSD-streamed models only, the local disk their streamed files go to; the model table says why a model is excluded. Streamed files go to the larger of `/content` and `/mnt/local-scratch` (the A100 80 GB's extra ~350 GB NVMe disk).
 
 Each notebook downloads and serves **one model**, picked in its `MODEL` dropdown (`recommended` = the first recommended model that fits the GPU). With `SERVE_ONLY_SELECTED` (on by default) the hub serves only that model, so a harness request for another model cannot start a large download.
 

@@ -61,6 +61,19 @@ DISK_HEADROOM_GB = 8     # matches ModelStore.min_free_gb: never fill the local 
 MEMORY_HEADROOM_GB = 8   # OS, Python, engine buffers on top of the weights
 
 
+def streams_from_disk(entry):
+    """True for models that read part of their weights from SSD during inference (more than VRAM + RAM
+    hold: DeepSeek Engram tables, a llama.cpp GGUF larger than memory). Their streamed files are copied to
+    the runtime's local disk every run; every other model is read straight from Google Drive."""
+    return bool(entry.get("disk_stream")) or resident_gb(entry) < float(entry["size_gb"])
+
+
+def local_disk_gb(entry):
+    """Local (runtime) disk a model needs: its streamed files, plus any engine scratch (work_gb)."""
+    streamed = float(entry.get("stream_gb", entry["size_gb"])) if streams_from_disk(entry) else 0.0
+    return streamed + float(entry.get("work_gb", 0))
+
+
 def resident_gb(entry):
     """GB that must sit in VRAM + system RAM. Defaults to the whole download; entries whose large tables are
     memory-mapped and read sparsely from disk (DeepSeek Engram) set `resident_gb` lower."""
@@ -79,10 +92,10 @@ def why_not(entry, vram_gb, ram_gb=None, disk_gb=None, arch=None):
         return "needs GPU arch " + " or ".join(f"sm_{a}" for a in archs) + f" (this GPU is sm_{arch})"
     if vram_gb < min_vram_gb(entry):
         return f"needs {min_vram_gb(entry)} GB VRAM"
-    # work_gb: extra local scratch the engine writes next to the download (HyperQwen's prepared copy).
-    need_disk = entry["size_gb"] + float(entry.get("work_gb", 0)) + DISK_HEADROOM_GB
-    if disk_gb is not None and need_disk > disk_gb:
-        return f"needs {need_disk:.0f} GB disk, {disk_gb:.0f} available"
+    # Models are read from Drive; only SSD-streamed files and engine scratch (work_gb) take local disk.
+    need_disk = local_disk_gb(entry)
+    if disk_gb is not None and need_disk and need_disk + DISK_HEADROOM_GB > disk_gb:
+        return f"needs {need_disk + DISK_HEADROOM_GB:.0f} GB local disk, {disk_gb:.0f} available"
     # Offload entries spill weights from VRAM into system RAM, so the two together must hold them.
     if ram_gb is not None and entry.get("offload"):
         need = resident_gb(entry) + MEMORY_HEADROOM_GB
