@@ -806,6 +806,7 @@ class HyperQwenAndNInfer(unittest.TestCase):
         self.assertEqual((flags["--host"], flags["--port"], flags["--model-id"], flags["--max-context"]),
                          ("127.0.0.1", "30040", "ninfer-qwen3.8-27b-nvfp4", "240000"))
         self.assertEqual((flags["--spec"], flags["--draft-tokens"], flags["--proposal-head"]), ("mtp", "3", "optimized"))
+        self.assertIn("--no-thinking", cmd)
         env = backends.env_for(e, {"ninfer": "/opt/nf/apps/ninfer-serve"})
         self.assertTrue(env["LD_LIBRARY_PATH"].startswith("/opt/nf/lib"))
         from colab_llm_hub.store import ModelStore

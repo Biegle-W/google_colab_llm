@@ -211,6 +211,8 @@ def ninfer_command(entry, model_path, ctx, ninfer_bin, port=None):
             "--host", "127.0.0.1", "--port", str(port or PORTS["ninfer"]),
             "--model-id", entry["id"], "--max-context", str(int(ctx)),
             "--kv-dtype", entry.get("kv_dtype", "fp8")]
+    if not entry.get("thinking"):
+        args.append("--no-thinking")    # server default only: a request can still set enable_thinking
     if entry.get("spec") and entry["spec"] != "none":
         args += ["--spec", entry["spec"], "--draft-tokens", str(entry.get("draft_tokens", 3))]
         if entry.get("proposal_head"):

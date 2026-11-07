@@ -64,6 +64,22 @@ models. Settings: `config/settings_<engine>.json`.
 - Serve: `ninfer-serve ARTIFACT.ninfer --host 127.0.0.1 --port P --model-id ID --max-context N --kv-dtype fp8
   --spec mtp --draft-tokens 3 --proposal-head optimized`.
 
+### Measured on Colab (G4, 2026-11-07, via the Colab CLI)
+
+G4 runtime: RTX PRO 6000 Blackwell 96 GB, driver 580.82 (CUDA 13.0), nvcc 13.0, 48 threads, 176 GB RAM,
+253 GB disk, Python 3.13, Ubuntu 24.04. CPU runtime: 2 threads, 12 GB RAM, 242 GB disk, no CUDA toolkit.
+
+| Step | HyperQwen (`-dflash2`) | NInfer (`-nvfp4`) |
+|---|---|---|
+| Build | 14 min on CPU runtime, ~10 min on G4; 15 GB tarball | ~11 min on G4 (48 threads); 326 MB tarball |
+| Model download (straight to Drive dir) | 20.8 GB | 23.7 GB |
+| First request on a fresh runtime | 304 s (prepare scripts + torch.compile + graphs) | 67 s |
+| Same runtime, warm caches | 39 s | — |
+| Decode, 1 request, temperature 0, code prompt | ~315 tok/s | ~187 tok/s |
+
+Both engines think by default; the hub starts them with thinking off (as the reference stack does), and a
+request can turn it on with `chat_template_kwargs: {"enable_thinking": true}`.
+
 ### Strata ([Niko1221/Strata](https://github.com/Niko1221/Strata))
 - Primary: **Qwen3.8-Flash-Next** (ISTA; also Gyro / Swift / Unsloth).
 - Also: **Qwen3.6-35B-A3B** (`--family qwen36`), DeepSeek (`--family deepseek41`).
