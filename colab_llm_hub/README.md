@@ -28,7 +28,7 @@ per-GPU picks are in [`ENGINE_MATRIX.md`](ENGINE_MATRIX.md). Defaults come from
 ## How it works
 
 ```
-your machine (harness) ──HTTPS over your tailnet──> Tailscale Serve ──> hub (127.0.0.1:8000, Bearer key)
+your machine (harness) ──HTTPS──> Tailscale Serve (tailnet) or Cloudflare tunnel (public) ──> hub (127.0.0.1:8000, Bearer key)
                                                ├─ llama.cpp   (:30080)  GGUF chat models
                                                ├─ vLLM        (:30010)  safetensors chat models
                                                ├─ SGLang      (:30020)  chat models
@@ -62,7 +62,7 @@ later sessions: Drive ──copy──> local ──> engine   (wheels/builds/Ta
 | Drive layout: per-engine settings, HF cache, logs, outputs | `workspace.py` |
 | GPU detection (including Blackwell/CUDA handling) | `gpu.py` |
 | Engine builds and wheels cached on Drive | `install.py` |
-| Tailscale Serve (tailnet) or Funnel (public) | `tunnel.py` |
+| Tailscale Serve (tailnet) / Funnel, or Cloudflare quick / named tunnel | `tunnel.py` |
 | dsh provider block, stable API key | `provider.py`, `keyfile.py` |
 | Local script: add the hub to dsh's settings | `configure_dsh.py` |
 
@@ -87,9 +87,11 @@ The notebook prints the base URL, the API key and a dsh provider block (chat mod
 repository, `python -m colab_llm_hub.configure_dsh --url <URL> --key <KEY> --settings <dsh settings.yaml>` asks the
 hub which models it serves and merges one provider into the settings (other providers and settings are left alone,
 a `.bak` is written, and the key is never saved in the file: dsh reads it from `COLAB_LLM_API_KEY`).
-Remote access is **Tailscale Serve** only: the auth key is prompted once and saved only under the user's
-private Drive (`hub/tailscale_authkey`, gitignored). The harness always runs on your own machine in the same
-tailnet; no harness runs inside a notebook. Each notebook serves the one model picked in its `MODEL` dropdown
+Remote access defaults to **Tailscale Serve**: the auth key is prompted once and saved only under the user's
+private Drive (`hub/tailscale_authkey`, gitignored). `TUNNEL = "cloudflare"` opens a Cloudflare quick tunnel
+instead (no account, new public URL each session, returned only once the hub answers through it), and
+`cloudflare-named` runs your own dashboard tunnel by token (`hub/cloudflare_tunnel_token`). Public URLs are
+protected by the hub API key. The harness always runs on your own machine; no harness runs inside a notebook. Each notebook serves the one model picked in its `MODEL` dropdown
 (`serve --models <id>`), so requests for other models return 404 instead of starting a download.
 
 Image clients call the same base URL:

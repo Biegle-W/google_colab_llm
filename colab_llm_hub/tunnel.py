@@ -1,8 +1,13 @@
-"""Remote access to the Colab hub over Tailscale.
+"""Remote access to the Colab hub: Tailscale (default) or a Cloudflare tunnel.
 
-The Colab VM joins your tailnet with an auth key (userspace networking: Colab has no
-``/dev/net/tun``), then ``tailscale serve`` proxies the hub over HTTPS on its MagicDNS name, so a
-harness on any machine in the same tailnet can reach it. ``funnel=True`` makes it public instead.
+- **Tailscale**: the Colab VM joins your tailnet with an auth key (userspace networking: Colab has no
+  ``/dev/net/tun``), then ``tailscale serve`` proxies the hub over HTTPS on its MagicDNS name, so a harness
+  on any machine in the same tailnet can reach it. ``funnel=True`` makes it public instead.
+- **Cloudflare quick tunnel**: no account; a new public ``https://<words>.trycloudflare.com`` URL each
+  session (the approach of Unsloth Studio's Colab notebook). Anyone with the URL reaches the hub, so the
+  hub's API key is what protects it.
+- **Cloudflare named tunnel**: a tunnel created in the Cloudflare dashboard, run with its token; the stable
+  public hostname is configured there.
 
 Binaries are cached under ``Drive/builds/tools/`` when ``drive_dir`` is set.
 """
@@ -12,11 +17,196 @@ import re
 import shutil
 import subprocess
 import time
+import urllib.error
 import urllib.request
 
 # Static combined binary works without apt root installs; userspace mode needs no TUN device.
 TAILSCALE_STATIC_URL = "https://pkgs.tailscale.com/stable/tailscale_latest_amd64.tgz"
 TS_URL_RE = re.compile(r"https://[a-z0-9._-]+\.ts\.net(?:/[^\s]*)?", re.I)
+
+
+# ---- Cloudflare ---------------------------------------------------------------------------
+
+CLOUDFLARED_URL = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64"
+# Exclude cloudflared's own api.trycloudflare.com, which appears in its failure messages.
+QUICK_RE = re.compile(r"https://(?!api\.)[a-z0-9-]+\.trycloudflare\.com", re.I)
+# The quick-tunnel URL answers Cloudflare error 1033 until an edge connection registers.
+REGISTERED = "Registered tunnel connection"
+DOH_URL = "https://cloudflare-dns.com/dns-query?name={host}&type=A"
+
+
+def ensure_cloudflared(drive_dir=None, fetch=urllib.request.urlretrieve, attempts=3, sleep=time.sleep):
+    """Path to cloudflared, cached on Drive (builds/tools/cloudflared) or /content when no Drive."""
+    found = shutil.which("cloudflared")
+    if found:
+        return found
+    path = (os.path.join(drive_dir, "builds", "tools", "cloudflared") if drive_dir
+            else os.environ.get("COLAB_LLM_CLOUDFLARED", "/content/cloudflared"))
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    if os.path.isfile(path) and os.path.getsize(path) > 1_000_000:
+        os.chmod(path, 0o755)
+        return path
+    for attempt in range(1, attempts + 1):
+        try:
+            fetch(CLOUDFLARED_URL, path + ".part")
+            os.replace(path + ".part", path)
+            os.chmod(path, 0o755)
+            return path
+        except OSError:
+            if attempt == attempts:
+                raise
+            sleep(1.5 * attempt)
+    return path
+
+
+def parse_quick_url(text):
+    m = QUICK_RE.search(text or "")
+    return m.group(0).lower() if m else None
+
+
+def _read(path):
+    try:
+        with open(path, errors="replace") as f:
+            return f.read()
+    except OSError:
+        return ""
+
+
+def dns_ready(host, opener=urllib.request.urlopen):
+    """True once public DNS (Cloudflare's DoH) has an A record for host. Asking DoH rather than the local
+    resolver avoids caching a "no such host" answer from before the record existed."""
+    req = urllib.request.Request(DOH_URL.format(host=host), headers={"accept": "application/dns-json"})
+    with opener(req, timeout=5) as r:
+        return any(a.get("type") == 1 for a in json.load(r).get("Answer") or [])
+
+
+def probe_hub(url, api_key=None, opener=urllib.request.urlopen):
+    """True when the server behind the tunnel answers /health. Cloudflare's own errors (1033 while the
+    tunnel registers, 502 / 530 when the origin is unreachable) are 5xx, so a 200 (or the server's 401 to a
+    missing key) means the request reached it. Works for the hub, llama-server and vLLM alike."""
+    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+    try:
+        with opener(urllib.request.Request(url + "/health", headers=headers), timeout=5) as r:
+            return r.status == 200
+    except urllib.error.HTTPError as e:
+        return e.code == 401 and not api_key
+    except (OSError, ValueError):
+        return False
+
+
+def _verify_public(url, api_key, deadline, sleep, dns_check, probe, log):
+    host = url.split("//", 1)[1]
+    sleep(3)                                                   # let the record exist before the first lookup
+    while time.monotonic() < deadline:
+        try:
+            if dns_check(host):
+                break
+        except (OSError, ValueError):
+            break                                              # DoH blocked: go straight to probing
+        sleep(2)
+    while time.monotonic() < deadline:
+        if probe(url, api_key):
+            return True
+        sleep(1)
+    log(f"[tunnel] {url} did not answer from here yet; it usually works within a minute from other networks.")
+    return False
+
+
+def start_cloudflare_quick(port, drive_dir=None, api_key=None, protocol=None, binary=None,
+                           popen=subprocess.Popen, sleep=time.sleep, url_wait=30, verify_wait=45,
+                           dns_check=dns_ready, probe=probe_hub, log=print):
+    """Open a Cloudflare quick tunnel to the hub. Returns (process, https base URL).
+
+    Like Unsloth Studio's Colab start(): waits until the tunnel has registered with Cloudflare's edge and
+    the hub answers through it before returning the URL. If no URL appears it retries once over HTTP/2,
+    for networks that block cloudflared's default QUIC."""
+    binary = binary or ensure_cloudflared(drive_dir=drive_dir)
+    log_path = (os.path.join(drive_dir, "logs", "cloudflared.log") if drive_dir else "/content/cloudflared.log")
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    stop_cloudflare()
+    tail = ""
+    for proto in ([protocol] if protocol else [None, "http2"]):
+        cmd = [binary, "tunnel", "--url", f"http://127.0.0.1:{port}", "--no-autoupdate"]
+        if proto:
+            cmd += ["--protocol", proto]
+        with open(log_path, "w") as out:
+            proc = popen(cmd, stdout=out, stderr=subprocess.STDOUT, start_new_session=True)
+        deadline = time.monotonic() + url_wait
+        url = None
+        while time.monotonic() < deadline and proc.poll() is None:
+            text = _read(log_path)
+            url = url or parse_quick_url(text)
+            if url and REGISTERED in text:
+                break
+            sleep(1)
+        tail = _read(log_path)[-2000:]
+        if url and REGISTERED in _read(log_path):
+            _verify_public(url, api_key, time.monotonic() + verify_wait, sleep, dns_check, probe, log)
+            return proc, url
+        proc.terminate()
+        log(f"[tunnel] cloudflared{' (' + proto + ')' if proto else ''} gave no working URL; "
+            + ("retrying over HTTP/2" if not proto and not protocol else "giving up"))
+    raise RuntimeError("Cloudflare quick tunnel did not start (trycloudflare.com may be unreachable or "
+                       "rate-limited; use Tailscale instead):\n" + tail)
+
+
+def start_cloudflare_named(port, token, hostname, drive_dir=None, api_key=None, binary=None,
+                           popen=subprocess.Popen, sleep=time.sleep, wait=60, probe=probe_hub, log=print):
+    """Run a dashboard-created tunnel by token. Its public hostname must route to http://127.0.0.1:<port>
+    (set in the Cloudflare dashboard). Returns (process, https://hostname)."""
+    if not token:
+        raise ValueError("a Cloudflare tunnel token is required for a named tunnel")
+    if not hostname:
+        raise ValueError("set the tunnel's public hostname (cf_hostname), e.g. llm.example.com")
+    binary = binary or ensure_cloudflared(drive_dir=drive_dir)
+    log_path = (os.path.join(drive_dir, "logs", "cloudflared.log") if drive_dir else "/content/cloudflared.log")
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    stop_cloudflare()
+    with open(log_path, "w") as out:
+        proc = popen([binary, "tunnel", "--no-autoupdate", "run", "--token", token],
+                     stdout=out, stderr=subprocess.STDOUT, start_new_session=True)
+    url = "https://" + hostname.removeprefix("https://").strip("/")
+    deadline = time.monotonic() + wait
+    while time.monotonic() < deadline:
+        if proc.poll() is not None:
+            raise RuntimeError("cloudflared exited:\n" + _read(log_path)[-2000:])
+        if REGISTERED in _read(log_path) and probe(url, api_key):
+            return proc, url
+        sleep(1)
+    log(f"[tunnel] {url} is not answering yet: check that its public hostname routes to "
+        f"http://127.0.0.1:{port} in the Cloudflare dashboard.")
+    return proc, url
+
+
+def load_or_ask_secret(path, prompt, refresh=False, env_name=None, check=None, log=print):
+    """A secret kept on private Drive: read it, or prompt once (getpass) and save it there (mode 600)."""
+    if not refresh and path and os.path.isfile(path):
+        value = open(path).read().strip()
+        if value:
+            return value
+    from getpass import getpass
+    value = getpass(prompt).strip()
+    if not value and env_name:
+        try:
+            from google.colab import userdata
+            value = (userdata.get(env_name) or "").strip()
+        except Exception:
+            value = os.environ.get(env_name, "").strip()
+    if not value or (check and not check(value)):
+        raise ValueError("no valid value given")
+    if path:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w") as f:
+            f.write(value)
+        os.chmod(path, 0o600)
+        log(f"Saved to {path} (private Drive, never in git)")
+    return value
+
+
+def stop_cloudflare():
+    """Stop cloudflared tunnels started from this runtime. Anchored to the program name: an unanchored
+    pattern would also match any process whose arguments merely mention cloudflared (a shell, a test)."""
+    subprocess.run(["pkill", "-TERM", "-f", r"^[^ ]*cloudflared tunnel "], capture_output=True)
 
 
 # ---- Tailscale ---------------------------------------------------------------------------

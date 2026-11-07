@@ -693,7 +693,7 @@ class SingleModelSelection(unittest.TestCase):
         nb = make_engine_notebooks.build_notebook("llama")
         text = "".join("".join(c["source"]) for c in nb["cells"])
         self.assertIn('args += ["--models", MODEL]', text)
-        self.assertNotIn("cloudflare", text.lower())
+        self.assertIn('TUNNEL = "tailscale"  # @param', text)                     # Tailscale stays the default
         self.assertNotIn("npx", text)                                    # no harness runs inside the notebook
 
     def test_only_filter(self):
@@ -1063,3 +1063,121 @@ class PrepareOnCpu(unittest.TestCase):
         a = cli.parse(["prepare", "--target", "g4", "--engine", "ninfer", "--no-engine"])
         self.assertEqual((a.cmd, a.target, a.engine, a.model, a.no_engine), ("prepare", "g4", "ninfer",
                                                                              "recommended", True))
+
+
+class CloudflareTunnel(unittest.TestCase):
+    """Quick tunnel: URL only once it has registered with Cloudflare and the hub answers through it."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.clock = [0.0]
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def fake_popen(self, lines_by_attempt):
+        attempts = []
+
+        class Proc:
+            def __init__(p, cmd, stdout=None, **kw):
+                attempts.append(cmd)
+                p.out = stdout.name
+                p.lines = list(lines_by_attempt[len(attempts) - 1])
+                p.done = False
+
+            def poll(p):
+                if p.lines:
+                    with open(p.out, "a") as f:
+                        f.write(p.lines.pop(0) + "\n")
+                return 1 if (p.done or (not p.lines and p.exits)) else None
+            exits = False
+
+            def terminate(p):
+                p.done = True
+        return Proc, attempts
+
+    def sleep(self, s):
+        self.clock[0] += s
+
+    def run_quick(self, attempts_lines, probe=lambda url, key: True, **kw):
+        Proc, attempts = self.fake_popen(attempts_lines)
+        orig = tunnel.time.monotonic
+        tunnel.time.monotonic = lambda: self.clock[0]
+        try:
+            proc, url = tunnel.start_cloudflare_quick(
+                8000, drive_dir=self.tmp, api_key="k", binary="/bin/cloudflared", popen=Proc, sleep=self.sleep,
+                dns_check=lambda host: True, probe=probe, log=lambda *a: None, **kw)
+        finally:
+            tunnel.time.monotonic = orig
+        return proc, url, attempts
+
+    def test_waits_for_registration_and_returns_the_url(self):
+        lines = ["INF Requesting new quick Tunnel on trycloudflare.com...",
+                 "INF |  https://brave-mint-otter.trycloudflare.com  |",
+                 "INF Registered tunnel connection connIndex=0 location=fra"]
+        _, url, attempts = self.run_quick([lines])
+        self.assertEqual(url, "https://brave-mint-otter.trycloudflare.com")
+        self.assertEqual(attempts[0][1:4], ["tunnel", "--url", "http://127.0.0.1:8000"])
+        self.assertNotIn("--protocol", attempts[0])
+
+    def test_retries_over_http2_when_quic_never_registers(self):
+        no_url = ["ERR failed to request quick Tunnel: Post https://api.trycloudflare.com/tunnel"] + [""] * 40
+        ok = ["INF |  https://calm-sea.trycloudflare.com  |", "INF Registered tunnel connection"]
+        _, url, attempts = self.run_quick([no_url, ok])
+        self.assertEqual(url, "https://calm-sea.trycloudflare.com")              # not api.trycloudflare.com
+        self.assertEqual(attempts[1][-2:], ["--protocol", "http2"])
+
+    def test_gives_up_with_the_log_tail(self):
+        stuck = ["ERR 429 Too Many Requests"] + [""] * 40
+        with self.assertRaises(RuntimeError) as cm:
+            self.run_quick([stuck, stuck])
+        self.assertIn("429", str(cm.exception))
+
+    def test_returns_even_if_this_network_cannot_reach_it_yet(self):
+        lines = ["INF |  https://slow-dns.trycloudflare.com  |", "INF Registered tunnel connection"]
+        _, url, _ = self.run_quick([lines], probe=lambda url, key: False)
+        self.assertEqual(url, "https://slow-dns.trycloudflare.com")
+
+    def test_probe_tells_the_server_from_cloudflare_errors(self):
+        import io
+        import urllib.error
+
+        def opener_for(code):
+            def opener(req, timeout=None):
+                if code == 200:
+                    class R(io.BytesIO):
+                        status = 200
+                        def __enter__(s): return s
+                        def __exit__(s, *a): pass
+                    return R(b'{"status":"ok"}')
+                raise urllib.error.HTTPError(req.full_url, code, "x", {}, io.BytesIO(b"{}"))
+            return opener
+        self.assertTrue(tunnel.probe_hub("https://x", "k", opener=opener_for(200)))
+        self.assertFalse(tunnel.probe_hub("https://x", "k", opener=opener_for(530)))   # error 1033: not registered
+        self.assertFalse(tunnel.probe_hub("https://x", "k", opener=opener_for(502)))
+        self.assertTrue(tunnel.probe_hub("https://x", None, opener=opener_for(401)))   # the hub refusing: reached
+
+    def test_named_tunnel_needs_token_and_hostname(self):
+        with self.assertRaises(ValueError):
+            tunnel.start_cloudflare_named(8000, "", "llm.example.com", binary="/bin/true")
+        with self.assertRaises(ValueError):
+            tunnel.start_cloudflare_named(8000, "tok", "", binary="/bin/true")
+
+    def test_secret_saved_privately(self):
+        path = os.path.join(self.tmp, "hub", "cloudflare_tunnel_token")
+        import getpass
+        orig = getpass.getpass
+        getpass.getpass = lambda prompt="": "  secret-token  "
+        try:
+            self.assertEqual(tunnel.load_or_ask_secret(path, "?", log=lambda *a: None), "secret-token")
+        finally:
+            getpass.getpass = orig
+        self.assertEqual(oct(os.stat(path).st_mode & 0o777), "0o600")
+        self.assertEqual(tunnel.load_or_ask_secret(path, "?"), "secret-token")      # reused, not re-asked
+
+    def test_notebooks_offer_both(self):
+        from colab_llm_hub import make_engine_notebooks
+        text = "".join("".join(c["source"]) for c in make_engine_notebooks.build_notebook("vllm")["cells"])
+        for needle in ("tunnel.start_tailscale(", "tunnel.start_cloudflare_quick(", "tunnel.start_cloudflare_named(",
+                       "tunnel.stop_cloudflare()"):
+            self.assertIn(needle, text)
