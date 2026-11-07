@@ -1181,3 +1181,17 @@ class CloudflareTunnel(unittest.TestCase):
         for needle in ("tunnel.start_tailscale(", "tunnel.start_cloudflare_quick(", "tunnel.start_cloudflare_named(",
                        "tunnel.stop_cloudflare()"):
             self.assertIn(needle, text)
+
+
+class TailscaleKeyFile(unittest.TestCase):
+    def test_key_read_from_file_or_txt_upload(self):
+        tmp = tempfile.mkdtemp()
+        path = os.path.join(tmp, "tailscale_authkey")
+        key = "tskey-auth-k1234567890abcdef-ABCDEFGHIJKLMNOP"
+        open(path, "w").close()                                                     # empty placeholder
+        open(path + ".txt", "w", encoding="utf-8-sig").write(key + "\r\n")          # Windows upload with BOM
+        self.assertEqual(tunnel.load_or_ask_tailscale_authkey(path, log=lambda *a: None), key)
+        open(path, "w").write(key)
+        os.remove(path + ".txt")
+        self.assertEqual(tunnel.load_or_ask_tailscale_authkey(path, log=lambda *a: None), key)
+        shutil.rmtree(tmp, ignore_errors=True)

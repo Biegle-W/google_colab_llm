@@ -44,7 +44,7 @@ def read_secret(path, prefix=None, min_len=8):
     if not path or not os.path.exists(path):
         return None
     try:
-        value = open(path).read().strip()
+        value = open(path, encoding="utf-8-sig").read().strip()     # -sig: Windows editors add a BOM
     except OSError:
         return None
     if len(value) < min_len:

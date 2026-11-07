@@ -297,10 +297,12 @@ def load_or_ask_tailscale_authkey(drive_path=None, refresh=False, log=print):
     """
     from . import keyfile
     if drive_path and not refresh:
-        existing = keyfile.read_secret(drive_path, prefix="tskey-", min_len=16)
-        if existing:
-            log(f"Using Tailscale auth key from private Drive: {drive_path}")
-            return existing
+        # A key uploaded through Drive's website usually arrives as tailscale_authkey.txt; accept either.
+        for path in (drive_path, drive_path + ".txt"):
+            existing = keyfile.read_secret(path, prefix="tskey-", min_len=16)
+            if existing:
+                log(f"Using Tailscale auth key from private Drive: {path}")
+                return existing
     key = ask_tailscale_authkey()
     if not key.startswith("tskey-"):
         raise ValueError("Tailscale auth key must look like tskey-auth-… / tskey-…")
