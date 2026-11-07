@@ -482,21 +482,28 @@ HYPERQWEN_PIP = ("vllm==0.32.0 huggingface_hub hf_transfer ninja --extra-index-u
                  "nvidia-cuda-cccl==13.0.85 nvidia-nvvm==13.0.88")
 
 
+HYPERQWEN_PYTHON = "3.12"     # what HyperQwen documents; uv supplies it, whatever Python the runtime has
+
+
 def hyperqwen_tarball(builds_dir, ref=HYPERQWEN_PIN):
-    py = f"py{sys.version_info.major}{sys.version_info.minor}"
-    return os.path.join(builds_dir, f"hyperqwen_{ref[:10]}_{py}.tar")
+    return os.path.join(builds_dir, f"hyperqwen_{ref[:10]}_py{HYPERQWEN_PYTHON.replace('.', '')}.tar")
 
 
 def hyperqwen_build_commands(root=HYPERQWEN_ROOT, ref=HYPERQWEN_PIN, python=None):
-    """Clone the pinned HyperQwen, build its venv and apply its vLLM patches (docs/install.md)."""
+    """Clone the pinned HyperQwen, build its venv and apply its vLLM patches (docs/install.md).
+
+    Colab's Python has no working ensurepip and is newer than the 3.12 HyperQwen documents, so uv builds the
+    venv with its own Python 3.12, installed inside `root` so the Drive tarball carries it."""
     python = python or sys.executable
     venv_py = f"{root}/venv/bin/python"
+    uv = f"UV_PYTHON_INSTALL_DIR={root}/.python UV_CACHE_DIR=/content/.uv-cache {python} -m uv"
     return [
         f"rm -rf {root} && mkdir -p {root}",
         f"cd {root} && git init -q && git fetch -q --depth 1 {HYPERQWEN_REPO} {ref} && git checkout -q FETCH_HEAD",
-        f"cd {root} && {python} -m venv venv",
-        f"cd {root} && venv/bin/pip install -q --upgrade pip",
-        f"cd {root} && venv/bin/pip install -q {HYPERQWEN_PIP}",
+        f"{python} -m pip install -q uv",
+        f"cd {root} && {uv} venv --seed --python {HYPERQWEN_PYTHON} --managed-python venv",
+        f"cd {root} && {uv} pip install --python venv/bin/python --index-strategy unsafe-best-match "
+        f"{HYPERQWEN_PIP}",
         f"cd {root} && SP=$({venv_py} -c 'import vllm, os; print(os.path.dirname(vllm.__file__))' | tail -n1)"
         f" && bash patches/apply.sh \"$SP\"",
     ]

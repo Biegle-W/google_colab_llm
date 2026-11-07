@@ -1010,6 +1010,16 @@ class PrepareOnCpu(unittest.TestCase):
         r = prepare.prepare("g4", "vllm", do_download=False, engine_builder=broken, log=lambda *_: None)
         self.assertIn("nvcc not found", r["errors"]["engine"])
 
+    def test_compiled_engines_are_left_to_the_gpu_on_small_runtimes(self):
+        from colab_llm_hub import prepare
+        with self.assertRaises(prepare.Skipped):
+            prepare.build_engine("ninfer", "g4", self.tmp, threads=2)
+        r = prepare.prepare("g4", "llama", do_download=False, log=lambda *_: None,
+                            engine_builder=None, force_compile=False) if os.cpu_count() < 8 else None
+        if r is not None:
+            self.assertEqual(r["errors"], {})
+            self.assertIn("llama", r["skipped"]["engine"])
+
     def test_engine_caches_skip_the_local_install(self):
         builds = os.path.join(self.tmp, "builds")
         os.makedirs(builds)

@@ -54,6 +54,8 @@ def parse(argv=None):
     r.add_argument("--no-engine", action="store_true", help="only download the model")
     r.add_argument("--no-download", action="store_true", help="only build / cache the engine")
     r.add_argument("--refresh", action="store_true", help="rebuild the engine cache")
+    r.add_argument("--force-compile", action="store_true",
+                   help="compile llama.cpp / NInfer here even on a runtime with few CPU threads")
     r.add_argument("--hf-token-env", default="HF_TOKEN")
     return p.parse_args(argv)
 
@@ -62,7 +64,8 @@ def run_prepare(a):
     from . import prepare
     result = prepare.prepare(a.target, a.engine, a.model, drive_dir=a.drive_dir, staging=a.staging_dir,
                              token=os.environ.get(a.hf_token_env), do_engine=not a.no_engine,
-                             do_download=not a.no_download, refresh=a.refresh)
+                             do_download=not a.no_download, refresh=a.refresh,
+                             force_compile=a.force_compile)
     return 1 if result["errors"] else 0
 
 

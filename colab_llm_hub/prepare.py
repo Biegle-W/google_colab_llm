@@ -13,6 +13,14 @@ from . import catalog, install, recommend, runtimes
 from .store import ModelStore, StoreError
 
 DEFAULT_STAGING = "/content/prepare_staging"
+# Engines compiled from source. A standard Colab CPU runtime has 2 threads and no CUDA toolkit, where these
+# take far longer than the few minutes they take on a GPU runtime's many cores, so they are skipped there.
+COMPILED_ENGINES = ("llama", "ninfer")
+MIN_COMPILE_THREADS = 8
+
+
+class Skipped(Exception):
+    """The engine is better built on the GPU runtime; not an error."""
 
 
 def pick(engine, target, model="recommended", entries=None):
@@ -34,9 +42,14 @@ def pick(engine, target, model="recommended", entries=None):
     return scoped[model]
 
 
-def build_engine(engine, target, builds_dir, refresh=False, run=install.sh, log=print):
+def build_engine(engine, target, builds_dir, refresh=False, run=install.sh, log=print, force_compile=False,
+                 threads=None):
     """Put `engine`'s build (or wheels) for `target` on Drive. Returns what was cached."""
     arch = runtimes.target(target)["arch"]
+    threads = threads or os.cpu_count() or 1
+    if engine in COMPILED_ENGINES and threads < MIN_COMPILE_THREADS and not force_compile:
+        raise Skipped(f"{engine} is compiled from source and this runtime has {threads} CPU threads; the GPU "
+                      f"notebook builds it in a few minutes and caches it on Drive (force_compile to build here)")
     kw = dict(refresh=refresh, run=run, log=log)
     if engine == "llama":
         return install.ensure_llama(builds_dir, arch, rebuild=refresh, run=run, log=log, check=False)
@@ -59,7 +72,7 @@ def build_engine(engine, target, builds_dir, refresh=False, run=install.sh, log=
 
 def prepare(target, engine, model="recommended", drive_dir="/content/drive/MyDrive/llm_models",
             staging=DEFAULT_STAGING, token=None, do_engine=True, do_download=True, refresh=False,
-            log=print, store=None, engine_builder=None):
+            log=print, store=None, engine_builder=None, force_compile=False):
     """Download the model to Drive while the engine builds; both run at once (network vs CPU).
 
     Returns {"target", "engine", "model", "engine_cache", "drive_path", "errors"}."""
@@ -68,7 +81,7 @@ def prepare(target, engine, model="recommended", drive_dir="/content/drive/MyDri
     log(f"Preparing {entry['id']} ({entry['size_gb']:.1f} GB) and {engine} for the {t['name']} runtime "
         f"(sm_{t['arch']})")
     result = {"target": target, "engine": engine, "model": entry["id"], "engine_cache": None,
-              "drive_path": None, "errors": {}}
+              "drive_path": None, "errors": {}, "skipped": {}}
 
     def download():
         try:
@@ -83,9 +96,15 @@ def prepare(target, engine, model="recommended", drive_dir="/content/drive/MyDri
         thread.start()
     if do_engine:
         try:
-            builder = engine_builder or build_engine
-            result["engine_cache"] = builder(engine, target, os.path.join(drive_dir, "builds"),
-                                             refresh=refresh, log=log)
+            builds = os.path.join(drive_dir, "builds")
+            if engine_builder:
+                result["engine_cache"] = engine_builder(engine, target, builds, refresh=refresh, log=log)
+            else:
+                result["engine_cache"] = build_engine(engine, target, builds, refresh=refresh, log=log,
+                                                      force_compile=force_compile)
+        except Skipped as e:
+            result["skipped"]["engine"] = str(e)
+            log(f"[prepare] engine skipped: {e}")
         except Exception as e:
             result["errors"]["engine"] = f"{type(e).__name__}: {e}"
     if thread:
