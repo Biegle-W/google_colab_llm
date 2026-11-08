@@ -12,7 +12,7 @@ The fork's ./setup.sh compiles the engine on Linux, checks the model files and w
 3. setup runs once (--yes --no-start); the built folder is then cached on Drive, and later sessions restore
    it and go straight to the server.
 
-    python -m colab_llm_hub.strata_nvfp4_launch --root /content/strata-nvfp4 --model <drive dir> \\
+    python -m notebook_code.strata_nvfp4_launch --root /content/strata-nvfp4 --model <drive dir> \\
         --family qwen-nvfp4-gptq --port 30055 --ctx 131072 --builds <Drive builds dir>
 """
 import argparse
@@ -98,7 +98,7 @@ def server_args(python, config, port):
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog="colab_llm_hub.strata_nvfp4_launch")
+    p = argparse.ArgumentParser(prog="notebook_code.strata_nvfp4_launch")
     p.add_argument("--root", required=True, help="the fork's checkout with .venv (install.ensure_strata_nvfp4)")
     p.add_argument("--model", required=True, help="the hub's folder of the model (on Drive)")
     p.add_argument("--family", default="qwen-nvfp4-gptq")

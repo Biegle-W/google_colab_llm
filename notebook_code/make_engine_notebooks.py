@@ -1,7 +1,7 @@
 """Generate one Colab hub notebook per engine.
 
 Run from the repo root:
-  python3 -m colab_llm_hub.make_engine_notebooks
+  python3 -m notebook_code.make_engine_notebooks
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def _src(lines):
     return out
 
 
-PAYLOAD_TAG = "colab-llm-hub-code"
+PAYLOAD_TAG = "notebook-code"
 PACKAGE_DIR = Path(__file__).resolve().parent
 _SKIP_DIRS = {"tests", "__pycache__"}
 _SKIP_FILES = {"make_engine_notebooks.py"}
@@ -37,7 +37,7 @@ def package_files(pkg=PACKAGE_DIR):
         rel = path.relative_to(pkg)
         if path.is_dir() or _SKIP_DIRS & set(rel.parts) or rel.name in _SKIP_FILES or path.suffix in (".pyc", ".md"):
             continue
-        out[str(Path("colab_llm_hub") / rel)] = path.read_bytes()
+        out[str(Path("notebook_code") / rel)] = path.read_bytes()
     return out
 
 
@@ -55,7 +55,7 @@ def package_zip(files=None):
     return buf.getvalue()
 
 
-def payload_cell(hub_dir="/content/hub_repo"):
+def payload_cell(hub_dir="/content/notebook_code"):
     """A collapsed code cell holding the whole hub package; running it unpacks it on the runtime.
 
     The notebook needs nothing from GitHub: this cell is the code the later cells run."""
@@ -65,7 +65,7 @@ def payload_cell(hub_dir="/content/hub_repo"):
     b64 = base64.b64encode(data).decode()
     digest = hashlib.sha256(data).hexdigest()[:12]
     lines = ["# @title Hub code, packed in this notebook (run this cell; nothing is downloaded)",
-             "# Generated from the colab_llm_hub package; unpacked to " + hub_dir + " on this runtime.",
+             "# Generated from the notebook_code package; unpacked to " + hub_dir + " on this runtime.",
              "import base64, io, os, shutil, sys, zipfile",
              f'HUB_DIR = "{hub_dir}"',
              f'HUB_CODE_VERSION = "{digest}"',
@@ -77,7 +77,7 @@ def payload_cell(hub_dir="/content/hub_repo"):
               "del HUB_ZIP",
               "if HUB_DIR not in sys.path:",
               "    sys.path.insert(0, HUB_DIR)",
-              "for _m in [m for m in sys.modules if m == \"colab_llm_hub\" or m.startswith(\"colab_llm_hub.\")]:",
+              "for _m in [m for m in sys.modules if m == \"notebook_code\" or m.startswith(\"notebook_code.\")]:",
               "    del sys.modules[_m]          # a re-run picks up this cell's code, not an older import",
               "print(\"Hub code\", HUB_CODE_VERSION, \"unpacked to\", HUB_DIR)"]
     cell = _code(lines)
@@ -180,7 +180,7 @@ def _model_table(engine):
             "| `flux3-klein-comfy` | FLUX.3 Klein |",
             "| `wan22-5b-comfy`, `minimax-h3-comfy` | Video prefetch (OpenAI image route returns 501) |",
             "",
-            "UI graphs under `colab_llm_hub/workflows/*.ui.json` (custom NvidiaResident nodes are optional).",
+            "UI graphs under `notebook_code/workflows/*.ui.json` (custom NvidiaResident nodes are optional).",
         ]
     if engine == "sparsa":
         return [
@@ -272,7 +272,7 @@ def build_notebook(engine: str) -> dict:
             f"- Sibling notebooks: {SIBLING_NOTEBOOKS}",
             "- Drive root: `MyDrive/llm_models/` (shared weights/builds; settings file is "
             f"`config/settings_{engine}.json`)",
-            "- Engine matrix: `colab_llm_hub/ENGINE_MATRIX.md`",
+            "- Engine matrix: `notebook_code/ENGINE_MATRIX.md`",
             "",
             "Runtime → Change runtime type → **L4, A100 or G4**, then run the cells in order.",
         ]),
@@ -291,19 +291,19 @@ def build_notebook(engine: str) -> dict:
             f'ENGINE   = "{engine}"  # locked for this notebook',
             'DRIVE_DIR = "/content/drive/MyDrive/llm_models"',
             'HUB_REF   = HUB_CODE_VERSION  # the packed code version (recorded in settings)',
-            "assert os.path.isdir(f\"{HUB_DIR}/colab_llm_hub\"), \"Run the hub code cell above first.\"",
+            "assert os.path.isdir(f\"{HUB_DIR}/notebook_code\"), \"Run the hub code cell above first.\"",
             "os.makedirs(DRIVE_DIR, exist_ok=True)",
             "",
-            "from colab_llm_hub.workspace import open_workspace",
-            "from colab_llm_hub import install",
+            "from notebook_code.workspace import open_workspace",
+            "from notebook_code import install",
             "WS = open_workspace(DRIVE_DIR, engine=ENGINE)",
             "print(\"Drive workspace:\", WS.describe())",
-            "import colab_llm_hub",
-            "print(\"hub\", colab_llm_hub.__version__, \"(code\", HUB_CODE_VERSION + \")\", \"engine\", ENGINE)",
+            "import notebook_code",
+            "print(\"hub\", notebook_code.__version__, \"(code\", HUB_CODE_VERSION + \")\", \"engine\", ENGINE)",
         ]),
         _md(["## 2. Detect GPU, CPU, and RAM — then list this engine's models"]),
         _code([
-            "from colab_llm_hub import catalog, gpu, recommend",
+            "from notebook_code import catalog, gpu, recommend",
             "",
             "G = gpu.detect()[0]",
             "HOST = gpu.print_runtime(G)  # GPU + CPU + RAM + disk, every run",
@@ -311,7 +311,7 @@ def build_notebook(engine: str) -> dict:
             "VRAM = G[\"vram_gb\"]",
             "ARCH = G[\"arch\"]  # compute capability without the dot: 89 L4, 80 A100, 120 G4",
             "RAM_GB = RAM[\"total_gb\"]",
-            "from colab_llm_hub.store import model_disk_gb",
+            "from notebook_code.store import model_disk_gb",
             "DISK_GB = model_disk_gb(WS.local_models)   # free space + cached local models (they are evictable)",
             "ALL = catalog.load()",
             "ENTRIES = catalog.for_engines(ALL, [ENGINE])",
@@ -341,7 +341,7 @@ def build_notebook(engine: str) -> dict:
             "come from Drive; edit and re-run to persist.",
         ]),
         _code([
-            "from colab_llm_hub import catalog, gpu, recommend",
+            "from notebook_code import catalog, gpu, recommend",
             "",
             "G = gpu.detect()[0]",
             "HOST = gpu.print_runtime(G)  # re-detect GPU + CPU + RAM every config run",
@@ -349,7 +349,7 @@ def build_notebook(engine: str) -> dict:
             "VRAM = G[\"vram_gb\"]",
             "ARCH = G[\"arch\"]  # compute capability without the dot: 89 L4, 80 A100, 120 G4",
             "RAM_GB = RAM[\"total_gb\"]",
-            "from colab_llm_hub.store import model_disk_gb",
+            "from notebook_code.store import model_disk_gb",
             "DISK_GB = model_disk_gb(WS.local_models)   # free space + cached local models (they are evictable)",
             "ALL = catalog.load()",
             "ENTRIES = catalog.for_engines(ALL, [ENGINE])",
@@ -402,7 +402,7 @@ def build_notebook(engine: str) -> dict:
         ]),
         _md([f"## 4. Install {title} (built or downloaded once, then restored from Drive)"]),
         _code([
-            "from colab_llm_hub import install",
+            "from notebook_code import install",
             "",
             "BUILDS = str(WS.builds)",
             "LLAMA_BIN = \"llama-server\"",
@@ -462,7 +462,7 @@ def build_notebook(engine: str) -> dict:
         ]),
         _code([
             "import threading, time",
-            "from colab_llm_hub.store import ModelStore",
+            "from notebook_code.store import ModelStore",
             "",
             "try:",
             "    from google.colab import userdata",
@@ -521,15 +521,15 @@ def build_notebook(engine: str) -> dict:
         ]),
         _code([
             "import json, requests, time",
-            "from colab_llm_hub import keyfile, tunnel, provider",
+            "from notebook_code import keyfile, tunnel, provider",
             "",
-            "subprocess.run(\"pkill -TERM -f '[c]olab_llm_hub serve'; "
+            "subprocess.run(\"pkill -TERM -f '[n]otebook_code serve'; "
             "pkill -TERM -f '[t]ailscaled.*colab-llm-tailscale'\", shell=True)",
             "time.sleep(3)",
             "",
             "API_KEY = keyfile.load_or_create(str(WS.hub / \"api_key\"))",
             "HUB_LOG = str(WS.logs / f\"hub_{ENGINE}.log\")",
-            "args = [sys.executable, \"-m\", \"colab_llm_hub\", \"serve\", \"--drive-dir\", DRIVE_DIR,",
+            "args = [sys.executable, \"-m\", \"notebook_code\", \"serve\", \"--drive-dir\", DRIVE_DIR,",
             "        \"--local-dir\", str(WS.local_models), \"--log-dir\", str(WS.engine_logs),",
             "        \"--port\", str(PORT), \"--llama-bin\", LLAMA_BIN,",
             "        \"--strata-bin\", STRATA_BIN, \"--maya-root\", MAYA_ROOT,",
@@ -594,7 +594,7 @@ def build_notebook(engine: str) -> dict:
             "# no cell running and no GPU / CPU / network work, so it stops using compute units (0 = never).",
             "# Setup (installs, downloads) is never timed out: the clock only starts now.",
             "IDLE_TIMEOUT_MIN = 10  # @param {type:\"integer\"}",
-            "from colab_llm_hub import idle_guard",
+            "from notebook_code import idle_guard",
             "if idle_guard.start(IDLE_TIMEOUT_MIN):",
             "    print(f\"Idle timeout: this runtime is released after {IDLE_TIMEOUT_MIN} idle minutes.\")",
             "",
@@ -763,7 +763,7 @@ def build_notebook(engine: str) -> dict:
             "| `hub/endpoint.json` | Last base URL + key hint |",
             "| `hf_cache/`, `logs/`, `outputs/` | Cache, logs, generation results |",
             "",
-            "- See `colab_llm_hub/ENGINE_MATRIX.md` for workstation (Maya / Strata / HyperQwen) notes.",
+            "- See `notebook_code/ENGINE_MATRIX.md` for workstation (Maya / Strata / HyperQwen) notes.",
             "- Set `REFRESH_WHEELS` / `REBUILD_LLAMA` / `refresh_tailscale_key` in settings to force updates.",
             "- **Security:** Tailscale Serve is reachable only from your tailnet (`ts_funnel` makes it public); "
             "Cloudflare URLs are public. Either way the hub API key protects GPU use. Never commit anything "
@@ -812,7 +812,7 @@ def build_prepare_notebook() -> dict:
             "restores both from Drive.",
             "",
             "Can also be run without a browser: "
-            "`python -m colab_llm_hub prepare --target g4 --engine ninfer --model recommended`.",
+            "`python -m notebook_code prepare --target g4 --engine ninfer --model recommended`.",
         ]),
         *boot,
         _md([
@@ -834,7 +834,7 @@ def build_prepare_notebook() -> dict:
         ]),
         _md(["## 3. Pick the GPU runtime, engine and model"]),
         _code([
-            "from colab_llm_hub import catalog, prepare, runtimes",
+            "from notebook_code import catalog, prepare, runtimes",
             "",
             f"TARGET = \"g4\"  # @param {json.dumps(list(runtimes.TARGETS))}",
             f"ENGINE_TO_PREP = \"vllm\"  # @param {json.dumps(list(ENGINES))}",
@@ -861,7 +861,7 @@ def build_prepare_notebook() -> dict:
         ]),
         _code([
             "import threading",
-            "from colab_llm_hub.store import ModelStore",
+            "from notebook_code.store import ModelStore",
             "",
             "try:",
             "    from google.colab import userdata",
@@ -930,7 +930,7 @@ def build_index() -> dict:
             "",
             "Older single-model notebooks live in the same engine folders "
             "(`notebooks/llama/llama_cpp_*.ipynb`, `notebooks/vllm/vllm_*.ipynb`, …). "
-            "See also `colab_llm_hub/ENGINE_MATRIX.md`.",
+            "See also `notebook_code/ENGINE_MATRIX.md`.",
             "",
             "Runtime → Change runtime type → **L4, A100 or G4**.",
         ]),
@@ -949,8 +949,8 @@ def build_index() -> dict:
 
 STANDALONE_NOTEBOOKS = ("notebooks/llama/llama_cpp_t4.ipynb", "notebooks/vllm/vllm_tpu.ipynb")
 _CLONE_LINES = (
-    'HUB_DIR = "/content/hub_repo"\n',
-    'if not os.path.isdir(f"{HUB_DIR}/colab_llm_hub"):\n',
+    'HUB_DIR = "/content/notebook_code"\n',
+    'if not os.path.isdir(f"{HUB_DIR}/notebook_code"):\n',
     '    subprocess.run(f"rm -rf {HUB_DIR} && git clone -q --depth 1 https://github.com/Biegle-W/google_colab_llm {HUB_DIR}",\n',
     '                   shell=True, check=True)\n',
 )
@@ -958,10 +958,10 @@ _CLONE_LINES = (
 
 def embed_in_standalone(nb):
     """Put the packed hub code into a hand-written notebook that uses its tunnel helpers (T4, TPU): the
-    payload cell goes right before the first cell that imports colab_llm_hub, and its GitHub clone goes."""
+    payload cell goes right before the first cell that imports notebook_code, and its GitHub clone goes."""
     cells = [c for c in nb["cells"] if PAYLOAD_TAG not in c.get("metadata", {}).get("tags", [])]
     for i, c in enumerate(cells):
-        if c["cell_type"] == "code" and any("from colab_llm_hub import" in l for l in c["source"]):
+        if c["cell_type"] == "code" and any("from notebook_code import" in l for l in c["source"]):
             c["source"] = [l for l in c["source"] if l not in _CLONE_LINES]
             c["source"] = [l.replace("# Uses the hub package's tunnel helpers (standard library only; nothing to install).",
                                      "# Uses the hub's tunnel helpers, unpacked by the hub code cell above.")
@@ -969,7 +969,7 @@ def embed_in_standalone(nb):
             cells.insert(i, payload_cell())
             break
     else:
-        raise ValueError("no cell imports colab_llm_hub")
+        raise ValueError("no cell imports notebook_code")
     nb["cells"] = cells
     return nb
 

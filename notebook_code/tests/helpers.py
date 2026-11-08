@@ -8,8 +8,8 @@ import tempfile
 import threading
 import unittest
 
-from colab_llm_hub import backends, catalog, hub as hubmod
-from colab_llm_hub.store import ModelStore
+from notebook_code import backends, catalog, hub as hubmod
+from notebook_code.store import ModelStore
 
 FAKE = os.path.join(os.path.dirname(__file__), "fake_engine.py")
 KEY = "test-key-0123456789abcdef0123456789"

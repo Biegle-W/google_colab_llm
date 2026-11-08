@@ -178,7 +178,7 @@ def make_handler(state):
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog="colab_llm_hub.diffusers_server")
+    p = argparse.ArgumentParser(prog="notebook_code.diffusers_server")
     p.add_argument("--model-path", required=True)
     p.add_argument("--model-id", required=True)
     p.add_argument("--port", type=int, default=30090)

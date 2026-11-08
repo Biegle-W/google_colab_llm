@@ -14,7 +14,7 @@ After `minutes` with none of them, it finishes pending Google Drive uploads (dri
 nothing written to Drive is lost) and asks Colab to unassign the VM: the same call as
 google.colab.runtime.unassign(), which posts to the runtime management service at $TBE_RUNTIME_ADDR.
 
-    python -m colab_llm_hub.idle_guard --minutes 10        # or idle_guard.start(10) from a notebook
+    python -m notebook_code.idle_guard --minutes 10        # or idle_guard.start(10) from a notebook
 """
 import argparse
 import datetime as _dt
@@ -197,7 +197,7 @@ def start(minutes=10, log_path=LOG, python=None, accelerator=None, log=print):
     pkg_parent = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     env = dict(os.environ, PYTHONPATH=pkg_parent + os.pathsep + os.environ.get("PYTHONPATH", ""))
     with open(log_path, "a") as out:
-        proc = subprocess.Popen([python or sys.executable, "-m", "colab_llm_hub.idle_guard", "--minutes", str(minutes)],
+        proc = subprocess.Popen([python or sys.executable, "-m", "notebook_code.idle_guard", "--minutes", str(minutes)],
                                 stdout=out, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
                                 start_new_session=True, env=env)
     with open(PIDFILE, "w") as f:
@@ -218,7 +218,7 @@ def stop():
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog="colab_llm_hub.idle_guard")
+    p = argparse.ArgumentParser(prog="notebook_code.idle_guard")
     p.add_argument("--minutes", type=float, default=10)
     p.add_argument("--interval", type=float, default=30)
     a = p.parse_args(argv)

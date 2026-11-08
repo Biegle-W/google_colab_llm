@@ -1,4 +1,4 @@
-"""python -m colab_llm_hub serve ... : run the hub server."""
+"""python -m notebook_code serve ... : run the hub server."""
 import argparse
 import os
 import signal
@@ -9,7 +9,7 @@ from .store import ModelStore, model_disk_gb
 
 
 def parse(argv=None):
-    p = argparse.ArgumentParser(prog="colab_llm_hub")
+    p = argparse.ArgumentParser(prog="notebook_code")
     sub = p.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("serve")
     s.add_argument("--drive-dir", default="/content/drive/MyDrive/llm_models")

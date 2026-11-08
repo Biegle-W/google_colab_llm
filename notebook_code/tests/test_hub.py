@@ -2,7 +2,7 @@ import threading
 import time
 import unittest
 
-from colab_llm_hub import hub as hubmod
+from notebook_code import hub as hubmod
 from .helpers import KEY, HubCase, entry
 
 
@@ -211,7 +211,7 @@ class Images(HubCase):
 
 class DiffusersClamp(unittest.TestCase):
     def test_clamp_size(self):
-        from colab_llm_hub.diffusers_server import clamp_size
+        from notebook_code.diffusers_server import clamp_size
         self.assertEqual(clamp_size(2048, 2048, 1024), (1024, 1024))
         w, h = clamp_size(1000, 500, 1024)
         self.assertEqual(w, 1000)

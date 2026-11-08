@@ -5,7 +5,7 @@ HyperQwen (github.com/syv-ai/HyperQwen) expects its checkpoint to be post-proces
 so they run on a local copy (<local models>/.hyperqwen/<id>) and never touch the hub's downloaded copy,
 which may still be streaming to Drive. The copy is reused while its marker matches the source.
 
-    python -m colab_llm_hub.hyperqwen_launch --root /content/HyperQwen --model /content/models/<id> \\
+    python -m notebook_code.hyperqwen_launch --root /content/HyperQwen --model /content/models/<id> \\
         --port 30030 --ctx 65536 --mode single --spec mtp
 """
 import argparse
@@ -89,7 +89,7 @@ def script_for(root, mode):
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog="colab_llm_hub.hyperqwen_launch")
+    p = argparse.ArgumentParser(prog="notebook_code.hyperqwen_launch")
     p.add_argument("--root", required=True, help="HyperQwen checkout with venv/ (install.ensure_hyperqwen)")
     p.add_argument("--model", required=True, help="downloaded checkpoint directory")
     p.add_argument("--port", type=int, default=30030)

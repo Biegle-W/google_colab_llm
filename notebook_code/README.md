@@ -25,7 +25,7 @@ engine and advertises only its catalog models):
 
 [`notebooks/llm_hub_colab.ipynb`](../notebooks/llm_hub_colab.ipynb) is an index. Target models and
 per-GPU picks are in [`ENGINE_MATRIX.md`](ENGINE_MATRIX.md). Defaults come from
-`recommend.for_engine(engine, vram_gb)`. Regenerate with `python3 -m colab_llm_hub.make_engine_notebooks`.
+`recommend.for_engine(engine, vram_gb)`. Regenerate with `python3 -m notebook_code.make_engine_notebooks`.
 
 ## How it works
 
@@ -111,7 +111,7 @@ curl "$OPENAI_BASE_URL/images/generations" \
 - **Flags.** Every llama.cpp flag the hub passes was checked against `llama-server --help` of the commit the
   reference setup runs (`4c3c5810`, built CPU-only here), including `--reasoning`, `--chat-template-kwargs`,
   `--cache-ram`, `--ctx-checkpoints`.
-- **Tests.** `python -m unittest discover -s colab_llm_hub/tests -t .` covers auth, model filtering,
+- **Tests.** `python -m unittest discover -s notebook_code/tests -t .` covers auth, model filtering,
   on-demand loading, switching (including chat ↔ image), waiting for in-flight streams, keep-alives, slow loads,
   failed starts, crash recovery, prefetch, Drive save/restore, interrupted copies, eviction, resume of partial
   downloads, Diffusers command lines / size clamping, and merging the provider into dsh settings.

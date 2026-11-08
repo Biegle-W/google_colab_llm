@@ -6,8 +6,8 @@ import threading
 import time
 import unittest
 
-from colab_llm_hub import backends, catalog, gpu, install, keyfile, provider, tunnel
-from colab_llm_hub.store import MARKER, ModelStore, StoreError, is_complete, write_marker
+from notebook_code import backends, catalog, gpu, install, keyfile, provider, tunnel
+from notebook_code.store import MARKER, ModelStore, StoreError, is_complete, write_marker
 from .helpers import entry, fake_downloader
 
 
@@ -84,7 +84,7 @@ class Catalog(unittest.TestCase):
         self.assertTrue(by["deepseek-v4.1-flash-1017-iq1s"].get("offload"))
 
     def test_recommend_for_gpu_bands(self):
-        from colab_llm_hub import recommend
+        from notebook_code import recommend
         l4 = recommend.for_gpu(24.2)
         self.assertEqual(l4["band"], "l4")
         self.assertIn("vllm", l4["engines"])
@@ -104,7 +104,7 @@ class Catalog(unittest.TestCase):
         self.assertIn("sparsa", g4["engines"])
 
     def test_recommend_for_engine(self):
-        from colab_llm_hub import recommend
+        from notebook_code import recommend
         llama = recommend.for_engine("llama", 102.6)
         self.assertEqual(llama["engines"], ["llama"])
         self.assertTrue(all(not x.startswith("qwen-image") for x in llama["prefetch"]))
@@ -134,7 +134,7 @@ class Catalog(unittest.TestCase):
             recommend.for_engine("tgi", 24.2)
 
     def test_strata_maya_catalog_and_commands(self):
-        from colab_llm_hub import backends
+        from notebook_code import backends
         by = catalog.by_id(catalog.load())
         self.assertEqual(by["flash-next-strata-iq3-xxs"]["backend"], "strata")
         self.assertEqual(by["glm-maya-s24"]["maya_model"], "glm-maya-s24")
@@ -148,7 +148,7 @@ class Catalog(unittest.TestCase):
         self.assertIn("glm-maya-s24", mcmd)
 
     def test_tensorfold_comfy_sparsa_commands(self):
-        from colab_llm_hub import backends
+        from notebook_code import backends
         by = catalog.by_id(catalog.load())
         self.assertEqual(by["qwen3.8-27b-exl3-2bpw"]["backend"], "tensorfold")
         self.assertEqual(by["qwen-image-2.1-turbo-comfy"]["backend"], "comfyui")
@@ -162,7 +162,7 @@ class Catalog(unittest.TestCase):
         self.assertEqual(tf[tf.index("--name") + 1], "qwen3.8-27b-exl3-2bpw")
         comfy = backends.comfyui_command(by["qwen-image-2.1-turbo-comfy"], "/tmp/comfy-model", 1024,
                                          "/content/ComfyUI", python="/usr/bin/python3", port=30095)
-        self.assertEqual(comfy[:3], ["/usr/bin/python3", "-m", "colab_llm_hub.comfyui_server"])
+        self.assertEqual(comfy[:3], ["/usr/bin/python3", "-m", "notebook_code.comfyui_server"])
         self.assertIn("qwen-image-2.1-turbo.api.json", comfy)
         sparsa = backends.sparsa_command(by["minimax-m3.1-flash-iq2-xs-d3"], "/tmp/mm", 8192,
                                          "/tmp/Sparsa", python="/usr/bin/python3", port=30065)
@@ -245,7 +245,7 @@ class Commands(unittest.TestCase):
         e = entry("img", backend="diffusers", pipeline="FluxPipeline", dtype="bfloat16",
                   default_steps=4, default_guidance=0.0)
         args = backends.diffusion_command(e, "/models/img", 1024, python="/usr/bin/python3", port=30090)
-        self.assertEqual(args[:3], ["/usr/bin/python3", "-m", "colab_llm_hub.diffusers_server"])
+        self.assertEqual(args[:3], ["/usr/bin/python3", "-m", "notebook_code.diffusers_server"])
         val = lambda flag: args[args.index(flag) + 1]
         self.assertEqual((val("--model-path"), val("--model-id"), val("--max-edge"), val("--dtype")),
                          ("/models/img", "img", "1024", "bfloat16"))
@@ -358,7 +358,7 @@ class Store(unittest.TestCase):
 class WorkspaceDrive(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp(prefix="ws-")
-        from colab_llm_hub.workspace import Workspace
+        from notebook_code.workspace import Workspace
         self.ws = Workspace(self.tmp, os.path.join(self.tmp, "local")).ensure().apply_env()
 
     def tearDown(self):
@@ -382,7 +382,7 @@ class WorkspaceDrive(unittest.TestCase):
         self.assertTrue(img.with_suffix(img.suffix + ".json").is_file())
 
     def test_per_engine_settings_file(self):
-        from colab_llm_hub.workspace import open_workspace
+        from notebook_code.workspace import open_workspace
         llama = open_workspace(self.tmp, os.path.join(self.tmp, "local-l"), engine="llama")
         vllm = open_workspace(self.tmp, os.path.join(self.tmp, "local-v"), engine="vllm")
         self.assertTrue(str(llama.settings_path).endswith("settings_llama.json"))
@@ -535,7 +535,7 @@ class DownloadScope(unittest.TestCase):
 
 class ComfyPaths(unittest.TestCase):
     def test_split_files_layout_is_registered(self):
-        from colab_llm_hub.comfyui_server import write_extra_model_paths
+        from notebook_code.comfyui_server import write_extra_model_paths
         root = tempfile.mkdtemp(prefix="comfy-")
         out = os.path.join(root, "extra.yaml")
         write_extra_model_paths(root, out)
@@ -557,7 +557,7 @@ class SelfContainedNotebooks(unittest.TestCase):
     def test_notebooks_carry_the_current_hub_code_and_download_none(self):
         """Every notebook is self-contained: its packed hub code matches this package, and no cell clones it."""
         import base64, glob as _glob, io, re, zipfile
-        from colab_llm_hub import make_engine_notebooks as m
+        from notebook_code import make_engine_notebooks as m
         root = os.path.join(os.path.dirname(__file__), "..", "..")
         want = m.package_files()
         paths = [os.path.join(root, m.ENGINE_META[e]["notebook"]) for e in m.ENGINES]
@@ -570,24 +570,24 @@ class SelfContainedNotebooks(unittest.TestCase):
             b64 = re.search(r'HUB_ZIP = """\n(.*?)\n"""', src, re.S).group(1).replace("\n", "")
             z = zipfile.ZipFile(io.BytesIO(base64.b64decode(b64)))
             got = {n: z.read(n) for n in z.namelist()}
-            self.assertEqual(got, want, f"{path} is stale: run python -m colab_llm_hub.make_engine_notebooks")
+            self.assertEqual(got, want, f"{path} is stale: run python -m notebook_code.make_engine_notebooks")
             rest = "".join("".join(c["source"]) for c in nb["cells"] if c is not payload[0])
             self.assertNotIn("github.com/Biegle-W/google_colab_llm ", rest, path)
             self.assertNotIn("git clone -q --depth 1 https://github.com/Biegle-W", rest, path)
             self.assertNotIn("{HUB_REPO}", rest, path)
 
     def test_payload_cell_unpacks_a_working_package(self):
-        from colab_llm_hub import make_engine_notebooks as m
+        from notebook_code import make_engine_notebooks as m
         tmp = tempfile.mkdtemp()
         try:
             src = "".join(m.payload_cell(hub_dir=tmp)["source"])
             import subprocess, sys as _sys
-            code = src + "\nimport colab_llm_hub.catalog as c; print(len(c.load()) > 10)"
+            code = src + "\nimport notebook_code.catalog as c; print(len(c.load()) > 10)"
             r = subprocess.run([_sys.executable, "-c", code], cwd=tmp, capture_output=True, text=True)
             self.assertEqual(r.returncode, 0, r.stderr[-2000:])
             self.assertIn("True", r.stdout)
-            self.assertTrue(os.path.isfile(os.path.join(tmp, "colab_llm_hub", "catalog.json")))
-            self.assertFalse(os.path.isdir(os.path.join(tmp, "colab_llm_hub", "tests")))
+            self.assertTrue(os.path.isfile(os.path.join(tmp, "notebook_code", "catalog.json")))
+            self.assertFalse(os.path.isdir(os.path.join(tmp, "notebook_code", "tests")))
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
@@ -596,7 +596,7 @@ class SingleModelSelection(unittest.TestCase):
     """Each notebook downloads and serves exactly the one model picked in its MODEL dropdown."""
 
     def selection(self, engine, vram, model, arch=None):
-        from colab_llm_hub import make_engine_notebooks, recommend
+        from notebook_code import make_engine_notebooks, recommend
         nb = make_engine_notebooks.build_notebook(engine)
         cfg = next("".join(c["source"]) for c in nb["cells"] if 'MODEL = "recommended"' in "".join(c["source"]))
         block = cfg[cfg.index("# The ONE model"):cfg.index("PREFETCH = [MODEL]") + len("PREFETCH = [MODEL]")]
@@ -609,7 +609,7 @@ class SingleModelSelection(unittest.TestCase):
         return ns
 
     def test_dropdown_lists_only_this_engines_models(self):
-        from colab_llm_hub import make_engine_notebooks
+        from notebook_code import make_engine_notebooks
         choices = make_engine_notebooks._model_choices("vllm")
         self.assertEqual(choices[0], "recommended")
         by = catalog.by_id(catalog.load())
@@ -629,7 +629,7 @@ class SingleModelSelection(unittest.TestCase):
             self.selection("llama", 102.6, "qwen3.8-27b-fp8")
 
     def test_hub_serves_only_the_selected_model(self):
-        from colab_llm_hub import make_engine_notebooks
+        from notebook_code import make_engine_notebooks
         nb = make_engine_notebooks.build_notebook("llama")
         text = "".join("".join(c["source"]) for c in nb["cells"]
                        if make_engine_notebooks.PAYLOAD_TAG not in c.get("metadata", {}).get("tags", []))
@@ -674,14 +674,14 @@ class RuntimeFit(unittest.TestCase):
         self.assertTrue(catalog.fits(e, 24.2))
 
     def test_recommendations_respect_ram_and_disk(self):
-        from colab_llm_hub import recommend
+        from notebook_code import recommend
         plan = recommend.for_engine("maya", **self.L4)
         by = catalog.by_id(catalog.load())
         self.assertTrue(all(catalog.fits(by[m], **self.L4) for m in plan["prefetch"]))
         self.assertNotIn("deepseek-maya-xs", recommend.for_engine("maya", **self.G4)["prefetch"])
 
     def test_local_models_dir_prefers_the_larger_disk(self):
-        from colab_llm_hub import workspace
+        from notebook_code import workspace
         a, b = tempfile.mkdtemp(), tempfile.mkdtemp()
         free = {a: 350e9, b: 250e9}
         old = os.environ.pop("COLAB_LLM_LOCAL_MODELS", None)
@@ -697,7 +697,7 @@ class RuntimeFit(unittest.TestCase):
                 os.environ["COLAB_LLM_LOCAL_MODELS"] = old
 
     def test_model_disk_counts_cached_models_as_available(self):
-        from colab_llm_hub.store import model_disk_gb
+        from notebook_code.store import model_disk_gb
         root = tempfile.mkdtemp()
         d = os.path.join(root, "m")
         os.makedirs(d)
@@ -725,7 +725,7 @@ class HyperQwenAndNInfer(unittest.TestCase):
         self.assertIsNone(catalog.why_not(e, 85.9))                          # arch unknown -> not checked
 
     def test_recommended_picks(self):
-        from colab_llm_hub import recommend
+        from notebook_code import recommend
 
         def rec(eng, gpu):
             return recommend.for_engine(eng, gpu[0], arch=gpu[1])["prefetch"]
@@ -751,7 +751,7 @@ class HyperQwenAndNInfer(unittest.TestCase):
         self.assertIn("--no-thinking", cmd)
         env = backends.env_for(e, {"ninfer": "/opt/nf/apps/ninfer-serve"})
         self.assertTrue(env["LD_LIBRARY_PATH"].startswith("/opt/nf/lib"))
-        from colab_llm_hub.store import ModelStore
+        from notebook_code.store import ModelStore
         tmp = tempfile.mkdtemp()
         store = ModelStore(os.path.join(tmp, "d"), os.path.join(tmp, "l"), log=lambda *_: None)
         self.assertEqual(store.model_path(e).name, "qwen3_8_27b_nvfp4.ninfer")
@@ -760,7 +760,7 @@ class HyperQwenAndNInfer(unittest.TestCase):
     def test_hyperqwen_command_and_env(self):
         e = catalog.by_id(catalog.load())["hyperqwen-qwen3.8-27b-dflash2"]
         cmd = backends.command(e, "/m/hq", 131072, {"hyperqwen": "/content/HyperQwen", "python": "py"})
-        self.assertEqual(cmd[:3], ["py", "-m", "colab_llm_hub.hyperqwen_launch"])
+        self.assertEqual(cmd[:3], ["py", "-m", "notebook_code.hyperqwen_launch"])
         flags = dict(zip(cmd[3::2], cmd[4::2]))
         self.assertEqual((flags["--mode"], flags["--spec"], flags["--port"], flags["--ctx"]),
                          ("single", "dflash2", "30030", "131072"))
@@ -771,7 +771,7 @@ class HyperQwenAndNInfer(unittest.TestCase):
             del os.environ["VLLM_API_KEY"]
 
     def test_hyperqwen_launch_env(self):
-        from colab_llm_hub import hyperqwen_launch as hl
+        from notebook_code import hyperqwen_launch as hl
         tmp = tempfile.mkdtemp()
         drafter = os.path.join(tmp, "dflash2")
         os.makedirs(drafter)
@@ -793,7 +793,7 @@ class HyperQwenAndNInfer(unittest.TestCase):
         shutil.rmtree(tmp, ignore_errors=True)
 
     def test_hyperqwen_prepare_runs_once_on_a_copy(self):
-        from colab_llm_hub import hyperqwen_launch as hl
+        from notebook_code import hyperqwen_launch as hl
         tmp = tempfile.mkdtemp()
         src = os.path.join(tmp, "models", "hq")
         os.makedirs(os.path.join(src, "dflash2"))
@@ -836,7 +836,7 @@ class HyperQwenAndNInfer(unittest.TestCase):
         self.assertIn(install.HYPERQWEN_PIN, text)
 
     def test_notebooks_exist_and_install_their_engine(self):
-        from colab_llm_hub import make_engine_notebooks
+        from notebook_code import make_engine_notebooks
         for engine, call in (("hyperqwen", "install.ensure_hyperqwen("), ("ninfer", "install.ensure_ninfer(")):
             nb = make_engine_notebooks.build_notebook(engine)
             text = "".join("".join(c["source"]) for c in nb["cells"])
@@ -879,7 +879,7 @@ class PrepareOnCpu(unittest.TestCase):
         return e
 
     def test_select_files_matches_snapshot_semantics(self):
-        from colab_llm_hub.store import select_files
+        from notebook_code.store import select_files
         files = self.repo_files["org/m"]
         self.assertEqual([p for p, _ in select_files(files, ["*.safetensors"])],
                          ["model-1.safetensors", "model-2.safetensors"])
@@ -919,7 +919,7 @@ class PrepareOnCpu(unittest.TestCase):
                                            lister=self.lister, fetch=self.fetch)
 
     def test_pick_uses_the_target_not_this_runtime(self):
-        from colab_llm_hub import prepare
+        from notebook_code import prepare
         self.assertEqual(prepare.pick("ninfer", "g4")["id"], "ninfer-qwen3.8-27b-nvfp4")
         self.assertEqual(prepare.pick("hyperqwen", "a100")["id"], "hyperqwen-qwen3.8-27b-batch")
         with self.assertRaises(ValueError):
@@ -932,7 +932,7 @@ class PrepareOnCpu(unittest.TestCase):
             prepare.pick("llama", "h100")
 
     def test_prepare_runs_download_and_build_together(self):
-        from colab_llm_hub import prepare
+        from notebook_code import prepare
         started = []
         both = threading.Barrier(2, timeout=10)                  # deadlocks unless the two run concurrently
 
@@ -957,7 +957,7 @@ class PrepareOnCpu(unittest.TestCase):
         self.assertIn("nvcc not found", r["errors"]["engine"])
 
     def test_compiled_engines_are_left_to_the_gpu_on_small_runtimes(self):
-        from colab_llm_hub import prepare
+        from notebook_code import prepare
         with self.assertRaises(prepare.Skipped):
             prepare.build_engine("ninfer", "g4", self.tmp, threads=2)
         r = prepare.prepare("g4", "llama", do_download=False, log=lambda *_: None,
@@ -985,12 +985,12 @@ class PrepareOnCpu(unittest.TestCase):
         self.assertTrue(os.path.isfile(os.path.join(wheels, "COMPLETE")))
 
     def test_runtime_targets(self):
-        from colab_llm_hub import runtimes
+        from notebook_code import runtimes
         self.assertEqual(runtimes.specs("G4")[3], "120")
         self.assertEqual(runtimes.specs("a100")[3], "80")
 
     def test_prepare_notebook(self):
-        from colab_llm_hub import make_engine_notebooks
+        from notebook_code import make_engine_notebooks
         nb = make_engine_notebooks.build_prepare_notebook()
         self.assertNotIn("accelerator", nb["metadata"])                            # opens on a CPU runtime
         text = "".join("".join(c["source"]) for c in nb["cells"])
@@ -1001,7 +1001,7 @@ class PrepareOnCpu(unittest.TestCase):
         self.assertIn(gpu_boot.split("DRIVE_DIR = ")[1][:400], text)                 # same bootstrap code
 
     def test_cli(self):
-        from colab_llm_hub import __main__ as cli
+        from notebook_code import __main__ as cli
         a = cli.parse(["prepare", "--target", "g4", "--engine", "ninfer", "--no-engine"])
         self.assertEqual((a.cmd, a.target, a.engine, a.model, a.no_engine), ("prepare", "g4", "ninfer",
                                                                              "recommended", True))
@@ -1118,7 +1118,7 @@ class CloudflareTunnel(unittest.TestCase):
         self.assertEqual(tunnel.load_or_ask_secret(path, "?"), "secret-token")      # reused, not re-asked
 
     def test_notebooks_offer_both(self):
-        from colab_llm_hub import make_engine_notebooks
+        from notebook_code import make_engine_notebooks
         text = "".join("".join(c["source"]) for c in make_engine_notebooks.build_notebook("vllm")["cells"])
         for needle in ("tunnel.start_tailscale(", "tunnel.start_cloudflare_quick(", "tunnel.start_cloudflare_named(",
                        "tunnel.stop_cloudflare()"):
@@ -1228,7 +1228,7 @@ class ReadFromDrive(unittest.TestCase):
             backends.on_network_fs = orig
 
     def test_hyperqwen_prepared_copy_stays_off_drive(self):
-        from colab_llm_hub import hyperqwen_launch as hl
+        from notebook_code import hyperqwen_launch as hl
         self.assertEqual(str(hl.prepared_dir("/content/drive/MyDrive/llm_models/models/hq", "/content/models")),
                          "/content/models/.hyperqwen/hq")
         cmd = backends.command(catalog.by_id(catalog.load())["hyperqwen-qwen3.8-27b-mtp"], "/d/hq", 65536,
@@ -1240,7 +1240,7 @@ class IdleGuard(unittest.TestCase):
     """The runtime is released after N idle minutes, never while anything is happening."""
 
     def make(self, **signals):
-        from colab_llm_hub import idle_guard
+        from notebook_code import idle_guard
         self.t = [1000.0]
         self.cpu_total, self.cpu_idle, self.netb = [0], [0], [0]
         self.released = []
@@ -1291,7 +1291,7 @@ class IdleGuard(unittest.TestCase):
         self.assertTrue(self.run_for(g, 2))
 
     def test_release_flushes_drive_first_and_waits_if_it_cannot(self):
-        from colab_llm_hub import idle_guard
+        from notebook_code import idle_guard
         posted = []
 
         class R:
@@ -1310,7 +1310,7 @@ class IdleGuard(unittest.TestCase):
         self.assertEqual((posted[0].full_url, posted[0].get_method()), ("http://10.0.0.1:8011/unassign", "POST"))
 
     def test_kernel_activity_parses_jupyter(self):
-        from colab_llm_hub import idle_guard
+        from notebook_code import idle_guard
         import io
 
         class R(io.BytesIO):
@@ -1325,7 +1325,7 @@ class IdleGuard(unittest.TestCase):
                          (False, None))
 
     def test_only_serving_notebooks_start_it(self):
-        from colab_llm_hub import make_engine_notebooks
+        from notebook_code import make_engine_notebooks
         cells = make_engine_notebooks.build_notebook("vllm")["cells"]
         serving = next(i for i, c in enumerate(cells) if "hub_proc = subprocess.Popen" in "".join(c["source"]))
         starts = [i for i, c in enumerate(cells) if "idle_guard.start(IDLE_TIMEOUT_MIN)" in "".join(c["source"])]
@@ -1334,7 +1334,7 @@ class IdleGuard(unittest.TestCase):
         self.assertNotIn("idle_guard", prep)                 # CPU setup runtime: never timed out
 
     def test_not_started_on_cpu_runtimes(self):
-        from colab_llm_hub import idle_guard
+        from notebook_code import idle_guard
         self.assertIsNone(idle_guard.start(10, accelerator=False, log=lambda *a: None))
         import glob
         orig = glob.glob
@@ -1396,7 +1396,7 @@ class PrepareMany(unittest.TestCase):
             self.saved.append(e["id"])
 
     def test_budget_skips_and_defers(self):
-        from colab_llm_hub import prepare
+        from notebook_code import prepare
         st = self.Store()
         r = prepare.prepare_many(["a", "b", "c", "done", "eng"], store=st, budget_gb=700, workers=1,
                                  free=lambda p: 500, log=lambda *a: None, entries=self.entries())
@@ -1405,7 +1405,7 @@ class PrepareMany(unittest.TestCase):
         self.assertIn("eng", r["errors"])
 
     def test_waits_for_drive_cache_then_stops_cleanly(self):
-        from colab_llm_hub import prepare
+        from notebook_code import prepare
         frees = iter([10, 10, 500, 10] + [10] * 200)                     # full, frees up, then stays full
         st = self.Store()
         r = prepare.prepare_many(["a", "b"], store=st, budget_gb=1000, workers=1, free=lambda p: next(frees),
@@ -1415,7 +1415,7 @@ class PrepareMany(unittest.TestCase):
         self.assertIn("Drive cache", r["errors"]["b"])
 
     def test_recommended_lists(self):
-        from colab_llm_hub import prepare
+        from notebook_code import prepare
         g4 = prepare.recommended_models("g4", "chat")
         by = catalog.by_id(catalog.load())
         self.assertTrue(all(catalog.kind_for(by[m]) == "chat" for m in g4))
@@ -1425,7 +1425,7 @@ class PrepareMany(unittest.TestCase):
 
 class PrepareManyResume(unittest.TestCase):
     def test_files_left_in_staging_count_as_room(self):
-        from colab_llm_hub import prepare
+        from notebook_code import prepare
         tmp = tempfile.mkdtemp()
         os.makedirs(os.path.join(tmp, "a"))
         with open(os.path.join(tmp, "a", "shard.gguf"), "wb") as f:
@@ -1488,7 +1488,7 @@ class UploadPacing(unittest.TestCase):
     """Copies into the Drive mount wait for the upload, so the Drive client never builds a backlog."""
 
     def test_waits_until_bytes_have_gone_out(self):
-        from colab_llm_hub import drive_upload
+        from notebook_code import drive_upload
         sent = iter([0, 0, 40, 80, 100])
         logs = []
         drive_upload.wait_uploaded(100, 0, tx=lambda: next(sent) * 1_000_000, sleep=lambda s: None,
@@ -1496,7 +1496,7 @@ class UploadPacing(unittest.TestCase):
         self.assertTrue(logs)
 
     def test_stall_raises(self):
-        from colab_llm_hub import drive_upload
+        from notebook_code import drive_upload
         t = [0]
 
         def now():
@@ -1507,7 +1507,7 @@ class UploadPacing(unittest.TestCase):
                                        stall_s=600, log=lambda *a: None)
 
     def test_paced_copier_copies_then_waits(self):
-        from colab_llm_hub import drive_upload
+        from notebook_code import drive_upload
         tmp = tempfile.mkdtemp()
         src = os.path.join(tmp, "big")
         with open(src, "wb") as f:
@@ -1522,7 +1522,7 @@ class UploadPacing(unittest.TestCase):
         shutil.rmtree(tmp, ignore_errors=True)
 
     def test_stall_stops_the_batch(self):
-        from colab_llm_hub import prepare, drive_upload
+        from notebook_code import prepare, drive_upload
 
         class Store:
             calls = []
@@ -1564,7 +1564,7 @@ class TruncatedCopyNeverMarkedComplete(unittest.TestCase):
         self.assertFalse(self.st.state(self.e)["on_drive"])
 
     def test_existing_truncated_model_is_detected_and_redone(self):
-        from colab_llm_hub import prepare
+        from notebook_code import prepare
         drive = self.st.drive_path(self.e)
         drive.mkdir(parents=True)
         (drive / "a.bin").write_bytes(b"x" * 10)            # truncated, but recorded as complete
@@ -1593,7 +1593,7 @@ class BasaltAndStrataNvfp4(unittest.TestCase):
             e = self.by[mid]
             self.assertIsNone(catalog.why_not(e, 102.6, ram_gb=176, disk_gb=253, arch="120"), mid)
             self.assertIn("sm_120", catalog.why_not(e, 85.9, ram_gb=167, disk_gb=350, arch="80"))
-        from colab_llm_hub import recommend
+        from notebook_code import recommend
         self.assertEqual(recommend.for_engine("basalt", 102.6, arch="120")["prefetch"], ["basalt-flash-next-nvfp4-dq6k"])
         self.assertEqual(recommend.for_engine("strata_nvfp4", 102.6, arch="120")["prefetch"],
                          ["strata-nvfp4-flash-next-gptq"])
@@ -1616,7 +1616,7 @@ class BasaltAndStrataNvfp4(unittest.TestCase):
         e = self.by["strata-nvfp4-flash-next-gptq"]
         cmd = backends.command(e, "/d/models/strata-nvfp4-flash-next-gptq", 131072,
                                {"strata_nvfp4": "/opt/snv", "python": "/py", "builds": "/d/builds"})
-        self.assertEqual(cmd[:3], ["/py", "-m", "colab_llm_hub.strata_nvfp4_launch"])
+        self.assertEqual(cmd[:3], ["/py", "-m", "notebook_code.strata_nvfp4_launch"])
         flags = dict(zip(cmd[3::2], cmd[4::2]))
         self.assertEqual((flags["--root"], flags["--model"], flags["--family"], flags["--port"], flags["--ctx"]),
                          ("/opt/snv", "/d/models/strata-nvfp4-flash-next-gptq", "qwen-nvfp4-gptq", "30055", "131072"))
@@ -1624,7 +1624,7 @@ class BasaltAndStrataNvfp4(unittest.TestCase):
         self.assertIn("strata_nvfp4", backends.ALIAS_READY_BACKENDS)
 
     def test_launcher_links_and_marks(self):
-        from colab_llm_hub import strata_nvfp4_launch as L
+        from notebook_code import strata_nvfp4_launch as L
         tmp = tempfile.mkdtemp()
         try:
             src = os.path.join(tmp, "drive", "m")

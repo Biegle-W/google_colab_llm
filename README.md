@@ -23,7 +23,7 @@ Notebooks are grouped by engine under [`notebooks/`](notebooks/).
 | [`notebooks/prepare/prepare_cpu.ipynb`](notebooks/prepare/prepare_cpu.ipynb) | **Save GPU time:** on a cheap CPU runtime, download a model to Drive and build its engine for the GPU you will use |
 | [`notebooks/unsloth/`](notebooks/unsloth/) | Official Unsloth Studio |
 
-Engine picks and workstation notes: [`colab_llm_hub/ENGINE_MATRIX.md`](colab_llm_hub/ENGINE_MATRIX.md). Each `<engine>_gpu.ipynb` runs the hub, installs **only its engine** and lists **only that engine’s catalog models**. Settings are `config/settings_<engine>.json`; weights/builds still share Drive.
+Engine picks and workstation notes: [`notebook_code/ENGINE_MATRIX.md`](notebook_code/ENGINE_MATRIX.md). Each `<engine>_gpu.ipynb` runs the hub, installs **only its engine** and lists **only that engine’s catalog models**. Settings are `config/settings_<engine>.json`; weights/builds still share Drive.
 
 ## Prepare on a CPU runtime, serve on a GPU runtime
 
@@ -33,14 +33,14 @@ Downloading a model and building an engine need no GPU, so do them on a **CPU** 
 (resumable; Drive accepts about 750 GB of uploads per day) while it builds or caches the engine for that GPU:
 wheels, HyperQwen's venv, llama.cpp / NInfer compiled for the GPU's architecture. The GPU notebook then only
 copies them from Drive and loads the model. Without a browser:
-`python -m colab_llm_hub prepare --target g4 --engine ninfer --model recommended`.
+`python -m notebook_code prepare --target g4 --engine ninfer --model recommended`.
 
 ## Google AI Pro / Colab Pro
 
 Use a Pro runtime with an **L4, A100, or G4** GPU for the GPU notebooks. That unlocks the larger catalog LLMs and FLUX / SDXL / ComfyUI image models. A free T4 is fine for `notebooks/llama/llama_cpp_t4.ipynb` and Diffusers NF4 / `sd15` / ComfyUI Turbo, but most catalog LLMs will not fit.
 
 ## Code
-`colab_llm_hub/` is the Python package behind the hub notebooks (hub server, Drive model store, catalog, backends, tests). Each notebook fetches it from this repository each run. Regenerate engine notebooks with `python3 -m colab_llm_hub.make_engine_notebooks`.
+`notebook_code/` is the Python package behind the hub notebooks (hub server, Drive model store, catalog, backends, tests). Each notebook fetches it from this repository each run. Regenerate engine notebooks with `python3 -m notebook_code.make_engine_notebooks`.
 
 ## Credit and license
 The Studio notebook is from [unslothai/unsloth](https://github.com/unslothai/unsloth); Unsloth Studio is licensed under AGPL-3.0.

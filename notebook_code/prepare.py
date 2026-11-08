@@ -4,7 +4,7 @@ Nothing here needs a GPU: downloads are network work, wheels and HyperQwen's ven
 without one, and nvcc compiles llama.cpp / NInfer for a named GPU it cannot see. The GPU notebook then
 restores everything from Drive and spends its time on loading and inference.
 
-    python -m colab_llm_hub prepare --target g4 --engine ninfer --model recommended
+    python -m notebook_code prepare --target g4 --engine ninfer --model recommended
 """
 import os
 import threading

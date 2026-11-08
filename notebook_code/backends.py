@@ -2,7 +2,7 @@
 
 llama.cpp flags follow the reference setup (flash attention, q8_0 KV cache, --jinja, no prompt cache in RAM,
 thinking off by default). vLLM flags use the Qwen tool/reasoning parsers named in each catalog entry.
-Diffusers runs as `python -m colab_llm_hub.diffusers_server` against a Drive-restored model directory.
+Diffusers runs as `python -m notebook_code.diffusers_server` against a Drive-restored model directory.
 """
 import json
 import os
@@ -114,7 +114,7 @@ def sglang_command(entry, model_path, ctx, sglang_bin=None, port=None):
 
 
 def diffusion_command(entry, model_path, max_edge, python=None, port=None):
-    args = [python or sys.executable, "-m", "colab_llm_hub.diffusers_server",
+    args = [python or sys.executable, "-m", "notebook_code.diffusers_server",
             "--model-path", str(model_path), "--model-id", entry["id"],
             "--port", str(port or PORTS["diffusers"]), "--max-edge", str(max_edge),
             "--pipeline", entry.get("pipeline", "AutoPipelineForText2Image"),
@@ -189,7 +189,7 @@ def tensorfold_command(entry, model_path, ctx, tensorfold_bin, port=None):
 
 def comfyui_command(entry, model_path, max_edge, comfy_root, python=None, port=None):
     """OpenAI-compatible ComfyUI wrapper (starts ComfyUI + /v1/images/generations)."""
-    args = [python or sys.executable, "-m", "colab_llm_hub.comfyui_server",
+    args = [python or sys.executable, "-m", "notebook_code.comfyui_server",
             "--comfy-root", str(comfy_root),
             "--model-path", str(model_path), "--model-id", entry["id"],
             "--port", str(port or PORTS["comfyui"]),
@@ -218,9 +218,9 @@ def sparsa_command(entry, model_path, ctx, sparsa_root, python=None, port=None):
 
 
 def hyperqwen_command(entry, model_path, ctx, hyperqwen_root, python=None, port=None, work_dir=None):
-    """HyperQwen's own launcher (single-user/ or batch/start_qwen.sh) via colab_llm_hub.hyperqwen_launch,
+    """HyperQwen's own launcher (single-user/ or batch/start_qwen.sh) via notebook_code.hyperqwen_launch,
     which first runs HyperQwen's CPU prepare scripts on a local copy of the downloaded checkpoint."""
-    return [python or sys.executable, "-m", "colab_llm_hub.hyperqwen_launch",
+    return [python or sys.executable, "-m", "notebook_code.hyperqwen_launch",
             "--root", str(hyperqwen_root), "--model", str(model_path),
             "--port", str(port or PORTS["hyperqwen"]), "--ctx", str(int(ctx)),
             "--mode", entry.get("hyperqwen_mode", "single"), "--spec", entry.get("spec", "mtp"),
@@ -255,7 +255,7 @@ def basalt_command(entry, model_path, ctx, root, port=None):
 
 def strata_nvfp4_command(entry, model_path, ctx, root, python=None, port=None, builds=None):
     """The Strata NVFP4 fork, through strata_nvfp4_launch (links the Drive copy, runs setup once, serves)."""
-    args = [python or sys.executable, "-m", "colab_llm_hub.strata_nvfp4_launch", "--root", str(root),
+    args = [python or sys.executable, "-m", "notebook_code.strata_nvfp4_launch", "--root", str(root),
             "--model", str(model_path), "--family", entry.get("strata_family", "qwen-nvfp4-gptq"),
             "--port", str(port or PORTS["strata_nvfp4"]), "--ctx", str(int(ctx))]
     if builds:

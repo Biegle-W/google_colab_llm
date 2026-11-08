@@ -263,7 +263,7 @@ def start_comfy(comfy_root, model_path, comfy_port, log_path):
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog="colab_llm_hub.comfyui_server")
+    p = argparse.ArgumentParser(prog="notebook_code.comfyui_server")
     p.add_argument("--comfy-root", required=True)
     p.add_argument("--model-path", required=True)
     p.add_argument("--model-id", required=True)

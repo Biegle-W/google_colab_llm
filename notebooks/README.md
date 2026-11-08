@@ -26,5 +26,5 @@ single-server notebooks, because no hub model fits a T4 and the hub does not run
 Regenerate the GPU notebooks from the repo root:
 
 ```bash
-python3 -m colab_llm_hub.make_engine_notebooks
+python3 -m notebook_code.make_engine_notebooks
 ```
