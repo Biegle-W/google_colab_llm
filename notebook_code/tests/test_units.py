@@ -1867,3 +1867,48 @@ class DriveLayoutMigration(unittest.TestCase):
             self.assertFalse(os.path.exists(os.path.join(base, "llm_models")))
         finally:
             shutil.rmtree(base, ignore_errors=True)
+
+
+class EnginesRunFromLocalDisk(unittest.TestCase):
+    """Drive is mounted noexec and refuses symlinks: engines live in /content, cached on Drive as a tarball."""
+
+    def test_local_tree_builds_once_then_restores_from_the_drive_tarball(self):
+        tmp = tempfile.mkdtemp()
+        calls = []
+
+        def run(cmd):
+            calls.append(cmd)
+            return ""
+        made = {"ok": False}
+
+        def ready(root):
+            return root if made["ok"] else None
+
+        def build(root):
+            made["ok"] = True
+        try:
+            got = install.local_tree("eng", tmp, ready, build, run=run, log=lambda *a: None)
+            self.assertEqual(got, "/content/eng")
+            self.assertTrue(any(c.startswith("tar -cf " + os.path.join(tmp, "eng.tar")) for c in calls))
+            # next session: nothing local yet, the tarball is on Drive -> restored, not rebuilt
+            open(os.path.join(tmp, "eng.tar"), "w").close()
+            made["ok"] = False
+            calls.clear()
+
+            def run2(cmd):
+                calls.append(cmd)
+                if "tar -xf" in cmd:
+                    made["ok"] = True
+                return ""
+            built = []
+            install.local_tree("eng", tmp, ready, lambda r: built.append(r), run=run2, log=lambda *a: None)
+            self.assertEqual(built, [])
+            self.assertTrue(any("tar -xf " + os.path.join(tmp, "eng.tar") in c for c in calls))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_engine_roots_are_local(self):
+        from notebook_code import __main__ as cli
+        src = open(cli.__file__).read()
+        for name in ("project-maya", "ComfyUI", "Sparsa", "strata_data", "maya_models"):
+            self.assertIn(f'"/content/{name}"', src)

@@ -20,9 +20,9 @@ def parse(argv=None):
     s.add_argument("--llama-bin", default="/content/llama.cpp/build/bin/llama-server")
     s.add_argument("--vllm-bin", default="vllm")
     s.add_argument("--strata-bin", default="strata", help="Strata Terminal binary (from ensure_strata)")
-    s.add_argument("--strata-data", default=None, help="Strata --data-dir (default: <drive>/engines/strata_data)")
+    s.add_argument("--strata-data", default=None, help="Strata --data-dir (default: /content/strata_data)")
     s.add_argument("--maya-root", default=None, help="Project Maya checkout (from ensure_maya)")
-    s.add_argument("--maya-models", default=None, help="Maya --models-dir (default: <drive>/engines/maya_models)")
+    s.add_argument("--maya-models", default=None, help="Maya --models-dir (default: /content/maya_models)")
     s.add_argument("--tensorfold-bin", default=None, help="tensorfold-native binary (from ensure_tensorfold)")
     s.add_argument("--comfyui-root", default=None, help="ComfyUI checkout (from ensure_comfyui)")
     s.add_argument("--sparsa-root", default=None, help="Sparsa checkout (from ensure_sparsa)")
@@ -123,13 +123,13 @@ def main(argv=None):
     bins = {
         "llama": a.llama_bin, "vllm": a.vllm_bin, "python": a.python,
         "strata": a.strata_bin,
-        "strata_data": a.strata_data or os.path.join(builds, "strata_data"),
-        "maya": a.maya_root or os.path.join(builds, "project-maya"),
-        "maya_models": a.maya_models or os.path.join(builds, "maya_models"),
+        "strata_data": a.strata_data or "/content/strata_data",      # engine scratch: local disk, not Drive
+        "maya": a.maya_root or "/content/project-maya",
+        "maya_models": a.maya_models or "/content/maya_models",
         "tensorfold": a.tensorfold_bin or os.path.join(
-            builds, f"tensorfold-{install.TENSORFOLD_VERSION}", "bin", "tensorfold-native"),
-        "comfyui": a.comfyui_root or os.path.join(builds, "ComfyUI"),
-        "sparsa": a.sparsa_root or os.path.join(builds, "Sparsa"),
+            "/content", f"tensorfold-{install.TENSORFOLD_VERSION}", "bin", "tensorfold-native"),
+        "comfyui": a.comfyui_root or "/content/ComfyUI",
+        "sparsa": a.sparsa_root or "/content/Sparsa",
         "hyperqwen": a.hyperqwen_root or "/content/HyperQwen",
         "ninfer": a.ninfer_bin or "/content/ninfer/apps/ninfer-serve",
         "basalt": a.basalt_root or install.BASALT_ROOT,

@@ -237,67 +237,68 @@ STRATA_INSTALL_SH = "https://github.com/Niko1221/Strata/releases/latest/download
 MAYA_REPO = "https://github.com/mw00/project-maya.git"
 
 
+def local_tree(name, builds_dir, ready, build, refresh=False, run=sh, log=print, title=None):
+    """An engine folder that runs from local disk, cached on Drive as one tarball.
+
+    Colab's Drive mount cannot hold executables or symlinks (it is mounted noexec and refuses ln -s), so an
+    engine is never run from Drive: it is built in /content/<name>, saved as <builds>/<name>.tar, and later
+    sessions unpack that tarball. `ready(root)` returns the path to hand back once the folder is usable."""
+    title = title or name
+    root = os.path.join("/content", name)
+    tar = os.path.join(builds_dir, f"{name}.tar")
+    if not refresh:
+        got = ready(root)
+        if got:
+            return got
+        if os.path.isfile(tar):
+            log(f"Restoring {title} from Drive:", tar)
+            run(f"rm -rf {root} && tar -xf {tar} -C /content")
+            got = ready(root)
+            if got:
+                return got
+            log(f"The cached {title} is incomplete; installing it again")
+    run(f"rm -rf {root} && mkdir -p {root}")
+    build(root)
+    got = ready(root)
+    if not got:
+        raise InstallError(f"{title} install finished without a usable result under {root}; see logs/install.log")
+    os.makedirs(builds_dir, exist_ok=True)
+    run(f"tar -cf {tar}.tmp -C /content {name} && mv {tar}.tmp {tar}")
+    log(f"Cached {title} on Drive:", tar)
+    return got
+
+
+def _executable(*paths):
+    return next((p for p in paths if p and os.path.isfile(p) and os.access(p, os.X_OK)), None)
+
+
 def ensure_strata(builds_dir, refresh=False, run=sh, log=print):
-    """Install the Strata Terminal into Drive engines/ (official install.sh). Returns strata binary path."""
-    root = os.path.join(builds_dir, "strata_terminal")
-    marker = os.path.join(root, "COMPLETE")
-    os.makedirs(root, exist_ok=True)
-    # Prefer an already-cached binary under the Drive install tree.
-    cached = None
-    for cand in (os.path.join(root, "bin", "strata"),
-                 os.path.join(root, ".local", "bin", "strata"),
-                 os.path.join(root, "strata")):
-        if os.path.isfile(cand) and os.access(cand, os.X_OK):
-            cached = cand
-            break
-    if cached and not refresh and os.path.isfile(marker):
-        log("Restoring Strata Terminal from Drive:", cached)
-        return cached
-    log("Installing Strata Terminal (official install.sh) into Drive engines/...")
-    script = os.path.join(root, "install.sh")
-    run(f"curl -fsSL {STRATA_INSTALL_SH} -o {script}")
-    # Isolate install under our Drive tree so later Colab sessions can restore it.
-    env_prefix = (
-        f"HOME={root} XDG_DATA_HOME={root}/share XDG_CONFIG_HOME={root}/config "
-        f"XDG_BIN_HOME={root}/bin PATH={root}/bin:$PATH"
-    )
-    try:
-        run(f"{env_prefix} sh {script}")
-    except InstallError as e:
-        log("Strata install.sh reported an error; searching for a binary anyway:", str(e)[:300])
-    for cand in (os.path.join(root, "bin", "strata"),
-                 os.path.join(root, ".local", "bin", "strata"),
-                 shutil.which("strata") or ""):
-        if cand and os.path.isfile(cand) and os.access(cand, os.X_OK):
-            open(marker, "w").write(cand)
-            log("Strata binary:", cand)
-            return cand
-    raise InstallError(
-        "Strata Terminal install finished without a usable `strata` binary. "
-        "See logs/install.log and https://github.com/Niko1221/Strata/blob/main/docs/INSTALL.md"
-    )
+    """The Strata Terminal (official install.sh) in /content/strata_terminal. Returns the strata binary."""
+    def ready(root):
+        return _executable(os.path.join(root, "bin", "strata"), os.path.join(root, ".local", "bin", "strata"))
+
+    def build(root):
+        log("Installing Strata Terminal (official install.sh)...")
+        script = os.path.join(root, "install.sh")
+        run(f"curl -fsSL {STRATA_INSTALL_SH} -o {script}")
+        env_prefix = (f"HOME={root} XDG_DATA_HOME={root}/share XDG_CONFIG_HOME={root}/config "
+                      f"XDG_BIN_HOME={root}/bin PATH={root}/bin:$PATH")
+        try:
+            run(f"{env_prefix} sh {script}")
+        except InstallError as e:
+            log("Strata install.sh reported an error; looking for the binary anyway:", str(e)[:300])
+    return local_tree("strata_terminal", builds_dir, ready, build, refresh, run, log, "Strata Terminal")
 
 
 def ensure_maya(builds_dir, refresh=False, run=sh, log=print):
-    """Clone Project Maya into Drive engines/ (official git + ./setup.sh on first model load)."""
-    root = os.path.join(builds_dir, "project-maya")
-    marker = os.path.join(root, "COMPLETE")
-    setup = os.path.join(root, "setup.sh")
-    if os.path.isfile(setup) and os.path.isfile(marker) and not refresh:
-        log("Restoring Project Maya from Drive:", root)
-        return root
-    log("Cloning Project Maya (mw00/project-maya) onto Drive...")
-    parent = os.path.dirname(root)
-    os.makedirs(parent, exist_ok=True)
-    if os.path.isdir(root):
-        shutil.rmtree(root)
-    run(f"git clone --depth 1 {MAYA_REPO} {root}")
-    if not os.path.isfile(setup):
-        raise InstallError(f"Project Maya clone missing setup.sh under {root}")
-    run(f"chmod +x {setup}")
-    open(marker, "w").write(MAYA_REPO)
-    log("Project Maya ready at", root, "(first model load runs ./setup.sh)")
-    return root
+    """Project Maya (git clone; its ./setup.sh runs at the first model load) in /content/project-maya."""
+    def ready(root):
+        return root if os.path.isfile(os.path.join(root, "setup.sh")) else None
+
+    def build(root):
+        log("Cloning Project Maya (mw00/project-maya)...")
+        run(f"rm -rf {root} && git clone -q --depth 1 {MAYA_REPO} {root} && chmod +x {root}/*.sh")
+    return local_tree("project-maya", builds_dir, ready, build, refresh, run, log, "Project Maya")
 
 
 TENSORFOLD_VERSION = "1.2.2"
@@ -318,33 +319,20 @@ COMFYUI_PKGS = ("torchsde", "einops", "transformers", "safetensors", "aiohttp",
 
 
 def ensure_tensorfold(builds_dir, refresh=False, run=sh, log=print):
-    """Download TensorFold native linux-x86_64 release into Drive engines/. Returns tensorfold-native path."""
-    root = os.path.join(builds_dir, f"tensorfold-{TENSORFOLD_VERSION}")
-    marker = os.path.join(root, "COMPLETE")
-    binary = os.path.join(root, "bin", "tensorfold-native")
-    if os.path.isfile(binary) and os.access(binary, os.X_OK) and os.path.isfile(marker) and not refresh:
-        log("Restoring TensorFold from Drive:", binary)
-        return binary
-    log(f"Downloading TensorFold {TENSORFOLD_VERSION} (official linux-x86_64 release)...")
-    os.makedirs(root, exist_ok=True)
-    tarball = os.path.join(root, f"tensorfold-{TENSORFOLD_VERSION}-linux-x86_64.tar.gz")
-    run(f"curl -fsSL {TENSORFOLD_URL} -o {tarball}")
-    run(f"tar -xzf {tarball} -C {root} --strip-components=1")
-    if not (os.path.isfile(binary) and os.access(binary, os.X_OK)):
-        # Some archives nest bin/ under a versioned directory.
-        found = None
+    """TensorFold's native linux-x86_64 release in /content/tensorfold-<version>. Returns tensorfold-native."""
+    name = f"tensorfold-{TENSORFOLD_VERSION}"
+
+    def ready(root):
         for dirpath, _, files in os.walk(root):
-            if "tensorfold-native" in files:
-                cand = os.path.join(dirpath, "tensorfold-native")
-                if os.access(cand, os.X_OK):
-                    found = cand
-                    break
-        if not found:
-            raise InstallError(f"TensorFold archive missing tensorfold-native under {root}")
-        binary = found
-    open(marker, "w").write(TENSORFOLD_URL)
-    log("TensorFold binary:", binary)
-    return binary
+            if "tensorfold-native" in files and os.access(os.path.join(dirpath, "tensorfold-native"), os.X_OK):
+                return os.path.join(dirpath, "tensorfold-native")
+        return None
+
+    def build(root):
+        log(f"Downloading TensorFold {TENSORFOLD_VERSION} (official linux-x86_64 release)...")
+        run(f"curl -fsSL {TENSORFOLD_URL} -o /tmp/tensorfold.tar.gz && "
+            f"tar -xzf /tmp/tensorfold.tar.gz -C {root} --strip-components=1 && rm -f /tmp/tensorfold.tar.gz")
+    return local_tree(name, builds_dir, ready, build, refresh, run, log, "TensorFold")
 
 
 def comfyui_wheelhouse(builds_dir):
@@ -353,24 +341,19 @@ def comfyui_wheelhouse(builds_dir):
 
 def ensure_comfyui(builds_dir, refresh=False, run=sh, log=print):
     """Clone ComfyUI + install deps from Drive wheels. Returns ComfyUI root path."""
-    root = os.path.join(builds_dir, "ComfyUI")
-    marker = os.path.join(root, "COMPLETE")
-    main_py = os.path.join(root, "main.py")
     pip = f"{sys.executable} -m pip"
-    if os.path.isfile(main_py) and os.path.isfile(marker) and not refresh:
-        log("Restoring ComfyUI from Drive:", root)
-    else:
-        log("Cloning ComfyUI onto Drive...")
-        parent = os.path.dirname(root)
-        os.makedirs(parent, exist_ok=True)
-        if os.path.isdir(root):
-            shutil.rmtree(root)
+
+    def ready(root):
+        return root if os.path.isfile(os.path.join(root, "main.py")) else None
+
+    def build(root):
+        log("Cloning ComfyUI...")
         try:
-            run(f"git clone --depth 1 --branch {COMFYUI_PIN} {COMFYUI_REPO} {root}")
+            run(f"rm -rf {root} && git clone -q --depth 1 --branch {COMFYUI_PIN} {COMFYUI_REPO} {root}")
         except InstallError:
             log(f"Tag {COMFYUI_PIN} unavailable; cloning default branch...")
-            run(f"git clone --depth 1 {COMFYUI_REPO} {root}")
-        open(marker, "w").write(COMFYUI_REPO)
+            run(f"rm -rf {root} && git clone -q --depth 1 {COMFYUI_REPO} {root}")
+    root = local_tree("ComfyUI", builds_dir, ready, build, refresh, run, log, "ComfyUI")
     wheels = comfyui_wheelhouse(builds_dir)
     pkgs = " ".join(COMFYUI_PKGS)
     # Prefer ComfyUI's requirements.txt when present; fall back to the pinned package list.
@@ -407,49 +390,33 @@ def ensure_comfyui(builds_dir, refresh=False, run=sh, log=print):
 
 
 def ensure_sparsa(builds_dir, refresh=False, run=sh, log=print):
-    """Clone Sparsa + unpack the linux CUDA engine release into Drive engines/. Returns Sparsa root."""
-    root = os.path.join(builds_dir, "Sparsa")
-    marker = os.path.join(root, "COMPLETE")
-    script = os.path.join(root, "sparsa.py")
-    engine = os.path.join(root, "bin", "strata-minimax")
-    if os.path.isfile(script) and os.path.isfile(engine) and os.path.isfile(marker) and not refresh:
-        log("Restoring Sparsa from Drive:", root)
-        return root
-    log("Cloning Sparsa (LyJonathan/Sparsa) onto Drive...")
-    parent = os.path.dirname(root)
-    os.makedirs(parent, exist_ok=True)
-    if os.path.isdir(root):
-        shutil.rmtree(root)
-    run(f"git clone --depth 1 {SPARSA_REPO} {root}")
-    if not os.path.isfile(script):
-        raise InstallError(f"Sparsa clone missing sparsa.py under {root}")
-    pip = f"{sys.executable} -m pip"
+    """Sparsa (git clone + the linux CUDA engine release) in /content/Sparsa. Returns its root."""
+    def ready(root):
+        ok = os.path.isfile(os.path.join(root, "sparsa.py")) and _executable(os.path.join(root, "bin", "strata-minimax"))
+        return root if ok else None
+
+    def build(root):
+        log("Cloning Sparsa (LyJonathan/Sparsa)...")
+        run(f"rm -rf {root} && git clone -q --depth 1 {SPARSA_REPO} {root}")
+        log(f"Downloading Sparsa engine {SPARSA_VERSION}...")
+        bin_dir = os.path.join(root, "bin")
+        run(f"mkdir -p {bin_dir} && curl -fsSL {SPARSA_TARBALL} -o /tmp/sparsa.tar.gz && "
+            f"tar -xzf /tmp/sparsa.tar.gz -C {bin_dir} && rm -f /tmp/sparsa.tar.gz")
+        engine = os.path.join(bin_dir, "strata-minimax")
+        if not os.path.isfile(engine):                    # the archive may nest it one level down
+            for dirpath, _, files in os.walk(bin_dir):
+                if "strata-minimax" in files:
+                    shutil.copy2(os.path.join(dirpath, "strata-minimax"), engine)
+                    break
+        if os.path.isfile(engine):
+            run(f"chmod +x {engine}")
+    root = local_tree("Sparsa", builds_dir, ready, build, refresh, run, log, "Sparsa")
     req = os.path.join(root, "requirements.txt")
     if os.path.isfile(req):
         try:
-            run(f"{pip} install -q -r {req}")
+            run(f"{sys.executable} -m pip install -q -r {req}")
         except InstallError as e:
             log("Sparsa requirements install reported an error:", str(e)[:300])
-    log(f"Downloading Sparsa engine {SPARSA_VERSION}...")
-    tarball = os.path.join(root, f"sparsa-{SPARSA_VERSION}-linux-x64-cuda.tar.gz")
-    run(f"curl -fsSL {SPARSA_TARBALL} -o {tarball}")
-    bin_dir = os.path.join(root, "bin")
-    os.makedirs(bin_dir, exist_ok=True)
-    run(f"tar -xzf {tarball} -C {bin_dir}")
-    # Flatten if the archive nested strata-minimax one level down.
-    if not os.path.isfile(engine):
-        for dirpath, _, files in os.walk(bin_dir):
-            if "strata-minimax" in files:
-                src = os.path.join(dirpath, "strata-minimax")
-                if src != engine:
-                    shutil.copy2(src, engine)
-                break
-    if os.path.isfile(engine):
-        run(f"chmod +x {engine}")
-    else:
-        raise InstallError(f"Sparsa release missing strata-minimax under {bin_dir}")
-    open(marker, "w").write(SPARSA_TARBALL)
-    log("Sparsa ready at", root)
     return root
 
 
