@@ -64,6 +64,26 @@ models. Settings: `config/settings_<engine>.json`.
 - Serve: `ninfer-serve ARTIFACT.ninfer --host 127.0.0.1 --port P --model-id ID --max-context N --kv-dtype fp8
   --spec mtp --draft-tokens 3 --proposal-head optimized`.
 
+### Community research (2026-11-08): RTX PRO 6000 (= Colab G4) and A100
+
+From lcz.me (抡锤者, LLM board), Level1Techs, GitHub and Hugging Face model cards. Numbers are as reported
+by their authors, not re-measured here.
+
+| Model / engine | Setup | Reported | Source |
+|---|---|---|---|
+| Qwen3.5-122B-A10B Q4_K_M + MTP, llama.cpp | 1× RTX PRO 6000, fully on GPU | 146.5 tok/s (96.9 without MTP), to 262K ctx | localllm.in, May 2026 |
+| gpt-oss-120b MXFP4, llama.cpp | 1× RTX PRO 6000 | 196–208 tok/s | llama.cpp discussion #15396; localllm.in |
+| GLM-5.3-Flash AJ-IQ2_XXS, llama.cpp | 1× RTX PRO 6000, fully resident | 69.9 tok/s (31.7 at 32K depth) | aj9o9/GLM-5.3-Flash-GGUF card |
+| Qwen3.8-Flash-Next IQ3_S, Strata vs llama.cpp | 1× RTX PRO 6000, 4K prompt | ~205 vs ~103 tok/s (others report ~100) | llamaperf.com aggregation |
+| Qwen3.8-Flash-Next, **Basalt** (Strata fork for Blackwell sm_120) | 5070 Ti, same model as Strata | 1.26–1.42× Strata decode, 1.39× prefill | lcz.me topic 2892 (2026-11-07) |
+| GLM-5.3-Flash Maya-L IQ3_S (156 GB), Maya | 2× RTX PRO 6000 | ~127–137 tok/s at 51K ctx | lcz.me topic 2882 |
+| DeepSeek-V4.1-Flash-1017 EXL3 2.7 bpw, Strata-DS fork | 2× RTX PRO 6000, Engram on NVMe | 80.8 tok/s with DSpark, 524K ctx | lcz.me topic 2452 |
+
+Candidates not yet integrated: **Basalt** (github.com/jesdga95/basalt; sm_120 + CUDA 13, which the G4 has;
+packs at huggingface.co/jesdga/Qwen3.8-Flash-Next-Basalt, default NVFP4-DQ6_K 131.7 GB, and a DeepSeek
+1017 repo) and NVIDIA **Flare** (github.com/NVIDIA/spark-local-inference; research prototype, no weights or
+install steps published, so not pursued).
+
 ### Measured on Colab (G4, 2026-11-07, via the Colab CLI)
 
 G4 runtime: RTX PRO 6000 Blackwell 96 GB, driver 580.82 (CUDA 13.0), nvcc 13.0, 48 threads, 176 GB RAM,
