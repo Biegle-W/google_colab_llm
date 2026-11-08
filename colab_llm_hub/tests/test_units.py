@@ -1433,3 +1433,50 @@ class ApiKeyMirror(unittest.TestCase):
         os.remove(path)
         self.assertEqual(keyfile.load_or_create(path), key)                    # only the .txt left: reused
         shutil.rmtree(tmp, ignore_errors=True)
+
+
+class PrepareMany(unittest.TestCase):
+    """Batch saves: daily budget, already-saved skips, and never filling local disk."""
+
+    def entries(self):
+        mk = lambda i, gb, **kw: dict({"id": i, "name": i, "backend": "vllm", "repo": "o/" + i, "files": ["*"],
+                                       "size_gb": gb, "contexts": [[1, 1024]]}, **kw)
+        return [mk("a", 300), mk("b", 300), mk("c", 300), mk("done", 10), mk("eng", 5, engine_download=True)]
+
+    class Store:
+        def __init__(self):
+            self.saved, self.on_drive = [], {"done"}
+
+        def state(self, e):
+            return {"on_drive": e["id"] in self.on_drive}
+
+        def download_to_drive(self, e, staging=None):
+            self.saved.append(e["id"])
+
+    def test_budget_skips_and_defers(self):
+        from colab_llm_hub import prepare
+        st = self.Store()
+        r = prepare.prepare_many(["a", "b", "c", "done", "eng"], store=st, budget_gb=700, workers=1,
+                                 free=lambda p: 500, log=lambda *a: None, entries=self.entries())
+        self.assertEqual(st.saved, ["a", "b"])                          # 600 GB fits the 700 GB budget
+        self.assertEqual((r["skipped"], r["deferred"]), (["done"], ["c"]))
+        self.assertIn("eng", r["errors"])
+
+    def test_waits_for_drive_cache_then_stops_cleanly(self):
+        from colab_llm_hub import prepare
+        frees = iter([10, 10, 500, 10] + [10] * 200)                     # full, frees up, then stays full
+        st = self.Store()
+        r = prepare.prepare_many(["a", "b"], store=st, budget_gb=1000, workers=1, free=lambda p: next(frees),
+                                 sleep=lambda s: None, wait_free_s=300, log=lambda *a: None, entries=self.entries())
+        self.assertEqual(st.saved, ["a"])
+        self.assertEqual(r["deferred"], ["b"])
+        self.assertIn("Drive cache", r["errors"]["b"])
+
+    def test_recommended_lists(self):
+        from colab_llm_hub import prepare
+        g4 = prepare.recommended_models("g4", "chat")
+        self.assertEqual(g4[0], "qwen3.5-122b-a10b-mtp-q4")
+        by = catalog.by_id(catalog.load())
+        self.assertTrue(all(catalog.kind_for(by[m]) == "chat" for m in g4))
+        self.assertTrue(all(catalog.kind_for(by[m]) != "chat" for m in prepare.recommended_models("g4", "image")))
+        self.assertNotIn("deepseek-strata-ist-2.00", prepare.recommended_models("a100", "all"))

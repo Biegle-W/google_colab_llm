@@ -47,7 +47,13 @@ def parse(argv=None):
     r = sub.add_parser("prepare", help="download a model and build its engine on Drive for a GPU runtime, "
                                          "from any runtime (no GPU needed)")
     r.add_argument("--target", required=True, help="GPU runtime to prepare for: l4, a100 or g4")
-    r.add_argument("--engine", required=True)
+    r.add_argument("--engine", default=None, help="engine to build (single-model mode)")
+    r.add_argument("--models", default=None,
+                   help="batch mode: comma-separated model ids, or recommended-chat / recommended-image / "
+                        "recommended-all for the target's recommended picks; downloads only (no engine builds)")
+    r.add_argument("--budget-gb", type=float, default=700, help="batch mode: stop after this much new data "
+                   "(Google Drive accepts ~750 GB of uploads per day)")
+    r.add_argument("--workers", type=int, default=2, help="batch mode: models downloaded at once")
     r.add_argument("--model", default="recommended", help="catalog id, or 'recommended' for the target")
     r.add_argument("--drive-dir", default="/content/drive/MyDrive/llm_models")
     r.add_argument("--staging-dir", default="/content/prepare_staging", help="local disk for files in transit")
@@ -62,6 +68,17 @@ def parse(argv=None):
 
 def run_prepare(a):
     from . import prepare
+    if a.models:
+        if a.models.startswith("recommended-"):
+            ids = prepare.recommended_models(a.target, kind=a.models.split("-", 1)[1])
+        else:
+            ids = [m for m in a.models.split(",") if m]
+        result = prepare.prepare_many(ids, drive_dir=a.drive_dir, staging=a.staging_dir,
+                                      token=os.environ.get(a.hf_token_env), budget_gb=a.budget_gb,
+                                      workers=a.workers)
+        return 1 if result["errors"] else 0
+    if not a.engine:
+        raise SystemExit("prepare needs --engine (one model) or --models (batch)")
     result = prepare.prepare(a.target, a.engine, a.model, drive_dir=a.drive_dir, staging=a.staging_dir,
                              token=os.environ.get(a.hf_token_env), do_engine=not a.no_engine,
                              do_download=not a.no_download, refresh=a.refresh,

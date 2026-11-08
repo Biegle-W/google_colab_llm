@@ -115,3 +115,101 @@ def prepare(target, engine, model="recommended", drive_dir="/content/drive/MyDri
         log(f"[prepare] done: open notebooks/{engine}/{engine}_gpu.ipynb on the {t['name']} runtime and pick "
             f"{entry['id']}; it restores both from Drive.")
     return result
+
+
+def recommended_models(target, kind="chat", entries=None, skip_engine_managed=True):
+    """The catalog's recommended models for a target runtime, best first, across all engines."""
+    entries = entries if entries is not None else catalog.load()
+    by = catalog.by_id(entries)
+    vram, ram, disk, arch = runtimes.specs(target)
+    out = []
+    for engine in recommend.ENGINES:
+        for m in recommend.for_engine(engine, vram, entries, ram_gb=ram, disk_gb=disk, arch=arch)["prefetch"]:
+            k = catalog.kind_for(by[m])
+            if m in out or (kind == "chat" and k != "chat") or (kind == "image" and k == "chat"):
+                continue
+            if skip_engine_managed and by[m].get("engine_download"):
+                continue
+            out.append(m)
+    return out
+
+
+def free_gb(path):
+    import shutil
+    return shutil.disk_usage(path).free / 1e9
+
+
+def prepare_many(models, drive_dir="/content/drive/MyDrive/llm_models", staging=DEFAULT_STAGING, token=None,
+                 budget_gb=700.0, min_free_gb=40.0, workers=2, wait_free_s=1800, log=print, store=None,
+                 free=free_gb, sleep=None, entries=None):
+    """Save several models to Drive, `workers` at a time, until `budget_gb` of new data (Google Drive takes
+    about 750 GB of uploads per day per account). Models already complete on Drive are skipped, so running
+    it again the next day continues where it stopped.
+
+    Colab's Drive client keeps what it uploads in a local cache, so before each model it waits (up to
+    `wait_free_s`) for at least `min_free_gb` + room for two of the model's largest files on local disk,
+    and stops cleanly instead of filling the disk. Returns {"saved", "skipped", "deferred", "errors"}."""
+    import concurrent.futures
+    import time as _time
+    sleep = sleep or _time.sleep
+    entries = entries if entries is not None else catalog.load()
+    by = catalog.by_id(entries)
+    unknown = [m for m in models if m not in by]
+    if unknown:
+        raise ValueError(f"unknown model ids: {', '.join(unknown)}")
+    store = store or ModelStore(drive_dir, staging, token=token, log=log)
+    result = {"saved": [], "skipped": [], "deferred": [], "errors": {}}
+    queue, planned = [], 0.0
+    for m in models:
+        e = by[m]
+        if store.state(e)["on_drive"]:
+            result["skipped"].append(m)
+        elif e.get("engine_download"):
+            result["errors"][m] = "downloaded by its engine on first start; not saved from here"
+        elif planned + e["size_gb"] > budget_gb and queue:
+            result["deferred"].append(m)
+        else:
+            queue.append(m)
+            planned += e["size_gb"]
+    log(f"[prepare] {len(queue)} models, {planned:.0f} GB this run; {len(result['skipped'])} already on Drive; "
+        f"{len(result['deferred'])} left for the next run (budget {budget_gb:.0f} GB)")
+    stop = threading.Event()
+    lock = threading.Lock()
+
+    def room_for(e):
+        need = min_free_gb + 2 * min(float(e["size_gb"]), 50.0)          # two largest files in flight, <= 50 GB each
+        waited = 0
+        while free(staging if os.path.isdir(staging) else "/") < need:
+            if waited >= wait_free_s or stop.is_set():
+                return False
+            if waited == 0:
+                log(f"[prepare] waiting for local disk (Drive cache) to drop below the limit before {e['id']}")
+            sleep(30)
+            waited += 30
+        return True
+
+    def one(m):
+        e = by[m]
+        if stop.is_set():
+            with lock:
+                result["deferred"].append(m)
+            return
+        if not room_for(e):
+            stop.set()
+            with lock:
+                result["deferred"].append(m)
+                result["errors"][m] = "local disk stayed full (Drive cache); run again later"
+            return
+        try:
+            store.download_to_drive(e, staging=os.path.join(staging, m))
+            with lock:
+                result["saved"].append(m)
+        except Exception as ex:
+            with lock:
+                result["errors"][m] = f"{type(ex).__name__}: {ex}"
+            log(f"[prepare] {m} failed: {ex}")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
+        list(pool.map(one, queue))
+    log(f"[prepare] saved {len(result['saved'])}, skipped {len(result['skipped'])}, "
+        f"deferred {len(result['deferred'])}, failed {len(result['errors'])}")
+    return result
