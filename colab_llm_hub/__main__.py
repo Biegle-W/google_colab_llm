@@ -53,7 +53,9 @@ def parse(argv=None):
                         "recommended-all for the target's recommended picks; downloads only (no engine builds)")
     r.add_argument("--budget-gb", type=float, default=700, help="batch mode: stop after this much new data "
                    "(Google Drive accepts ~750 GB of uploads per day)")
-    r.add_argument("--workers", type=int, default=2, help="batch mode: models downloaded at once")
+    r.add_argument("--workers", type=int, default=1, help="batch mode: models downloaded at once")
+    r.add_argument("--no-pace", action="store_true",
+                   help="batch mode: do not wait for each file's Drive upload before copying the next")
     r.add_argument("--model", default="recommended", help="catalog id, or 'recommended' for the target")
     r.add_argument("--drive-dir", default="/content/drive/MyDrive/llm_models")
     r.add_argument("--staging-dir", default="/content/prepare_staging", help="local disk for files in transit")
@@ -74,9 +76,10 @@ def run_prepare(a):
             ids = prepare.recommended_models(a.target, kind=a.models.split("-", 1)[1])
         else:
             ids = [m for m in a.models.split(",") if m]
+        from .drive_upload import upload_paced_copier
         result = prepare.prepare_many(ids, drive_dir=a.drive_dir, staging=a.staging_dir,
                                       token=os.environ.get(a.hf_token_env), budget_gb=a.budget_gb,
-                                      workers=a.workers)
+                                      workers=a.workers, copier=None if a.no_pace else upload_paced_copier())
         return 1 if result["errors"] else 0
     if not a.engine:
         raise SystemExit("prepare needs --engine (one model) or --models (batch)")

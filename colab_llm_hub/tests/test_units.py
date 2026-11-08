@@ -1537,3 +1537,58 @@ class DownloadToDriveRoom(unittest.TestCase):
             shutil.disk_usage = orig
             shutil.rmtree(tmp, ignore_errors=True)
         self.assertEqual(fetched, ["m.gguf"])
+
+
+class UploadPacing(unittest.TestCase):
+    """Copies into the Drive mount wait for the upload, so the Drive client never builds a backlog."""
+
+    def test_waits_until_bytes_have_gone_out(self):
+        from colab_llm_hub import drive_upload
+        sent = iter([0, 0, 40, 80, 100])
+        logs = []
+        drive_upload.wait_uploaded(100, 0, tx=lambda: next(sent) * 1_000_000, sleep=lambda s: None,
+                                   now=lambda: 0, log=logs.append, label="f")
+        self.assertTrue(logs)
+
+    def test_stall_raises(self):
+        from colab_llm_hub import drive_upload
+        t = [0]
+
+        def now():
+            t[0] += 60
+            return t[0]
+        with self.assertRaises(drive_upload.UploadStalled):
+            drive_upload.wait_uploaded(10**10, 0, tx=lambda: 5, sleep=lambda s: None, now=now,
+                                       stall_s=600, log=lambda *a: None)
+
+    def test_paced_copier_copies_then_waits(self):
+        from colab_llm_hub import drive_upload
+        tmp = tempfile.mkdtemp()
+        src = os.path.join(tmp, "big")
+        with open(src, "wb") as f:
+            f.truncate(60_000_000)
+        counter = iter([0, 0, 70_000_000])
+        events = []
+        copier = drive_upload.upload_paced_copier(tx=lambda: next(counter), sleep=lambda s: None,
+                                                  log=lambda *a: None,
+                                                  copy=lambda s, d, cb=None: events.append("copied"))
+        copier(src, os.path.join(tmp, "dst"))
+        self.assertEqual(events, ["copied"])
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_stall_stops_the_batch(self):
+        from colab_llm_hub import prepare, drive_upload
+
+        class Store:
+            calls = []
+            def state(self, e): return {"on_drive": False}
+            def download_to_drive(self, e, staging=None, copier=None):
+                self.calls.append(e["id"])
+                raise drive_upload.UploadStalled("stuck")
+        mk = lambda i: {"id": i, "name": i, "backend": "vllm", "repo": "o/" + i, "files": ["*"], "size_gb": 10,
+                        "contexts": [[1, 1024]]}
+        st = Store()
+        r = prepare.prepare_many(["a", "b"], store=st, free=lambda p: 500, log=lambda *a: None,
+                                 entries=[mk("a"), mk("b")], copier=object())
+        self.assertEqual(st.calls, ["a"])                       # b never started behind a stuck upload
+        self.assertEqual(r["deferred"], ["b"])

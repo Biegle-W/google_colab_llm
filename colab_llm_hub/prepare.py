@@ -140,8 +140,8 @@ def free_gb(path):
 
 
 def prepare_many(models, drive_dir="/content/drive/MyDrive/llm_models", staging=DEFAULT_STAGING, token=None,
-                 budget_gb=700.0, min_free_gb=40.0, workers=2, wait_free_s=1800, log=print, store=None,
-                 free=free_gb, sleep=None, entries=None):
+                 budget_gb=700.0, min_free_gb=40.0, workers=1, wait_free_s=1800, log=print, store=None,
+                 free=free_gb, sleep=None, entries=None, copier=None):
     """Save several models to Drive, `workers` at a time, until `budget_gb` of new data (Google Drive takes
     about 750 GB of uploads per day per account). Models already complete on Drive are skipped, so running
     it again the next day continues where it stopped.
@@ -213,10 +213,15 @@ def prepare_many(models, drive_dir="/content/drive/MyDrive/llm_models", staging=
                 result["errors"][m] = "local disk stayed full (Drive cache); run again later"
             return
         try:
-            store.download_to_drive(e, staging=os.path.join(staging, m))
+            if copier is not None:
+                store.download_to_drive(e, staging=os.path.join(staging, m), copier=copier)
+            else:
+                store.download_to_drive(e, staging=os.path.join(staging, m))
             with lock:
                 result["saved"].append(m)
         except Exception as ex:
+            if type(ex).__name__ == "UploadStalled":         # never queue more behind a stuck Drive client
+                stop.set()
             with lock:
                 result["errors"][m] = f"{type(ex).__name__}: {ex}"
             log(f"[prepare] {m} failed: {ex}")
