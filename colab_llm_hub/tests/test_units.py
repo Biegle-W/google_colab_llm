@@ -1507,3 +1507,33 @@ class PrepareManyResume(unittest.TestCase):
             shutil.rmtree(tmp, ignore_errors=True)
         self.assertEqual(st.saved, ["a"])                     # 60 GB free + 90 GB already staged is enough
         self.assertEqual(r["errors"], {})
+
+
+class DownloadToDriveRoom(unittest.TestCase):
+    def test_single_file_model_needs_room_for_one_file_less_what_is_staged(self):
+        tmp = tempfile.mkdtemp()
+        st = ModelStore(os.path.join(tmp, "d"), os.path.join(tmp, "l"), log=lambda *_: None)
+        e = {"id": "one", "name": "one", "backend": "llama", "repo": "o/one", "files": ["*"], "size_gb": 63.4,
+             "model_file": "m.gguf", "contexts": [[1, 1024]]}
+        staging = os.path.join(tmp, "stage")
+        os.makedirs(staging)
+        open(os.path.join(staging, "m.gguf"), "wb").close()
+        fetched = []
+
+        def fetch(repo, path, dest, token=None):
+            fetched.append(path)
+            p = os.path.join(dest, path)
+            open(p, "wb").write(b"x" * 10)
+            return p
+        orig = shutil.disk_usage
+        shutil.disk_usage = lambda p: type("U", (), {"free": int(70e9), "total": 0, "used": 0})()
+        try:
+            st.download_to_drive(e, staging=staging, lister=lambda r, t=None: [("m.gguf", int(63.4e9))], fetch=fetch,
+                                 copier=lambda s, d, cb=None: (os.makedirs(os.path.dirname(d), exist_ok=True),
+                                                               shutil.copyfile(s, d)))
+        except StoreError as ex:
+            self.fail(f"70 GB free should be enough for one 63.4 GB file: {ex}")
+        finally:
+            shutil.disk_usage = orig
+            shutil.rmtree(tmp, ignore_errors=True)
+        self.assertEqual(fetched, ["m.gguf"])

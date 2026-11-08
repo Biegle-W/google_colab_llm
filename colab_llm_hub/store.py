@@ -307,10 +307,16 @@ class ModelStore:
         if (drive / MARKER).exists():
             (drive / MARKER).unlink()                     # incomplete: rebuild the file list at the end
         staging = Path(staging or self.local_root / ".staging" / entry["id"])
-        biggest = max((size or 0) for *_, size, _ in jobs) / 1e9
         staging.mkdir(parents=True, exist_ok=True)
-        if shutil.disk_usage(staging).free / 1e9 < 2 * biggest + 1:
-            raise StoreError(f"{entry['id']}: local disk needs room for two {biggest:.1f} GB files")
+        # At most two files are local at once (one copying to Drive, the next downloading). Files not yet on
+        # Drive need that room, less whatever an interrupted run already left in staging (it is reused).
+        pending = sorted(((size or 0) for _, path, size, rel in jobs
+                          if not ((drive / rel).is_file() and size is not None and (drive / rel).stat().st_size == size)),
+                         reverse=True)
+        staged = sum(p.stat().st_size for p in staging.rglob("*") if p.is_file())
+        need = max(0, sum(pending[:2]) - staged) / 1e9 + 1
+        if shutil.disk_usage(staging).free / 1e9 < need:
+            raise StoreError(f"{entry['id']}: local disk needs {need:.0f} GB free for the next files")
         copier = copier or copy_file_atomic
         pending = None                                    # (thread, local file): copy overlaps the next download
 
