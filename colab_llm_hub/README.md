@@ -68,7 +68,6 @@ every session:  VRAM+RAM models: engine reads Drive directly
 | Engine builds and wheels cached on Drive | `install.py` |
 | Tailscale Serve (tailnet) / Funnel, or Cloudflare quick / named tunnel | `tunnel.py` |
 | dsh provider block, stable API key | `provider.py`, `keyfile.py` |
-| Optional local script: merge the provider into dsh's settings | `configure_dsh.py` |
 
 ### Endpoints (all need `Authorization: Bearer <key>`)
 
@@ -91,7 +90,6 @@ Everything runs in Colab; your computer only runs the harness. Cell 6 prints the
 ready-to-paste dsh provider block (`colab-<engine>`, chat models with their Colab context sizes), and saves the block
 to Drive as `hub/dsh_<engine>.yaml`. Paste it into dsh's `settings.yaml` and set `COLAB_LLM_API_KEY` (the key is
 never written into the settings file). The URL is the same every session, so this is one-time per engine.
-Optional: `configure_dsh.py` does the same merge automatically if you have this repo and PyYAML on that computer.
 Remote access defaults to **Tailscale Serve**: the auth key is prompted once and saved only under the user's
 private Drive (`hub/tailscale_authkey`, gitignored). `TUNNEL = "cloudflare"` opens a Cloudflare quick tunnel
 instead (no account, new public URL each session, returned only once the hub answers through it), and
@@ -142,3 +140,4 @@ Add an entry to `catalog.json` (the tests validate the file).
   and `contexts` as `[[min VRAM GB, max edge px], ...]`.
 
 Extra engine flags go in `extra_args`.
+

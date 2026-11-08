@@ -392,18 +392,6 @@ class WorkspaceDrive(unittest.TestCase):
         self.assertEqual(llama.load_settings()["prefetch"], ["qwen3.8-27b-q4"])
         self.assertEqual(vllm.load_settings()["prefetch"], ["qwen3.8-27b-w4a16"])
 
-    def test_hub_package_cache_roundtrip(self):
-        from colab_llm_hub import install
-        src = tempfile.mkdtemp(prefix="hubsrc-")
-        pkg = os.path.join(src, "colab_llm_hub")
-        os.makedirs(pkg)
-        open(os.path.join(pkg, "x.py"), "w").write("v=1\n")
-        install.cache_hub_package(src, str(self.ws.builds), ref="branch/x", log=lambda *_: None)
-        dest = tempfile.mkdtemp(prefix="hubdst-")
-        self.assertTrue(install.restore_hub_package(str(self.ws.builds), dest, ref="branch/x", log=lambda *_: None))
-        self.assertTrue(os.path.isfile(os.path.join(dest, "colab_llm_hub", "x.py")))
-        shutil.rmtree(src, ignore_errors=True)
-        shutil.rmtree(dest, ignore_errors=True)
 
 
 class Misc(unittest.TestCase):
@@ -509,64 +497,6 @@ class Resume(unittest.TestCase):
         shutil.rmtree(tmp, ignore_errors=True)
 
 
-class ConfigureDsh(unittest.TestCase):
-    MODELS = [{"id": "m1", "name": "M1", "context_length": 32768}, {"id": "m2", "name": "M2", "context_length": 8192}]
-    SECRET = "sk-very-secret-value-123"
-
-    def setUp(self):
-        try:
-            import yaml
-            self.yaml = yaml
-        except ImportError:
-            self.skipTest("PyYAML not installed")
-        self.dir = tempfile.mkdtemp(prefix="dsh-")
-        self.path = os.path.join(self.dir, "settings.yaml")
-
-    def run_configure(self, **kw):
-        from colab_llm_hub import configure_dsh
-        return configure_dsh.configure("https://h.tailnet.ts.net", self.SECRET, self.path,
-                                       fetch=lambda u, k: self.MODELS, **kw)
-
-    def test_merges_without_touching_other_settings(self):
-        existing = {"llm-pi-ai": {"providers": {"vllm-local": {"baseURL": "http://127.0.0.1:30100/v1"}}},
-                    "agent-default-model": {"provider": "vllm-local", "model": "x"}, "other": {"keep": 1}}
-        open(self.path, "w").write(self.yaml.safe_dump(existing))
-        self.run_configure()
-        doc = self.yaml.safe_load(open(self.path))
-        self.assertEqual(doc["llm-pi-ai"]["providers"]["vllm-local"], existing["llm-pi-ai"]["providers"]["vllm-local"])
-        self.assertEqual(doc["agent-default-model"], existing["agent-default-model"])      # default untouched
-        self.assertEqual(doc["other"], {"keep": 1})
-        p = doc["llm-pi-ai"]["providers"]["colab-hub"]
-        self.assertEqual((p["baseURL"], p["apiKeyEnv"]), ("https://h.tailnet.ts.net/v1", "COLAB_LLM_API_KEY"))
-        self.assertNotIn(self.SECRET, open(self.path).read())                               # the key is never written
-        self.assertTrue(os.path.exists(self.path + ".bak"))
-
-    def test_idempotent_and_can_set_default(self):
-        self.run_configure(default="m2")
-        first = open(self.path).read()
-        self.run_configure(default="m2")
-        self.assertEqual(open(self.path).read(), first)
-        self.assertEqual(self.yaml.safe_load(first)["agent-default-model"], {"provider": "colab-hub", "model": "m2"})
-        with self.assertRaises(SystemExit):
-            self.run_configure(default="nope")
-
-    def test_web_profile_patch_layout(self):
-        entries = [{"id": "llm-pi-ai", "name": "@deepseek-ai/dsh-llm-pi-ai", "config": {"providers": {"a": {"x": 1}}}},
-                   {"id": "agent-default-model", "name": "n", "config": {"provider": "a", "model": "z"}}]
-        open(self.path, "w").write(self.yaml.safe_dump(entries))
-        self.run_configure(default="m1")
-        doc = self.yaml.safe_load(open(self.path))
-        llm = next(e for e in doc if e["id"] == "llm-pi-ai")
-        self.assertEqual(llm["config"]["providers"]["a"], {"x": 1})
-        self.assertIn("colab-hub", llm["config"]["providers"])
-        self.assertEqual(next(e for e in doc if e["id"] == "agent-default-model")["config"],
-                         {"provider": "colab-hub", "model": "m1"})
-
-    def test_creates_missing_file(self):
-        self.run_configure()
-        self.assertIn("colab-hub", self.yaml.safe_load(open(self.path))["llm-pi-ai"]["providers"])
-
-
 class DownloadScope(unittest.TestCase):
     """Patterns must fetch one copy of a model, not every variant a repo carries."""
 
@@ -623,27 +553,7 @@ class ComfyPaths(unittest.TestCase):
         shutil.rmtree(root, ignore_errors=True)
 
 
-class HubPackageCache(unittest.TestCase):
-    def test_interrupted_refresh_is_not_marked_complete(self):
-        tmp = tempfile.mkdtemp(prefix="hubpkg-")
-        src = os.path.join(tmp, "src")
-        os.makedirs(os.path.join(src, "colab_llm_hub"))
-        open(os.path.join(src, "colab_llm_hub", "__init__.py"), "w").write("")
-        builds = os.path.join(tmp, "builds")
-        install.cache_hub_package(src, builds, ref="main", log=lambda *a: None)
-        marker = os.path.join(builds, "hub_pkg", "main", "COMPLETE")
-        self.assertTrue(os.path.exists(marker))
-        orig = install.shutil.copytree
-        install.shutil.copytree = lambda *a, **k: (_ for _ in ()).throw(OSError("Drive went away"))
-        try:
-            with self.assertRaises(OSError):
-                install.cache_hub_package(src, builds, ref="main", log=lambda *a: None)
-        finally:
-            install.shutil.copytree = orig
-        self.assertFalse(os.path.exists(marker))                      # the half-copied cache is not trusted
-        self.assertFalse(install.restore_hub_package(builds, os.path.join(tmp, "out"), ref="main", log=lambda *a: None))
-        shutil.rmtree(tmp, ignore_errors=True)
-
+class SelfContainedNotebooks(unittest.TestCase):
     def test_notebooks_carry_the_current_hub_code_and_download_none(self):
         """Every notebook is self-contained: its packed hub code matches this package, and no cell clones it."""
         import base64, glob as _glob, io, re, zipfile

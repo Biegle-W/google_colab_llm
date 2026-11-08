@@ -21,33 +21,6 @@ def provider_dict(base_url, models, api_key_env="COLAB_LLM_API_KEY", max_tokens=
                         "input": ["text"], "reasoningEfforts": False} for m in _chat_models(models)]}
 
 
-def merge_into_settings(doc, provider_id, provider, default_model=None):
-    """Add/replace one provider in a dsh settings document without touching anything else.
-
-    Handles both layouts the reference setup uses: a plain mapping (settings.yaml) and a list of
-    {id, name, config} entries (the web profile patch).
-    """
-    if isinstance(doc, list):
-        by_id = {e.get("id"): e for e in doc if isinstance(e, dict)}
-        llm = by_id.get("llm-pi-ai")
-        if llm is None:
-            llm = {"id": "llm-pi-ai", "name": "@deepseek-ai/dsh-llm-pi-ai", "config": {}}
-            doc.append(llm)
-        llm.setdefault("config", {}).setdefault("providers", {})[provider_id] = provider
-        if default_model:
-            sel = by_id.get("agent-default-model")
-            if sel is None:
-                sel = {"id": "agent-default-model", "name": "@deepseek-ai/dsh-agent-default-model", "config": {}}
-                doc.append(sel)
-            sel["config"] = {"provider": provider_id, "model": default_model}
-        return doc
-    doc = doc if isinstance(doc, dict) else {}
-    doc.setdefault("llm-pi-ai", {}).setdefault("providers", {})[provider_id] = provider
-    if default_model:
-        doc["agent-default-model"] = {"provider": provider_id, "model": default_model}
-    return doc
-
-
 def dsh_provider_yaml(base_url, models, provider_id="colab-hub", api_key_env="COLAB_LLM_API_KEY", max_tokens=4096):
     """`models` are the hub's /v1/models rows. Returns YAML to merge into dsh's settings under llm-pi-ai.providers."""
     lines = ["llm-pi-ai:", "  providers:", f"    {provider_id}:",

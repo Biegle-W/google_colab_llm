@@ -190,39 +190,6 @@ def ensure_hub_deps(builds_dir, refresh=False, run=sh, log=print):
     run(f"{pip} install -q --no-index --find-links {wheels} {pkgs}")
 
 
-def cache_hub_package(src_dir, builds_dir, ref="default", log=print):
-    """Copy ``colab_llm_hub`` from a fresh git checkout onto Drive for offline restore."""
-    src = os.path.join(src_dir, "colab_llm_hub")
-    if not os.path.isdir(src):
-        raise InstallError(f"no colab_llm_hub package under {src_dir}")
-    dest = os.path.join(builds_dir, "hub_pkg", (ref or "default").replace("/", "_")[:80], "colab_llm_hub")
-    os.makedirs(os.path.dirname(dest), exist_ok=True)
-    marker = os.path.join(os.path.dirname(dest), "COMPLETE")
-    if os.path.exists(marker):
-        os.remove(marker)          # an interrupted refresh must not look complete
-    if os.path.isdir(dest):
-        shutil.rmtree(dest)
-    shutil.copytree(src, dest, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".git"))
-    open(marker, "w").write(ref or "default")
-    log("Cached hub package on Drive:", dest)
-    return dest
-
-
-def restore_hub_package(builds_dir, dest_parent, ref="default", log=print):
-    """Restore a Drive-cached hub package into dest_parent/colab_llm_hub. Returns True on hit."""
-    src = os.path.join(builds_dir, "hub_pkg", (ref or "default").replace("/", "_")[:80], "colab_llm_hub")
-    marker = os.path.join(os.path.dirname(src), "COMPLETE")
-    if not (os.path.isdir(src) and os.path.isfile(marker)):
-        return False
-    dest = os.path.join(dest_parent, "colab_llm_hub")
-    if os.path.isdir(dest):
-        shutil.rmtree(dest)
-    os.makedirs(dest_parent, exist_ok=True)
-    shutil.copytree(src, dest)
-    log("Restored hub package from Drive:", src)
-    return True
-
-
 def sglang_wheelhouse(builds_dir):
     return os.path.join(builds_dir, f"sglang_gpu_py{sys.version_info.major}{sys.version_info.minor}")
 

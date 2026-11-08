@@ -57,22 +57,22 @@ Notebooks mount Google Drive and keep **all durable state** under `MyDrive/llm_m
 | `builds/` | llama.cpp tarballs; wheels; TensorFold / Sparsa / ComfyUI / Strata / Maya trees; HyperQwen venv and NInfer build tarballs; `tools/tailscale`, `tools/cloudflared` |
 | `config/settings_<engine>.json` | Per-engine selected model, ctx overrides, Tailscale hostname/port |
 | `hf_cache/` | Small Hugging Face files only (`HF_HOME`: login token, tokenizer / config lookups); model weights go to `models/` |
-| `hub/api_key`, `hub/tailscale_authkey`, `hub/cloudflare_tunnel_token`, `hub/endpoint.json` | Private Drive secrets + last public URL (not in git) |
+| `hub/api_key.txt`, `hub/tailscale_authkey.txt`, `hub/cloudflare_tunnel_token.txt`, `hub/endpoint.json` | Private Drive secrets + last public URL (not in git) |
 | `logs/` | `install.log`, `hub.log`, `tailscaled.log`, engine `hub_logs/` |
 | `outputs/images/`, `outputs/chat/`, `outputs/status/` | Generation results and status snapshots |
 
 A model is downloaded from Hugging Face straight to Drive, once. A model that fits in VRAM + RAM is then read directly from Drive every session (llama.cpp reads it with `--no-mmap` and vLLM with `--safetensors-load-strategy eager`, so the mount is read sequentially). A model that streams weights from SSD during inference (the DeepSeek Engram packs, a GGUF larger than memory) gets its streamed files copied from Drive to the runtime's local disk every session, with the rest read from Drive. Measured on Colab: the first read from Drive runs at about 77 MB/s (23.7 GB in 5 min), and Colab's Drive client caches what it reads on the runtime's local disk (22.6 GB of that 23.7 GB file), so a Drive-read model still occupies local disk and fit checks count it. The first run asks you to authorize Drive access. Set `REFRESH_WHEELS` / `REBUILD_LLAMA` in Drive settings to force updates.
 
 ## Remote access
-Hub notebooks default to **Tailscale**. On first run you paste a Tailscale auth key (reusable + ephemeral recommended); it is saved only on **your private Google Drive** at `MyDrive/llm_models/hub/tailscale_authkey` (gitignored; never committed). Later Colab sessions reuse that Drive file. Optional Colab secret `TAILSCALE_AUTHKEY` if you press Enter on an empty prompt. The hub API key is also Drive-only (`hub/api_key`, with a copy as `hub/api_key.txt` that the Google Drive app on a phone can open).
+Cell 6 asks how your machine connects (type 1, 2 or 3; Enter keeps the last choice), so nothing in the notebook is edited:
 
-Set `TUNNEL` in cell 3 to choose how your machine connects:
-
-| `TUNNEL` | Setup | URL | Who can reach it |
+| Choice | Setup | URL | Who can reach it |
 |---|---|---|---|
-| `tailscale` (default) | Tailscale account + auth key (saved on Drive once) | Stable `https://colab-<engine>.<tailnet>.ts.net` | Only your tailnet |
-| `cloudflare` | None (Cloudflare quick tunnel, as in Unsloth Studio's notebook) | New `https://<words>.trycloudflare.com` every session | Anyone with the URL; the API key protects the hub |
-| `cloudflare-named` | A tunnel in your Cloudflare dashboard; token saved on Drive once | Your stable hostname | Public; the API key protects the hub |
+| 1. Tailscale (default) | Tailscale account + auth key | Stable `https://colab-<engine>.<tailnet>.ts.net` | Only your tailnet |
+| 2. Cloudflare quick tunnel | None (as in Unsloth Studio's notebook) | New `https://<words>.trycloudflare.com` every session | Anyone with the URL; the API key protects the hub |
+| 3. Cloudflare named tunnel | A tunnel in your Cloudflare dashboard + its token | Your stable hostname | Public; the API key protects the hub |
+
+Keys: add `TAILSCALE_AUTHKEY` (and `HF_TOKEN`, `CLOUDFLARE_TUNNEL_TOKEN`) once in Colab's Secrets panel (key icon, left sidebar) and no notebook asks for them. Otherwise cell 6 asks in a hidden input box and keeps the key on **your private Google Drive** (`MyDrive/llm_models/hub/tailscale_authkey.txt`, which the Drive app on a phone opens); type `1 new` at the tunnel prompt to replace it. The hub API key is also Drive-only (`hub/api_key.txt`). Nothing secret is ever written into a notebook or this repository.
 
 The Cloudflare link is printed only after the tunnel has registered and the hub answers through it. Your harness (dsh or any OpenAI client) runs on your own machine, never in a notebook. The T4 / TPU notebooks offer `tailscale` and `cloudflare` too.
 
