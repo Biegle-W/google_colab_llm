@@ -57,6 +57,21 @@ def write_secret(path, value):
     return value
 
 
+def colab_secret(name, get=None):
+    """A value from Colab's Secrets panel (the key icon in the left sidebar), or None.
+
+    Colab asks once per notebook to let it read the secret; a missing secret, a refused grant or a runtime
+    outside Colab all give None."""
+    try:
+        if get is None:
+            from google.colab import userdata
+            get = userdata.get
+        value = (get(name) or "").strip()
+        return value or None
+    except Exception:
+        return None
+
+
 def write_both(path, value):
     """The secret at `path` and at `path`.txt (a copy phones can open), rewritten only when different."""
     value = (value or "").strip()

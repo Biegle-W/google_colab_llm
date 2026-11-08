@@ -1843,3 +1843,37 @@ class SecretsOpenOnAPhone(unittest.TestCase):
         finally:
             gp.getpass = orig
             shutil.rmtree(tmp, ignore_errors=True)
+
+
+class ColabSecretsFirst(unittest.TestCase):
+    def test_tailscale_secret_wins_and_is_backed_up_on_drive(self):
+        tmp = tempfile.mkdtemp()
+        try:
+            p = os.path.join(tmp, "hub", "tailscale_authkey")
+            os.makedirs(os.path.dirname(p))
+            open(p + ".txt", "w").write("tskey-auth-drive-0123456789\n")
+            secrets = {"TAILSCALE_AUTHKEY": "tskey-auth-secret-9876543210"}
+            self.assertEqual(tunnel.load_or_ask_tailscale_authkey(p, log=lambda *a: None, secret=secrets.get),
+                             "tskey-auth-secret-9876543210")
+            self.assertEqual(open(p + ".txt").read().strip(), "tskey-auth-secret-9876543210")
+            # no secret (or not a tskey): Drive is used, nothing is asked
+            self.assertEqual(tunnel.load_or_ask_tailscale_authkey(p, log=lambda *a: None, secret={}.get),
+                             "tskey-auth-secret-9876543210")
+
+            def refused(name):
+                raise RuntimeError("notebook access not granted")
+            self.assertEqual(tunnel.load_or_ask_tailscale_authkey(p, log=lambda *a: None, secret=refused),
+                             "tskey-auth-secret-9876543210")
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_cloudflare_token_secret(self):
+        tmp = tempfile.mkdtemp()
+        try:
+            p = os.path.join(tmp, "hub", "cloudflare_tunnel_token")
+            v = tunnel.load_or_ask_secret(p, "token: ", env_name="CLOUDFLARE_TUNNEL_TOKEN", log=lambda *a: None,
+                                          secret={"CLOUDFLARE_TUNNEL_TOKEN": "cf-secret"}.get)
+            self.assertEqual(v, "cf-secret")
+            self.assertEqual(open(p + ".txt").read().strip(), "cf-secret")
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)

@@ -479,6 +479,11 @@ def build_notebook(engine: str) -> dict:
             "[Tailscale Keys](https://login.tailscale.com/admin/settings/keys) and join the machine your "
             "harness runs on to the same tailnet.",
             "",
+            "**Keys, the easy way: Colab Secrets.** Click the key icon in Colab's left sidebar and add "
+            "`TAILSCALE_AUTHKEY` (and `HF_TOKEN`, and `CLOUDFLARE_TUNNEL_TOKEN` for a named Cloudflare tunnel). "
+            "They belong to your Google account, so every notebook uses them; allow this notebook access once "
+            "when Colab asks. A secret wins over the copy on Drive.",
+            "",
             "**When this cell runs it asks two things in its output, so you never edit code:** which tunnel "
             "(type 1, 2 or 3; Enter keeps the last one), then any key or token Drive does not have yet, in a "
             "hidden input box. Type e.g. `1 new` at the tunnel prompt to replace a saved key.",
@@ -705,7 +710,8 @@ def build_notebook(engine: str) -> dict:
             "2. First run: cell 6 asks for it in a hidden input box and saves it to **private Drive** "
             "`MyDrive/llm_models/hub/tailscale_authkey.txt` (not GitHub).",
             "3. Later Colab sessions reuse that Drive file automatically.",
-            "4. Optional Colab secret `TAILSCALE_AUTHKEY` if you press Enter on an empty prompt.",
+            "4. Easier: add it once as the Colab secret `TAILSCALE_AUTHKEY` (key icon in the left sidebar); "
+            "every notebook then uses it without asking.",
             "5. Join the machine your harness runs on to the same tailnet and point the harness at the "
             "printed `https://….ts.net/v1` URL with the API key. The harness (dsh or any OpenAI client) "
             "runs there, never in this notebook.",

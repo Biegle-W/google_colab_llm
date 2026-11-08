@@ -178,9 +178,16 @@ def start_cloudflare_named(port, token, hostname, drive_dir=None, api_key=None, 
     return proc, url
 
 
-def load_or_ask_secret(path, prompt, refresh=False, env_name=None, check=None, log=print):
-    """A secret kept on private Drive: read it, or prompt once (getpass) and save it there (mode 600)."""
+def load_or_ask_secret(path, prompt, refresh=False, env_name=None, check=None, log=print, secret=None):
+    """A secret from Colab Secrets (`env_name`), else private Drive, else a hidden prompt (saved to Drive)."""
     from . import keyfile
+    if not refresh and env_name:
+        value = keyfile.colab_secret(env_name, get=secret)
+        if value and (not check or check(value)):
+            if path:
+                keyfile.write_both(path, value)          # a backup on Drive for notebooks without the secret
+            log(f"Using Colab secret {env_name}")
+            return value
     if not refresh and path:
         for cand in (path + ".txt", path):           # the .txt copy is the one a phone can open and edit
             value = keyfile.read_secret(cand, min_len=1)
@@ -270,7 +277,8 @@ def ask_tailscale_authkey(prompt=None):
     prompt = prompt or (
         "Tailscale auth key (tskey-auth-…; reusable+ephemeral recommended).\n"
         "Create at https://login.tailscale.com/admin/settings/keys\n"
-        "Paste key (Enter = use Colab secret TAILSCALE_AUTHKEY if set): "
+        "Tip: save it as a Colab secret named TAILSCALE_AUTHKEY (key icon, left sidebar) and this is never asked.\n"
+        "Paste key: "
     )
     typed = getpass(prompt).strip()
     if typed:
@@ -346,15 +354,22 @@ def ask_hostname(saved=None, ask=input, log=print):
         log("  Type the hostname you routed to this tunnel in Cloudflare (Public Hostname).")
 
 
-def load_or_ask_tailscale_authkey(drive_path=None, refresh=False, log=print):
-    """Load the auth key from private Google Drive, or prompt once and save it there.
+def load_or_ask_tailscale_authkey(drive_path=None, refresh=False, log=print, secret=None):
+    """The auth key from Colab Secrets (TAILSCALE_AUTHKEY), else private Drive, else a hidden prompt.
 
-    The key lives only under the user's Drive (e.g. ``MyDrive/llm_models/hub/tailscale_authkey``).
+    Whatever is found is also kept on private Drive (``MyDrive/llm_models/hub/tailscale_authkey.txt``).
     It is never written into notebook settings JSON or the public git repo.
     """
     from . import keyfile
+    if not refresh:
+        # Colab Secrets first (key icon in Colab's left sidebar): set once for every notebook, no prompt.
+        value = keyfile.colab_secret("TAILSCALE_AUTHKEY", get=secret)
+        if value and value.startswith("tskey-"):
+            if drive_path:
+                keyfile.write_both(drive_path, value)
+            log("Using Colab secret TAILSCALE_AUTHKEY")
+            return value
     if drive_path and not refresh:
-        # A key uploaded through Drive's website usually arrives as tailscale_authkey.txt; accept either.
         # The .txt copy first: it is the one Drive's phone and web apps open, so an edit there wins.
         for path in (drive_path + ".txt", drive_path):
             existing = keyfile.read_secret(path, prefix="tskey-", min_len=16)
