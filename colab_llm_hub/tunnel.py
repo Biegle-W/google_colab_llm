@@ -180,10 +180,13 @@ def start_cloudflare_named(port, token, hostname, drive_dir=None, api_key=None, 
 
 def load_or_ask_secret(path, prompt, refresh=False, env_name=None, check=None, log=print):
     """A secret kept on private Drive: read it, or prompt once (getpass) and save it there (mode 600)."""
-    if not refresh and path and os.path.isfile(path):
-        value = open(path).read().strip()
-        if value:
-            return value
+    from . import keyfile
+    if not refresh and path:
+        for cand in (path + ".txt", path):           # the .txt copy is the one a phone can open and edit
+            value = keyfile.read_secret(cand, min_len=1)
+            if value:
+                keyfile.write_both(path, value)
+                return value
     from getpass import getpass
     value = getpass(prompt).strip()
     if not value and env_name:
@@ -195,11 +198,8 @@ def load_or_ask_secret(path, prompt, refresh=False, env_name=None, check=None, l
     if not value or (check and not check(value)):
         raise ValueError("no valid value given")
     if path:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w") as f:
-            f.write(value)
-        os.chmod(path, 0o600)
-        log(f"Saved to {path} (private Drive, never in git)")
+        keyfile.write_both(path, value)
+        log(f"Saved to {path}.txt (private Drive, never in git)")
     return value
 
 
@@ -289,6 +289,63 @@ def ask_tailscale_authkey(prompt=None):
     )
 
 
+TUNNELS = (
+    ("tailscale", "Tailscale: private to your tailnet, same https://colab-<engine>.<tailnet>.ts.net URL every session"),
+    ("cloudflare", "Cloudflare quick tunnel: no account or key; public https://<words>.trycloudflare.com URL, "
+                   "new every session (the API key still protects it)"),
+    ("cloudflare-named", "Cloudflare named tunnel: your own tunnel token and a stable public hostname"),
+)
+
+
+def choose_tunnel(last=None, ask=input, log=print, choices=None, remember=None):
+    """Ask which tunnel to open (a prompt in the cell's output, not a code edit).
+
+    Returns (tunnel, new_key): Enter keeps `last` (or the file `remember`, else Tailscale); a number or name
+    picks one; adding "new" (e.g. "1 new") asks for a new key / token even when one is saved on Drive.
+    `choices` limits the menu; `remember` is a file the choice is kept in for next session."""
+    options = [(n, a) for n, a in TUNNELS if not choices or n in choices]
+    names = [n for n, _ in options]
+    if last is None and remember:
+        try:
+            last = open(remember).read().strip()
+        except OSError:
+            last = None
+    last = last if last in names else names[0]
+    log("How should your machine reach this runtime?")
+    for i, (name, about) in enumerate(options, 1):
+        log(f"  {i}. {about}" + ("   <- last used" if name == last else ""))
+    while True:
+        words = ask(f"Tunnel [1-{len(options)}, Enter = {names.index(last) + 1}; add 'new' to replace a saved key]: "
+                    ).strip().lower().split()
+        new_key = "new" in words
+        words = [w for w in words if w != "new"]
+        pick = last if not words else (names[int(words[0]) - 1] if words[0].isdigit()
+                                       and 1 <= int(words[0]) <= len(names) else
+                                       words[0] if words[0] in names else None)
+        if pick:
+            if remember:
+                try:
+                    os.makedirs(os.path.dirname(remember), exist_ok=True)
+                    with open(remember, "w") as f:
+                        f.write(pick)
+                except OSError:
+                    pass
+            return pick, new_key
+        log(f"  {words[0]!r} is not one of the choices; type a number from 1 to {len(names)}.")
+
+
+def ask_hostname(saved=None, ask=input, log=print):
+    """The public hostname of a Cloudflare named tunnel (Enter keeps the saved one)."""
+    while True:
+        typed = ask("Hostname of your Cloudflare tunnel (e.g. llm.example.com)"
+                    + (f" [Enter = {saved}]" if saved else "") + ": ").strip()
+        value = typed or (saved or "")
+        value = value.replace("https://", "").replace("http://", "").strip("/")
+        if value and "." in value and " " not in value:
+            return value
+        log("  Type the hostname you routed to this tunnel in Cloudflare (Public Hostname).")
+
+
 def load_or_ask_tailscale_authkey(drive_path=None, refresh=False, log=print):
     """Load the auth key from private Google Drive, or prompt once and save it there.
 
@@ -298,17 +355,19 @@ def load_or_ask_tailscale_authkey(drive_path=None, refresh=False, log=print):
     from . import keyfile
     if drive_path and not refresh:
         # A key uploaded through Drive's website usually arrives as tailscale_authkey.txt; accept either.
-        for path in (drive_path, drive_path + ".txt"):
+        # The .txt copy first: it is the one Drive's phone and web apps open, so an edit there wins.
+        for path in (drive_path + ".txt", drive_path):
             existing = keyfile.read_secret(path, prefix="tskey-", min_len=16)
             if existing:
-                log(f"Using Tailscale auth key from private Drive: {path}")
+                keyfile.write_both(drive_path, existing)
+                log(f"Using Tailscale auth key from private Drive: {drive_path}.txt")
                 return existing
     key = ask_tailscale_authkey()
     if not key.startswith("tskey-"):
         raise ValueError("Tailscale auth key must look like tskey-auth-… / tskey-…")
     if drive_path:
-        keyfile.write_secret(drive_path, key)
-        log(f"Saved Tailscale auth key to private Drive (not in git): {drive_path}")
+        keyfile.write_both(drive_path, key)
+        log(f"Saved Tailscale auth key to private Drive (not in git): {drive_path}.txt")
     return key
 
 
@@ -419,7 +478,7 @@ def serve_error(mode, output):
     if m and "not enabled" in output:
         what = "Funnel" if mode == "funnel" else "Serve (HTTPS certificates)"
         return (f"Tailscale {what} is not enabled on your tailnet. This is a one-time admin setting: open "
-                f"{m.group(0)} , enable it, then re-run this cell. (Or set TUNNEL = \"cloudflare\".)")
+                f"{m.group(0)} , enable it, then re-run this cell. (Or re-run this cell and pick 2, the Cloudflare quick tunnel.)")
     return f"tailscale {mode} failed or timed out:\n{output}"
 
 

@@ -57,6 +57,19 @@ def write_secret(path, value):
     return value
 
 
+def write_both(path, value):
+    """The secret at `path` and at `path`.txt (a copy phones can open), rewritten only when different."""
+    value = (value or "").strip()
+    for p in (path, path + ".txt"):
+        try:
+            if os.path.exists(p) and open(p, encoding="utf-8-sig").read().strip() == value:
+                continue
+        except OSError:
+            pass
+        write_secret(p, value)
+    return value
+
+
 def read_secret(path, prefix=None, min_len=8):
     """Return a secret from Drive, or None if missing / invalid."""
     if not path or not os.path.exists(path):

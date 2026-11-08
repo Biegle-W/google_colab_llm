@@ -349,11 +349,8 @@ def build_notebook(engine: str) -> dict:
             "LLAMA_CPP_REF = saved.get(\"llama_cpp_ref\") or \"4c3c5810f87efe177949f1b85ae509d38a2a311f\"",
             "REBUILD_LLAMA = bool(saved.get(\"rebuild_llama\", False))",
             "REFRESH_WHEELS = bool(saved.get(\"refresh_wheels\", False))",
-            "# How your machine reaches this runtime (secrets live on private Drive under hub/, never in git):",
-            "#   tailscale        - private to your tailnet, stable https://colab-<engine>.<tailnet>.ts.net URL",
-            "#   cloudflare       - no account; public https://<words>.trycloudflare.com URL, new every session",
-            "#   cloudflare-named - your own Cloudflare tunnel: stable public hostname (set cf_hostname in settings)",
-            "TUNNEL = \"tailscale\"  # @param [\"tailscale\", \"cloudflare\", \"cloudflare-named\"]",
+            "# The tunnel is chosen in cell 6 when it starts (a prompt there); this is only the last choice.",
+            "TUNNEL = saved.get(\"tunnel\") or \"tailscale\"",
             "CF_HOSTNAME = saved.get(\"cf_hostname\") or \"\"  # cloudflare-named only, e.g. llm.example.com",
             "REFRESH_CF_TOKEN = bool(saved.get(\"refresh_cloudflare_token\", False))",
             "PORT = int(saved.get(\"port\") or 8000)",
@@ -377,8 +374,7 @@ def build_notebook(engine: str) -> dict:
             "print(\"Saved settings →\", WS.settings_path)",
             "print(\"MODEL    =\", MODEL, \"(the only model downloaded and served)\" if SERVE_ONLY_SELECTED else \"(prefetched; others load on request)\")",
             "print(\"ENGINE   =\", ENGINE)",
-            "print(\"TUNNEL   =\", TUNNEL)",
-            "print(\"Tailscale key file (private Drive, not git):\", WS.hub / \"tailscale_authkey\")",
+            "print(\"Tailscale key file (private Drive, not git):\", WS.hub / \"tailscale_authkey.txt\")",
         ]),
         _md([f"## 4. Install {title} (built or downloaded once, then restored from Drive)"]),
         _code([
@@ -476,16 +472,20 @@ def build_notebook(engine: str) -> dict:
             "(`MyDrive/llm_models/hub/`), never in this public GitHub repo or in settings JSON:",
             "",
             "- `hub/api_key` — hub Bearer token (auto-created; `hub/api_key.txt` is the same key, viewable on a phone)",
-            "- `hub/tailscale_authkey` — Tailscale auth key (prompted once, then reused)",
-            "- `hub/cloudflare_tunnel_token` — only for `cloudflare-named` (prompted once, then reused)",
+            "- `hub/tailscale_authkey.txt` — Tailscale auth key (asked once, then reused; open or edit it in the Drive app)",
+            "- `hub/cloudflare_tunnel_token.txt` — only for the named Cloudflare tunnel (asked once, then reused)",
             "",
             "**Tailscale** (default): create a **reusable + ephemeral** key at "
             "[Tailscale Keys](https://login.tailscale.com/admin/settings/keys) and join the machine your "
-            "harness runs on to the same tailnet. Set `refresh_tailscale_key` in settings to replace the key.",
+            "harness runs on to the same tailnet.",
             "",
-            "**Cloudflare** (`TUNNEL = \"cloudflare\"`): nothing to set up, like Unsloth Studio's notebook. "
+            "**When this cell runs it asks two things in its output, so you never edit code:** which tunnel "
+            "(type 1, 2 or 3; Enter keeps the last one), then any key or token Drive does not have yet, in a "
+            "hidden input box. Type e.g. `1 new` at the tunnel prompt to replace a saved key.",
+            "",
+            "**Cloudflare quick tunnel** (choice 2): nothing to set up, like Unsloth Studio's notebook. "
             "The URL is public and changes every session, so update your harness each time; the hub's API key "
-            "is what keeps others off your GPU. `cloudflare-named` uses a tunnel you created in the Cloudflare "
+            "is what keeps others off your GPU. The named tunnel (choice 3) uses one you created in the Cloudflare "
             "dashboard (public hostname → `http://127.0.0.1:8000`) for a stable URL.",
             "",
             "Your harness runs on **your own machine**, not here: point it at the Base URL this cell prints.",
@@ -529,10 +529,15 @@ def build_notebook(engine: str) -> dict:
             "else:",
             "    raise RuntimeError(\"The hub did not start:\\n\" + open(HUB_LOG).read()[-3000:])",
             "",
+            "# Pick the tunnel in the prompt below (Enter = the last one). Keys and tokens are asked for in a hidden",
+            "# input box when Drive has none yet, then kept on private Drive (hub/), never in this notebook or git.",
+            "TUNNEL, NEW_KEY = tunnel.choose_tunnel(saved.get(\"tunnel\"))",
+            "if TUNNEL == \"cloudflare-named\":",
+            "    CF_HOSTNAME = tunnel.ask_hostname(CF_HOSTNAME or None)",
+            "WS.save_settings({**WS.load_settings(), \"tunnel\": TUNNEL, \"cf_hostname\": CF_HOSTNAME})",
             "if TUNNEL == \"tailscale\":",
-            "    # Load the auth key from private Drive, or prompt once and save it there (never committed to git).",
             "    TS_AUTHKEY = tunnel.load_or_ask_tailscale_authkey(str(WS.hub / \"tailscale_authkey\"),",
-            "                                                      refresh=REFRESH_TS_KEY)",
+            "                                                      refresh=REFRESH_TS_KEY or NEW_KEY)",
             "    tunnel_proc, BASE = tunnel.start_tailscale(",
             "        PORT, TS_AUTHKEY, hostname=TS_HOSTNAME, drive_dir=DRIVE_DIR, funnel=TS_FUNNEL)",
             "    del TS_AUTHKEY  # drop from notebook namespace; Drive file remains private",
@@ -541,7 +546,8 @@ def build_notebook(engine: str) -> dict:
             "elif TUNNEL == \"cloudflare-named\":",
             "    CF_TOKEN = tunnel.load_or_ask_secret(",
             "        str(WS.hub / \"cloudflare_tunnel_token\"), \"Cloudflare tunnel token (Zero Trust → Networks → \"",
-            "        \"Tunnels → your tunnel → install command): \", refresh=REFRESH_CF_TOKEN, env_name=\"CLOUDFLARE_TUNNEL_TOKEN\")",
+            "        \"Tunnels → your tunnel → install command): \", refresh=REFRESH_CF_TOKEN or NEW_KEY,",
+            "        env_name=\"CLOUDFLARE_TUNNEL_TOKEN\")",
             "    tunnel_proc, BASE = tunnel.start_cloudflare_named(PORT, CF_TOKEN, CF_HOSTNAME, drive_dir=DRIVE_DIR,",
             "                                                      api_key=API_KEY)",
             "    del CF_TOKEN",
@@ -685,27 +691,27 @@ def build_notebook(engine: str) -> dict:
             "",
             "### Connecting your harness",
             "",
-            "**Tailscale** (`TUNNEL = \"tailscale\"`, default, private):",
+            "**Tailscale** (choice 1, default, private):",
             "",
             "1. Create a **reusable + ephemeral** auth key: "
             "https://login.tailscale.com/admin/settings/keys",
-            "2. First run: cell 6 prompts for it and saves to **private Drive** "
-            "`MyDrive/llm_models/hub/tailscale_authkey` (not GitHub).",
+            "2. First run: cell 6 asks for it in a hidden input box and saves it to **private Drive** "
+            "`MyDrive/llm_models/hub/tailscale_authkey.txt` (not GitHub).",
             "3. Later Colab sessions reuse that Drive file automatically.",
             "4. Optional Colab secret `TAILSCALE_AUTHKEY` if you press Enter on an empty prompt.",
             "5. Join the machine your harness runs on to the same tailnet and point the harness at the "
             "printed `https://….ts.net/v1` URL with the API key. The harness (dsh or any OpenAI client) "
             "runs there, never in this notebook.",
             "",
-            "**Cloudflare quick tunnel** (`TUNNEL = \"cloudflare\"`): no account or key. Cell 6 prints a public "
+            "**Cloudflare quick tunnel** (choice 2): no account or key. Cell 6 prints a public "
             "`https://….trycloudflare.com/v1` URL once the hub answers through it; it changes every session, and "
             "anyone with it reaches the hub, which still requires the API key. Quick tunnels are a free "
             "best-effort Cloudflare service with no uptime guarantee.",
             "",
-            "**Cloudflare named tunnel** (`TUNNEL = \"cloudflare-named\"`): create a tunnel in the Cloudflare "
+            "**Cloudflare named tunnel** (choice 3): create a tunnel in the Cloudflare "
             "dashboard (Zero Trust → Networks → Tunnels), add a public hostname pointing to "
-            "`http://127.0.0.1:8000`, set `cf_hostname` in this engine's settings file, and paste the tunnel "
-            "token when cell 6 asks (saved to `hub/cloudflare_tunnel_token` on private Drive).",
+            "`http://127.0.0.1:8000`; cell 6 then asks for the hostname and, once, the tunnel token "
+            "(saved to `hub/cloudflare_tunnel_token` on private Drive).",
             "",
             "### Drive layout",
             "",
@@ -715,8 +721,8 @@ def build_notebook(engine: str) -> dict:
             "| `builds/` | llama.cpp tarballs, wheels, hub_pkg, Tailscale, cloudflared |",
             f"| `config/settings_{engine}.json` | Selected model / ctx / Tailscale for **this** engine (no secrets) |",
             "| `hub/api_key`, `hub/api_key.txt` | Hub Bearer token (private Drive only; the .txt copy opens on phones) |",
-            "| `hub/tailscale_authkey` | Tailscale auth key (private Drive only; never in git) |",
-            "| `hub/cloudflare_tunnel_token` | Cloudflare named-tunnel token (private Drive only; never in git) |",
+            "| `hub/tailscale_authkey.txt` | Tailscale auth key (private Drive only; never in git; opens on phones) |",
+            "| `hub/cloudflare_tunnel_token.txt` | Cloudflare named-tunnel token (private Drive only; never in git) |",
             "| `hub/endpoint.json` | Last base URL + key hint |",
             "| `hf_cache/`, `logs/`, `outputs/` | Cache, logs, generation results |",
             "",

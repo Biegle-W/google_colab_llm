@@ -693,7 +693,8 @@ class SingleModelSelection(unittest.TestCase):
         nb = make_engine_notebooks.build_notebook("llama")
         text = "".join("".join(c["source"]) for c in nb["cells"])
         self.assertIn('args += ["--models", MODEL]', text)
-        self.assertIn('TUNNEL = "tailscale"  # @param', text)                     # Tailscale stays the default
+        self.assertIn('TUNNEL = saved.get("tunnel") or "tailscale"', text)        # Tailscale stays the default
+        self.assertIn("tunnel.choose_tunnel(", text)                              # picked in a prompt, not code
         self.assertNotIn("npx", text)                                    # no harness runs inside the notebook
 
     def test_only_filter(self):
@@ -1766,3 +1767,79 @@ class DirectToDriveForHugeFiles(unittest.TestCase):
         self.assertEqual(waited, [(120, "m.basalt")])
         self.assertTrue(is_complete(st.drive_path(e)))
         shutil.rmtree(tmp, ignore_errors=True)
+
+
+class TunnelPrompt(unittest.TestCase):
+    """The tunnel is picked from a prompt in the cell output; nothing in the notebook code is edited."""
+
+    def pick(self, answers, **kw):
+        it = iter(answers)
+        return tunnel.choose_tunnel(ask=lambda prompt: next(it), log=lambda *a: None, **kw)
+
+    def test_enter_keeps_the_last_choice_and_numbers_or_names_pick(self):
+        self.assertEqual(self.pick([""]), ("tailscale", False))
+        self.assertEqual(self.pick([""], last="cloudflare"), ("cloudflare", False))
+        self.assertEqual(self.pick(["2"]), ("cloudflare", False))
+        self.assertEqual(self.pick(["cloudflare-named"]), ("cloudflare-named", False))
+        self.assertEqual(self.pick(["9", "x", "3"]), ("cloudflare-named", False))       # asks again
+        self.assertEqual(self.pick(["1 new"]), ("tailscale", True))
+        self.assertEqual(self.pick(["new"], last="cloudflare-named"), ("cloudflare-named", True))
+
+    def test_limited_choices_and_remembered_file(self):
+        tmp = tempfile.mkdtemp()
+        try:
+            f = os.path.join(tmp, "hub", "tunnel_t4")
+            self.assertEqual(self.pick(["3", "2"], choices=("tailscale", "cloudflare"), remember=f),
+                             ("cloudflare", False))
+            self.assertEqual(open(f).read(), "cloudflare")
+            self.assertEqual(self.pick([""], choices=("tailscale", "cloudflare"), remember=f), ("cloudflare", False))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_hostname_prompt(self):
+        it = iter(["", "https://llm.example.com/"])
+        self.assertEqual(tunnel.ask_hostname(ask=lambda p: next(it), log=lambda *a: None), "llm.example.com")
+        self.assertEqual(tunnel.ask_hostname("a.b.com", ask=lambda p: "", log=lambda *a: None), "a.b.com")
+
+    def test_engine_notebooks_have_no_tunnel_form_field(self):
+        import glob as _glob
+        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        for nb in _glob.glob(os.path.join(root, "notebooks", "*", "*.ipynb")):
+            text = open(nb, encoding="utf-8").read()
+            self.assertNotIn('TUNNEL = \\"tailscale\\"  # @param', text, nb)
+            self.assertNotIn('TUNNEL      = \\"tailscale\\"  # @param', text, nb)
+            if "start_tailscale" in text:
+                self.assertIn("choose_tunnel", text, nb)
+
+
+class SecretsOpenOnAPhone(unittest.TestCase):
+    """Tailscale key and Cloudflare token are kept as .txt files too (Drive's phone apps open those)."""
+
+    def test_tailscale_key_txt_preferred_and_mirrored(self):
+        tmp = tempfile.mkdtemp()
+        try:
+            p = os.path.join(tmp, "hub", "tailscale_authkey")
+            os.makedirs(os.path.dirname(p))
+            open(p, "w").write("tskey-auth-old-0123456789\n")
+            self.assertEqual(tunnel.load_or_ask_tailscale_authkey(p, log=lambda *a: None), "tskey-auth-old-0123456789")
+            self.assertEqual(open(p + ".txt").read().strip(), "tskey-auth-old-0123456789")     # mirrored
+            open(p + ".txt", "w").write("tskey-auth-new-9876543210\n")                        # edited on a phone
+            self.assertEqual(tunnel.load_or_ask_tailscale_authkey(p, log=lambda *a: None), "tskey-auth-new-9876543210")
+            self.assertEqual(open(p).read().strip(), "tskey-auth-new-9876543210")
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_cloudflare_token_written_as_txt_too(self):
+        import getpass as gp
+        tmp = tempfile.mkdtemp()
+        orig = gp.getpass
+        gp.getpass = lambda prompt="": "cf-token-abcdef"
+        try:
+            p = os.path.join(tmp, "hub", "cloudflare_tunnel_token")
+            self.assertEqual(tunnel.load_or_ask_secret(p, "token: ", log=lambda *a: None), "cf-token-abcdef")
+            self.assertEqual(open(p + ".txt").read().strip(), "cf-token-abcdef")
+            gp.getpass = lambda prompt="": self.fail("should not ask again")
+            self.assertEqual(tunnel.load_or_ask_secret(p, "token: ", log=lambda *a: None), "cf-token-abcdef")
+        finally:
+            gp.getpass = orig
+            shutil.rmtree(tmp, ignore_errors=True)
