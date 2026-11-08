@@ -1,4 +1,7 @@
-"""Release this Colab runtime after a period of inactivity, so an idle VM stops using compute units.
+"""Release a GPU / TPU runtime after a period of inactivity while it serves inference.
+
+Only for the expensive accelerator runtimes, and only once a notebook has started serving: start() does
+nothing on a CPU runtime, and setup work (prepare notebook, installs, CLI sessions) never starts it.
 
 Colab (and the Colab CLI) keep a runtime alive while it is connected, idle or not. This guard runs as a
 detached process on the VM and counts the runtime as active while any of these hold:
@@ -172,10 +175,24 @@ def release_runtime(log=print, flush=flush_drive, opener=urllib.request.urlopen)
     return True
 
 
-def start(minutes=10, log_path=LOG, python=None):
-    """Start (or replace) the detached guard. minutes <= 0 stops it. Returns the guard's pid or None."""
+def has_accelerator(which=None, env=None, exists=os.path.exists):
+    """True on a GPU or TPU runtime (the ones worth releasing), False on a CPU runtime."""
+    import glob
+    import shutil
+    env = os.environ if env is None else env
+    which = which or shutil.which
+    return bool(which("nvidia-smi") or env.get("COLAB_GPU") == "1" or env.get("COLAB_TPU_ADDR")
+                or env.get("TPU_ACCELERATOR_TYPE") or glob.glob("/dev/accel*") or exists("/dev/vfio/0"))
+
+
+def start(minutes=10, log_path=LOG, python=None, accelerator=None, log=print):
+    """Start (or replace) the detached guard on a GPU / TPU runtime. minutes <= 0 stops it, and so does a
+    CPU runtime (setup work is never timed out). Returns the guard's pid or None."""
     stop()
     if not minutes or minutes <= 0:
+        return None
+    if not (has_accelerator() if accelerator is None else accelerator):
+        log("Idle timeout not started: this is a CPU runtime (it only applies to GPU / TPU inference).")
         return None
     pkg_parent = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     env = dict(os.environ, PYTHONPATH=pkg_parent + os.pathsep + os.environ.get("PYTHONPATH", ""))

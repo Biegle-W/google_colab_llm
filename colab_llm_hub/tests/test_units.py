@@ -1383,9 +1383,25 @@ class IdleGuard(unittest.TestCase):
         self.assertEqual(idle_guard.kernel_activity(opener=lambda *a, **k: (_ for _ in ()).throw(OSError())),
                          (False, None))
 
-    def test_notebooks_start_it(self):
+    def test_only_serving_notebooks_start_it(self):
         from colab_llm_hub import make_engine_notebooks
-        for nb in (make_engine_notebooks.build_notebook("vllm"), make_engine_notebooks.build_prepare_notebook()):
-            text = "".join("".join(c["source"]) for c in nb["cells"])
-            self.assertIn("idle_guard.start(IDLE_TIMEOUT_MIN)", text)
-            self.assertIn('IDLE_TIMEOUT_MIN = 10  # @param', text)
+        cells = make_engine_notebooks.build_notebook("vllm")["cells"]
+        serving = next(i for i, c in enumerate(cells) if "hub_proc = subprocess.Popen" in "".join(c["source"]))
+        starts = [i for i, c in enumerate(cells) if "idle_guard.start(IDLE_TIMEOUT_MIN)" in "".join(c["source"])]
+        self.assertEqual(starts, [serving])                  # not during bootstrap / install / download
+        prep = "".join("".join(c["source"]) for c in make_engine_notebooks.build_prepare_notebook()["cells"])
+        self.assertNotIn("idle_guard", prep)                 # CPU setup runtime: never timed out
+
+    def test_not_started_on_cpu_runtimes(self):
+        from colab_llm_hub import idle_guard
+        self.assertIsNone(idle_guard.start(10, accelerator=False, log=lambda *a: None))
+        import glob
+        orig = glob.glob
+        glob.glob = lambda pattern: []
+        try:
+            self.assertFalse(idle_guard.has_accelerator(which=lambda n: None, env={}, exists=lambda p: False))
+            self.assertTrue(idle_guard.has_accelerator(which=lambda n: None, env={"COLAB_GPU": "1"},
+                                                       exists=lambda p: False))
+        finally:
+            glob.glob = orig
+        self.assertTrue(idle_guard.has_accelerator(which=lambda n: "/usr/bin/nvidia-smi", env={}))
