@@ -43,8 +43,8 @@ your machine (harness) ──HTTPS──> Tailscale Serve (tailnet) or Cloudflar
                                                ├─ Diffusers   (:30090)  text-to-image pipelines
                                                └─ ComfyUI     (:30095)  Comfy workflows + OpenAI images
 
-Drive root MyDrive/llm_models/
-  models/  builds/  config/  hf_cache/  hub/  logs/  outputs/
+Drive root MyDrive/colab_model_server/
+  models/  engines/  settings/  huggingface/  access/  logs/  outputs/
 Hugging Face ──once, file by file──> Drive models/
 every session:  VRAM+RAM models: engine reads Drive directly
                 SSD-streamed models: streamed files Drive ──copy──> local disk, the rest read from Drive
@@ -88,12 +88,12 @@ limits) and then get `503` with `Retry-After`; the load keeps going, so a retry 
 
 Everything runs in Colab; your computer only runs the harness. Cell 6 prints the base URL, the API key and a
 ready-to-paste dsh provider block (`colab-<engine>`, chat models with their Colab context sizes), and saves the block
-to Drive as `hub/dsh_<engine>.yaml`. Paste it into dsh's `settings.yaml` and set `COLAB_LLM_API_KEY` (the key is
+to Drive as `access/dsh_<engine>.yaml`. Paste it into dsh's `settings.yaml` and set `COLAB_LLM_API_KEY` (the key is
 never written into the settings file). The URL is the same every session, so this is one-time per engine.
 Remote access defaults to **Tailscale Serve**: the auth key is prompted once and saved only under the user's
-private Drive (`hub/tailscale_authkey`, gitignored). `TUNNEL = "cloudflare"` opens a Cloudflare quick tunnel
+private Drive (`access/tailscale_authkey`, gitignored). `TUNNEL = "cloudflare"` opens a Cloudflare quick tunnel
 instead (no account, new public URL each session, returned only once the hub answers through it), and
-`cloudflare-named` runs your own dashboard tunnel by token (`hub/cloudflare_tunnel_token`). Public URLs are
+`cloudflare-named` runs your own dashboard tunnel by token (`access/cloudflare_tunnel_token`). Public URLs are
 protected by the hub API key. The harness always runs on your own machine; no harness runs inside a notebook. Each notebook serves the one model picked in its `MODEL` dropdown
 (`serve --models <id>`), so requests for other models return 404 instead of starting a download.
 

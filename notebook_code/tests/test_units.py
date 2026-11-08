@@ -949,7 +949,7 @@ class PrepareOnCpu(unittest.TestCase):
         r = prepare.prepare("g4", "vllm", "recommended", drive_dir="/d", store=FakeStore(), engine_builder=builder,
                             log=lambda *_: None)
         self.assertEqual(r["errors"], {})
-        self.assertEqual((r["engine_cache"], r["drive_path"]), ("/d/builds/cache", "/drive/models/" + r["model"]))
+        self.assertEqual((r["engine_cache"], r["drive_path"]), ("/d/engines/cache", "/drive/models/" + r["model"]))
 
         def broken(*a, **k):
             raise install.InstallError("nvcc not found")
@@ -1818,3 +1818,52 @@ class ColabSecretsFirst(unittest.TestCase):
             self.assertEqual(open(p + ".txt").read().strip(), "cf-secret")
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
+
+
+class DriveLayoutMigration(unittest.TestCase):
+    def tree(self, root):
+        return sorted(os.path.relpath(os.path.join(d, f), root) for d, _, fs in os.walk(root) for f in fs)
+
+    def make_old(self, base):
+        old = os.path.join(base, "llm_models")
+        for rel in ("models/m1/a.bin", "models/hf_hub/x", "builds/tools/tailscale", "config/settings_llama.json",
+                    "hub/api_key.txt", "hf_cache/token", "logs/hub_logs/e.log", "outputs/chat/c.json"):
+            os.makedirs(os.path.dirname(os.path.join(old, rel)), exist_ok=True)
+            open(os.path.join(old, rel), "w").write(rel)
+        return old
+
+    def test_old_layout_is_renamed(self):
+        from notebook_code import workspace as w
+        base = tempfile.mkdtemp()
+        try:
+            self.make_old(base)
+            new = os.path.join(base, "colab_model_server")
+            w.migrate_drive_layout(new, log=lambda *a: None)
+            self.assertFalse(os.path.exists(os.path.join(base, "llm_models")))
+            self.assertEqual(self.tree(new), sorted([
+                "models/m1/a.bin", "models/unsloth_studio/x", "engines/tools/tailscale",
+                "settings/settings_llama.json", "access/api_key.txt", "huggingface/token",
+                "logs/engines/e.log", "outputs/chat/c.json"]))
+            w.migrate_drive_layout(new, log=lambda *a: None)          # idempotent
+            ws = w.Workspace(new, local_models=os.path.join(base, "local"), engine="llama")
+            self.assertEqual(str(ws.settings_path), os.path.join(new, "settings", "settings_llama.json"))
+            self.assertEqual(str(ws.hub), os.path.join(new, "access"))
+        finally:
+            shutil.rmtree(base, ignore_errors=True)
+
+    def test_merges_into_a_new_root_another_notebook_made(self):
+        from notebook_code import workspace as w
+        base = tempfile.mkdtemp()
+        try:
+            self.make_old(base)
+            new = os.path.join(base, "colab_model_server")
+            os.makedirs(os.path.join(new, "huggingface"))              # e.g. the Unsloth notebook ran first
+            open(os.path.join(new, "huggingface", "new"), "w").write("n")
+            w.migrate_drive_layout(new, log=lambda *a: None)
+            t = self.tree(new)
+            for rel in ("models/m1/a.bin", "engines/tools/tailscale", "access/api_key.txt", "huggingface/token",
+                        "huggingface/new"):
+                self.assertIn(rel, t)
+            self.assertFalse(os.path.exists(os.path.join(base, "llm_models")))
+        finally:
+            shutil.rmtree(base, ignore_errors=True)

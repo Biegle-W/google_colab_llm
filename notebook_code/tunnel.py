@@ -9,7 +9,7 @@
 - **Cloudflare named tunnel**: a tunnel created in the Cloudflare dashboard, run with its token; the stable
   public hostname is configured there.
 
-Binaries are cached under ``Drive/builds/tools/`` when ``drive_dir`` is set.
+Binaries are cached under ``Drive/engines/tools/`` when ``drive_dir`` is set.
 """
 import json
 import os
@@ -36,11 +36,11 @@ DOH_URL = "https://cloudflare-dns.com/dns-query?name={host}&type=A"
 
 
 def ensure_cloudflared(drive_dir=None, fetch=urllib.request.urlretrieve, attempts=3, sleep=time.sleep):
-    """Path to cloudflared, cached on Drive (builds/tools/cloudflared) or /content when no Drive."""
+    """Path to cloudflared, cached on Drive (engines/tools/cloudflared) or /content when no Drive."""
     found = shutil.which("cloudflared")
     if found:
         return found
-    path = (os.path.join(drive_dir, "builds", "tools", "cloudflared") if drive_dir
+    path = (os.path.join(drive_dir, "engines", "tools", "cloudflared") if drive_dir
             else os.environ.get("COLAB_LLM_CLOUDFLARED", "/content/cloudflared"))
     os.makedirs(os.path.dirname(path), exist_ok=True)
     if os.path.isfile(path) and os.path.getsize(path) > 1_000_000:
@@ -220,7 +220,7 @@ def stop_cloudflare():
 
 def ensure_tailscale(drive_dir=None, fetch=urllib.request.urlretrieve, run=subprocess.run):
     """Return (tailscale, tailscaled) binary paths, restoring/caching under Drive when possible."""
-    tools = (os.path.join(drive_dir, "builds", "tools", "tailscale") if drive_dir
+    tools = (os.path.join(drive_dir, "engines", "tools", "tailscale") if drive_dir
              else "/content/tailscale")
     os.makedirs(tools, exist_ok=True)
     ts = os.path.join(tools, "tailscale")
@@ -357,7 +357,7 @@ def ask_hostname(saved=None, ask=input, log=print):
 def load_or_ask_tailscale_authkey(drive_path=None, refresh=False, log=print, secret=None):
     """The auth key from Colab Secrets (TAILSCALE_AUTHKEY), else private Drive, else a hidden prompt.
 
-    Whatever is found is also kept on private Drive (``MyDrive/llm_models/hub/tailscale_authkey.txt``).
+    Whatever is found is also kept on private Drive (``MyDrive/colab_model_server/access/tailscale_authkey.txt``).
     It is never written into notebook settings JSON or the public git repo.
     """
     from . import keyfile

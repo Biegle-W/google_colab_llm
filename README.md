@@ -23,7 +23,7 @@ Notebooks are grouped by engine under [`notebooks/`](notebooks/).
 | [`notebooks/prepare/prepare_cpu.ipynb`](notebooks/prepare/prepare_cpu.ipynb) | **Save GPU time:** on a cheap CPU runtime, download a model to Drive and build its engine for the GPU you will use |
 | [`notebooks/unsloth/`](notebooks/unsloth/) | Official Unsloth Studio |
 
-Engine picks and workstation notes: [`notebook_code/ENGINE_MATRIX.md`](notebook_code/ENGINE_MATRIX.md). Each `<engine>_gpu.ipynb` runs the hub, installs **only its engine** and lists **only that engine’s catalog models**. Settings are `config/settings_<engine>.json`; weights/builds still share Drive.
+Engine picks and workstation notes: [`notebook_code/ENGINE_MATRIX.md`](notebook_code/ENGINE_MATRIX.md). Each `<engine>_gpu.ipynb` runs the hub, installs **only its engine** and lists **only that engine’s catalog models**. Settings are `settings/settings_<engine>.json`; weights/builds still share Drive.
 
 ## Prepare on a CPU runtime, serve on a GPU runtime
 
@@ -49,16 +49,16 @@ TensorFold is from [ashhart/TensorFold](https://github.com/ashhart/TensorFold); 
 Diffusers / Comfy models keep their upstream licenses (Stability AI, Black Forest Labs, etc.); accept gated licenses on Hugging Face and set Colab secret `HF_TOKEN` when needed.
 
 ## Model and build storage
-Notebooks mount Google Drive and keep **all durable state** under `MyDrive/llm_models` so later sessions restore instead of re-downloading:
+Notebooks mount Google Drive and keep **all durable state** under `MyDrive/colab_model_server` so later sessions restore instead of re-downloading:
 
 | Path | Contents |
 |---|---|
 | `models/<id>/` | Weights (GGUF, safetensors, Diffusers / Comfy trees), marked complete only after a full copy |
-| `builds/` | llama.cpp tarballs; wheels; TensorFold / Sparsa / ComfyUI / Strata / Maya trees; HyperQwen venv and NInfer build tarballs; `tools/tailscale`, `tools/cloudflared` |
-| `config/settings_<engine>.json` | Per-engine selected model, ctx overrides, Tailscale hostname/port |
-| `hf_cache/` | Small Hugging Face files only (`HF_HOME`: login token, tokenizer / config lookups); model weights go to `models/` |
-| `hub/api_key.txt`, `hub/tailscale_authkey.txt`, `hub/cloudflare_tunnel_token.txt`, `hub/endpoint.json` | Private Drive secrets + last public URL (not in git) |
-| `logs/` | `install.log`, `hub.log`, `tailscaled.log`, engine `hub_logs/` |
+| `engines/` | llama.cpp tarballs; wheels; TensorFold / Sparsa / ComfyUI / Strata / Maya trees; HyperQwen venv and NInfer build tarballs; `tools/tailscale`, `tools/cloudflared` |
+| `settings/settings_<engine>.json` | Per-engine selected model, ctx overrides, Tailscale hostname/port |
+| `huggingface/` | Small Hugging Face files only (`HF_HOME`: login token, tokenizer / config lookups); model weights go to `models/` |
+| `access/api_key.txt`, `access/tailscale_authkey.txt`, `access/cloudflare_tunnel_token.txt`, `access/endpoint.json` | Private Drive secrets + last public URL (not in git) |
+| `logs/` | `install.log`, `hub.log`, `tailscaled.log`, engine logs in `logs/engines/` |
 | `outputs/images/`, `outputs/chat/`, `outputs/status/` | Generation results and status snapshots |
 
 A model is downloaded from Hugging Face straight to Drive, once. A model that fits in VRAM + RAM is then read directly from Drive every session (llama.cpp reads it with `--no-mmap` and vLLM with `--safetensors-load-strategy eager`, so the mount is read sequentially). A model that streams weights from SSD during inference (the DeepSeek Engram packs, a GGUF larger than memory) gets its streamed files copied from Drive to the runtime's local disk every session, with the rest read from Drive. Measured on Colab: the first read from Drive runs at about 77 MB/s (23.7 GB in 5 min), and Colab's Drive client caches what it reads on the runtime's local disk (22.6 GB of that 23.7 GB file), so a Drive-read model still occupies local disk and fit checks count it. The first run asks you to authorize Drive access. Set `REFRESH_WHEELS` / `REBUILD_LLAMA` in Drive settings to force updates.
@@ -72,7 +72,7 @@ Cell 6 asks how your machine connects (type 1, 2 or 3; Enter keeps the last choi
 | 2. Cloudflare quick tunnel | None (as in Unsloth Studio's notebook) | New `https://<words>.trycloudflare.com` every session | Anyone with the URL; the API key protects the hub |
 | 3. Cloudflare named tunnel | A tunnel in your Cloudflare dashboard + its token | Your stable hostname | Public; the API key protects the hub |
 
-Keys: add `TAILSCALE_AUTHKEY` (and `HF_TOKEN`, `CLOUDFLARE_TUNNEL_TOKEN`) once in Colab's Secrets panel (key icon, left sidebar) and no notebook asks for them. Otherwise cell 6 asks in a hidden input box and keeps the key on **your private Google Drive** (`MyDrive/llm_models/hub/tailscale_authkey.txt`, which the Drive app on a phone opens); type `1 new` at the tunnel prompt to replace it. The hub API key is also Drive-only (`hub/api_key.txt`). Nothing secret is ever written into a notebook or this repository.
+Keys: add `TAILSCALE_AUTHKEY` (and `HF_TOKEN`, `CLOUDFLARE_TUNNEL_TOKEN`) once in Colab's Secrets panel (key icon, left sidebar) and no notebook asks for them. Otherwise cell 6 asks in a hidden input box and keeps the key on **your private Google Drive** (`MyDrive/colab_model_server/access/tailscale_authkey.txt`, which the Drive app on a phone opens); type `1 new` at the tunnel prompt to replace it. The hub API key is also Drive-only (`access/api_key.txt`). Nothing secret is ever written into a notebook or this repository.
 
 The Cloudflare link is printed only after the tunnel has registered and the hub answers through it. Your harness (dsh or any OpenAI client) runs on your own machine, never in a notebook. The T4 / TPU notebooks offer `tailscale` and `cloudflare` too.
 

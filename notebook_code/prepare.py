@@ -74,7 +74,7 @@ def build_engine(engine, target, builds_dir, refresh=False, run=install.sh, log=
     return ensure(builds_dir, **kw)            # release downloads and git clones onto Drive
 
 
-def prepare(target, engine, model="recommended", drive_dir="/content/drive/MyDrive/llm_models",
+def prepare(target, engine, model="recommended", drive_dir="/content/drive/MyDrive/colab_model_server",
             staging=DEFAULT_STAGING, token=None, do_engine=True, do_download=True, refresh=False,
             log=print, store=None, engine_builder=None, force_compile=False):
     """Download the model to Drive while the engine builds; both run at once (network vs CPU).
@@ -100,7 +100,7 @@ def prepare(target, engine, model="recommended", drive_dir="/content/drive/MyDri
         thread.start()
     if do_engine:
         try:
-            builds = os.path.join(drive_dir, "builds")
+            builds = os.path.join(drive_dir, "engines")
             if engine_builder:
                 result["engine_cache"] = engine_builder(engine, target, builds, refresh=refresh, log=log)
             else:
@@ -143,7 +143,7 @@ def free_gb(path):
     return shutil.disk_usage(path).free / 1e9
 
 
-def prepare_many(models, drive_dir="/content/drive/MyDrive/llm_models", staging=DEFAULT_STAGING, token=None,
+def prepare_many(models, drive_dir="/content/drive/MyDrive/colab_model_server", staging=DEFAULT_STAGING, token=None,
                  budget_gb=700.0, min_free_gb=40.0, workers=1, wait_free_s=1800, log=print, store=None,
                  free=free_gb, sleep=None, entries=None, copier=None):
     """Save several models to Drive, `workers` at a time, until `budget_gb` of new data (Google Drive takes

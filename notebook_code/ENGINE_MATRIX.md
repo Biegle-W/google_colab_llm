@@ -8,7 +8,7 @@ TensorFold / Unsloth / vLLM / SGLang / ComfyUI docs, plus Colab forum reports
 
 **Colab layout:** one notebook per engine under `notebooks/<engine>/` (index:
 `notebooks/llm_hub_colab.ipynb`). Each installs only that engine and lists only its catalog
-models. Settings: `config/settings_<engine>.json`.
+models. Settings: `settings/settings_<engine>.json`.
 
 ## Recommended engine by model (researched)
 

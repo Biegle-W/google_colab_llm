@@ -12,17 +12,17 @@ def parse(argv=None):
     p = argparse.ArgumentParser(prog="notebook_code")
     sub = p.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("serve")
-    s.add_argument("--drive-dir", default="/content/drive/MyDrive/llm_models")
+    s.add_argument("--drive-dir", default="/content/drive/MyDrive/colab_model_server")
     s.add_argument("--local-dir", default="/content/models")
     s.add_argument("--log-dir", default="/content/hub_logs")
     s.add_argument("--port", type=int, default=8000)
-    s.add_argument("--key-file", help="API key file (created if missing); default: <drive-dir>/hub/api_key")
+    s.add_argument("--key-file", help="API key file (created if missing); default: <drive-dir>/access/api_key")
     s.add_argument("--llama-bin", default="/content/llama.cpp/build/bin/llama-server")
     s.add_argument("--vllm-bin", default="vllm")
     s.add_argument("--strata-bin", default="strata", help="Strata Terminal binary (from ensure_strata)")
-    s.add_argument("--strata-data", default=None, help="Strata --data-dir (default: <drive>/builds/strata_data)")
+    s.add_argument("--strata-data", default=None, help="Strata --data-dir (default: <drive>/engines/strata_data)")
     s.add_argument("--maya-root", default=None, help="Project Maya checkout (from ensure_maya)")
-    s.add_argument("--maya-models", default=None, help="Maya --models-dir (default: <drive>/builds/maya_models)")
+    s.add_argument("--maya-models", default=None, help="Maya --models-dir (default: <drive>/engines/maya_models)")
     s.add_argument("--tensorfold-bin", default=None, help="tensorfold-native binary (from ensure_tensorfold)")
     s.add_argument("--comfyui-root", default=None, help="ComfyUI checkout (from ensure_comfyui)")
     s.add_argument("--sparsa-root", default=None, help="Sparsa checkout (from ensure_sparsa)")
@@ -59,7 +59,7 @@ def parse(argv=None):
     r.add_argument("--no-pace", action="store_true",
                    help="batch mode: do not wait for each file's Drive upload before copying the next")
     r.add_argument("--model", default="recommended", help="catalog id, or 'recommended' for the target")
-    r.add_argument("--drive-dir", default="/content/drive/MyDrive/llm_models")
+    r.add_argument("--drive-dir", default="/content/drive/MyDrive/colab_model_server")
     r.add_argument("--staging-dir", default="/content/prepare_staging", help="local disk for files in transit")
     r.add_argument("--no-engine", action="store_true", help="only download the model")
     r.add_argument("--no-download", action="store_true", help="only build / cache the engine")
@@ -115,10 +115,10 @@ def main(argv=None):
         vram, name, arch = a.vram_gb, "override", a.arch
         for line in gpu.format_host():
             print(line)
-    key = keyfile.load_or_create(a.key_file or os.path.join(a.drive_dir, "hub", "api_key"))
+    key = keyfile.load_or_create(a.key_file or os.path.join(a.drive_dir, "access", "api_key"))
     store = ModelStore(a.drive_dir, a.local_dir, token=os.environ.get(a.hf_token_env))
     overrides = dict(x.split("=", 1) for x in a.ctx)
-    builds = os.path.join(a.drive_dir, "builds")
+    builds = os.path.join(a.drive_dir, "engines")
     bins = {
         "llama": a.llama_bin, "vllm": a.vllm_bin, "python": a.python,
         "strata": a.strata_bin,

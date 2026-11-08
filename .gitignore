@@ -12,3 +12,7 @@ hub/tailscale_authkey
 .env
 .env.*
 !.env.example
+**/access/api_key*
+**/access/tailscale_authkey*
+**/access/cloudflare_tunnel_token*
+*authkey*.txt

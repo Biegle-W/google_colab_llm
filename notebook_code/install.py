@@ -225,7 +225,7 @@ MAYA_REPO = "https://github.com/mw00/project-maya.git"
 
 
 def ensure_strata(builds_dir, refresh=False, run=sh, log=print):
-    """Install the Strata Terminal into Drive builds/ (official install.sh). Returns strata binary path."""
+    """Install the Strata Terminal into Drive engines/ (official install.sh). Returns strata binary path."""
     root = os.path.join(builds_dir, "strata_terminal")
     marker = os.path.join(root, "COMPLETE")
     os.makedirs(root, exist_ok=True)
@@ -240,7 +240,7 @@ def ensure_strata(builds_dir, refresh=False, run=sh, log=print):
     if cached and not refresh and os.path.isfile(marker):
         log("Restoring Strata Terminal from Drive:", cached)
         return cached
-    log("Installing Strata Terminal (official install.sh) into Drive builds/...")
+    log("Installing Strata Terminal (official install.sh) into Drive engines/...")
     script = os.path.join(root, "install.sh")
     run(f"curl -fsSL {STRATA_INSTALL_SH} -o {script}")
     # Isolate install under our Drive tree so later Colab sessions can restore it.
@@ -266,7 +266,7 @@ def ensure_strata(builds_dir, refresh=False, run=sh, log=print):
 
 
 def ensure_maya(builds_dir, refresh=False, run=sh, log=print):
-    """Clone Project Maya into Drive builds/ (official git + ./setup.sh on first model load)."""
+    """Clone Project Maya into Drive engines/ (official git + ./setup.sh on first model load)."""
     root = os.path.join(builds_dir, "project-maya")
     marker = os.path.join(root, "COMPLETE")
     setup = os.path.join(root, "setup.sh")
@@ -305,7 +305,7 @@ COMFYUI_PKGS = ("torchsde", "einops", "transformers", "safetensors", "aiohttp",
 
 
 def ensure_tensorfold(builds_dir, refresh=False, run=sh, log=print):
-    """Download TensorFold native linux-x86_64 release into Drive builds/. Returns tensorfold-native path."""
+    """Download TensorFold native linux-x86_64 release into Drive engines/. Returns tensorfold-native path."""
     root = os.path.join(builds_dir, f"tensorfold-{TENSORFOLD_VERSION}")
     marker = os.path.join(root, "COMPLETE")
     binary = os.path.join(root, "bin", "tensorfold-native")
@@ -394,7 +394,7 @@ def ensure_comfyui(builds_dir, refresh=False, run=sh, log=print):
 
 
 def ensure_sparsa(builds_dir, refresh=False, run=sh, log=print):
-    """Clone Sparsa + unpack the linux CUDA engine release into Drive builds/. Returns Sparsa root."""
+    """Clone Sparsa + unpack the linux CUDA engine release into Drive engines/. Returns Sparsa root."""
     root = os.path.join(builds_dir, "Sparsa")
     marker = os.path.join(root, "COMPLETE")
     script = os.path.join(root, "sparsa.py")

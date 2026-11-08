@@ -1,6 +1,6 @@
 """Google Drive workspace layout for Colab: engines, config, logs, and outputs survive restarts.
 
-Everything durable lives under ``drive_dir`` (default ``MyDrive/llm_models``). Local ``/content``
+Everything durable lives under ``drive_dir`` (default ``MyDrive/colab_model_server``). Local ``/content``
 paths are only scratch space for engines that need fast disk; they are restored from Drive.
 """
 import json
@@ -9,7 +9,56 @@ import shutil
 import time
 from pathlib import Path
 
-DEFAULT_DRIVE = "/content/drive/MyDrive/llm_models"
+DEFAULT_DRIVE = "/content/drive/MyDrive/colab_model_server"
+# Folders under the Drive root (and what they were called before 2026-11-08).
+MODELS, ENGINES, SETTINGS, ACCESS, LOGS, OUTPUTS, HUGGINGFACE = (
+    "models", "engines", "settings", "access", "logs", "outputs", "huggingface")
+ENGINE_LOGS = "engines"                   # under logs/
+STUDIO_HUB = "unsloth_studio"             # under models/: Unsloth Studio's downloads (Hugging Face cache layout)
+OLD_ROOT = "llm_models"
+OLD_NAMES = {"builds": ENGINES, "config": SETTINGS, "hub": ACCESS, "hf_cache": HUGGINGFACE}
+OLD_SUBDIRS = {(LOGS, "hub_logs"): ENGINE_LOGS, (MODELS, "hf_hub"): STUDIO_HUB}
+
+
+def drive_path(drive_dir, folder, *parts):
+    return os.path.join(str(drive_dir), folder, *parts)
+
+
+def migrate_drive_layout(drive_dir=DEFAULT_DRIVE, log=print):
+    """Rename the old Drive layout (MyDrive/llm_models with builds/ config/ hub/ hf_cache/) to the current one.
+
+    Only renames (instant on Drive, nothing is copied), and only where the new name does not exist yet."""
+    root = Path(drive_dir)
+    old_root = root.parent / OLD_ROOT
+    if root.name != OLD_ROOT and old_root.is_dir():
+        if not root.exists():
+            os.rename(old_root, root)
+            log(f"Renamed {old_root} -> {root}")
+        else:                       # another notebook already made the new root: move what it does not have
+            for child in sorted(old_root.iterdir()):
+                dst = root / OLD_NAMES.get(child.name, child.name)
+                if not dst.exists():
+                    os.rename(child, dst)
+                    log(f"Moved {child} -> {dst}")
+                elif child.is_dir() and dst.is_dir():
+                    for sub in sorted(child.iterdir()):
+                        if not (dst / sub.name).exists():
+                            os.rename(sub, dst / sub.name)
+            for d, _, _ in sorted(os.walk(old_root), key=lambda x: -len(x[0])):     # empty folders, deepest first
+                try:
+                    os.rmdir(d)
+                except OSError:
+                    pass
+            if old_root.exists():
+                log(f"{old_root} still has files that also exist in {root}; left in place")
+    if not root.is_dir():
+        return
+    for old, new in list(OLD_NAMES.items()) + [(os.path.join(*k), os.path.join(k[0], v)) for k, v in OLD_SUBDIRS.items()]:
+        src, dst = root / old, root / new
+        if src.is_dir() and not dst.exists():
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            os.rename(src, dst)
+            log(f"Renamed {src} -> {dst}")
 DEFAULT_LOCAL_MODELS = "/content/models"
 # Some runtimes (the A100 80 GB) add a fast local NVMe disk here; the G4 and L4 do not.
 LOCAL_DISK_CANDIDATES = ("/mnt/local-scratch", "/content")
@@ -55,19 +104,18 @@ class Workspace:
         self.drive = Path(drive_dir or os.environ.get("COLAB_LLM_DRIVE", DEFAULT_DRIVE))
         self.local_models = Path(local_models) if local_models else pick_local_models()
         self.engine = engine
-        self.models = self.drive / "models"
-        self.builds = self.drive / "builds"
-        self.config = self.drive / "config"
-        self.hub = self.drive / "hub"
-        self.logs = self.drive / "logs"
-        self.engine_logs = self.logs / "hub_logs"
-        self.outputs = self.drive / "outputs"
+        self.models = self.drive / MODELS
+        self.builds = self.drive / ENGINES          # engine builds, wheels, tools
+        self.config = self.drive / SETTINGS
+        self.hub = self.drive / ACCESS              # API key, tunnel keys, endpoint, dsh provider
+        self.logs = self.drive / LOGS
+        self.engine_logs = self.logs / ENGINE_LOGS
+        self.outputs = self.drive / OUTPUTS
         self.images = self.outputs / "images"
         self.chat = self.outputs / "chat"
         self.status = self.outputs / "status"
-        self.hf_cache = self.drive / "hf_cache"
+        self.hf_cache = self.drive / HUGGINGFACE
         self.tools = self.builds / "tools"
-        self.hub_pkg = self.builds / "hub_pkg"
         if settings_name:
             name = settings_name
         elif engine:
@@ -79,7 +127,7 @@ class Workspace:
     def ensure(self):
         for p in (self.models, self.builds, self.config, self.hub, self.logs, self.engine_logs,
                   self.outputs, self.images, self.chat, self.status, self.hf_cache, self.tools,
-                  self.hub_pkg, self.local_models):
+                  self.local_models):
             p.mkdir(parents=True, exist_ok=True)
         return self
 
@@ -186,4 +234,5 @@ class Workspace:
 
 
 def open_workspace(drive_dir=None, local_models=None, settings_name=None, engine=None):
+    migrate_drive_layout(drive_dir or os.environ.get("COLAB_LLM_DRIVE", DEFAULT_DRIVE))
     return Workspace(drive_dir, local_models, settings_name=settings_name, engine=engine).ensure().apply_env()

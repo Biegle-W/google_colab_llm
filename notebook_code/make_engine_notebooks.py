@@ -270,8 +270,8 @@ def build_notebook(engine: str) -> dict:
             "",
             f"- Supported models: {meta['summary']}",
             f"- Sibling notebooks: {SIBLING_NOTEBOOKS}",
-            "- Drive root: `MyDrive/llm_models/` (shared weights/builds; settings file is "
-            f"`config/settings_{engine}.json`)",
+            "- Drive root: `MyDrive/colab_model_server/` (shared weights/builds; settings file is "
+            f"`settings/settings_{engine}.json`)",
             "- Engine matrix: `notebook_code/ENGINE_MATRIX.md`",
             "",
             "Runtime → Change runtime type → **L4, A100 or G4**, then run the cells in order.",
@@ -289,7 +289,7 @@ def build_notebook(engine: str) -> dict:
             "drive.mount(\"/content/drive\")",
             "",
             f'ENGINE   = "{engine}"  # locked for this notebook',
-            'DRIVE_DIR = "/content/drive/MyDrive/llm_models"',
+            'DRIVE_DIR = "/content/drive/MyDrive/colab_model_server"',
             'HUB_REF   = HUB_CODE_VERSION  # the packed code version (recorded in settings)',
             "assert os.path.isdir(f\"{HUB_DIR}/notebook_code\"), \"Run the hub code cell above first.\"",
             "os.makedirs(DRIVE_DIR, exist_ok=True)",
@@ -334,7 +334,7 @@ def build_notebook(engine: str) -> dict:
             "print(\"\\n* = recommended for this GPU + engine. Pick ONE model in the next cell.\")",
         ]),
         _md([
-            f"## 3. Config (saved on Drive under `config/settings_{engine}.json`)",
+            f"## 3. Config (saved on Drive under `settings/settings_{engine}.json`)",
             "",
             "**Pick one model** in the `MODEL` dropdown: it is the only model this session downloads and "
             "serves. `recommended` uses the first recommended model that fits this GPU. Other settings "
@@ -493,11 +493,11 @@ def build_notebook(engine: str) -> dict:
             "## 6. Start the hub and open the tunnel",
             "",
             "Re-running this cell restarts the hub. Secrets stay on **your private Google Drive** "
-            "(`MyDrive/llm_models/hub/`), never in this public GitHub repo or in settings JSON:",
+            "(`MyDrive/colab_model_server/access/`), never in this public GitHub repo or in settings JSON:",
             "",
-            "- `hub/api_key` — hub Bearer token (auto-created; `hub/api_key.txt` is the same key, viewable on a phone)",
-            "- `hub/tailscale_authkey.txt` — Tailscale auth key (asked once, then reused; open or edit it in the Drive app)",
-            "- `hub/cloudflare_tunnel_token.txt` — only for the named Cloudflare tunnel (asked once, then reused)",
+            "- `access/api_key` — hub Bearer token (auto-created; `access/api_key.txt` is the same key, viewable on a phone)",
+            "- `access/tailscale_authkey.txt` — Tailscale auth key (asked once, then reused; open or edit it in the Drive app)",
+            "- `access/cloudflare_tunnel_token.txt` — only for the named Cloudflare tunnel (asked once, then reused)",
             "",
             "**Tailscale** (default): create a **reusable + ephemeral** key at "
             "[Tailscale Keys](https://login.tailscale.com/admin/settings/keys) and join the machine your "
@@ -566,7 +566,7 @@ def build_notebook(engine: str) -> dict:
             "    raise RuntimeError(f\"The hub did not answer /health (last: {LAST}):\\n\" + open(HUB_LOG).read()[-3000:])",
             "",
             "# Pick the tunnel in the prompt below (Enter = the last one). Keys and tokens are asked for in a hidden",
-            "# input box when Drive has none yet, then kept on private Drive (hub/), never in this notebook or git.",
+            "# input box when Drive has none yet, then kept on private Drive (access/), never in this notebook or git.",
             "TUNNEL, NEW_KEY = tunnel.choose_tunnel(saved.get(\"tunnel\"))",
             "if TUNNEL == \"cloudflare-named\":",
             "    CF_HOSTNAME = tunnel.ask_hostname(CF_HOSTNAME or None)",
@@ -618,7 +618,7 @@ def build_notebook(engine: str) -> dict:
             "print(\"=== dsh on your Mac ===\")",
             "print(\"1. Add this provider to your dsh settings.yaml (if the file already has 'llm-pi-ai:' / 'providers:',\")",
             "print(f\"   paste from the 'colab-{ENGINE}:' line down, keeping the indentation). Also saved to Drive: \"",
-            "      f\"llm_models/hub/dsh_{ENGINE}.yaml\")",
+            "      f\"colab_model_server/access/dsh_{ENGINE}.yaml\")",
             "print()",
             "print(DSH_YAML)",
             "print(\"2. Give dsh the key (it is never written into settings.yaml), e.g. in ~/.zshrc:\")",
@@ -732,7 +732,7 @@ def build_notebook(engine: str) -> dict:
             "1. Create a **reusable + ephemeral** auth key: "
             "https://login.tailscale.com/admin/settings/keys",
             "2. First run: cell 6 asks for it in a hidden input box and saves it to **private Drive** "
-            "`MyDrive/llm_models/hub/tailscale_authkey.txt` (not GitHub).",
+            "`MyDrive/colab_model_server/access/tailscale_authkey.txt` (not GitHub).",
             "3. Later Colab sessions reuse that Drive file automatically.",
             "4. Easier: add it once as the Colab secret `TAILSCALE_AUTHKEY` (key icon in the left sidebar); "
             "every notebook then uses it without asking.",
@@ -748,26 +748,26 @@ def build_notebook(engine: str) -> dict:
             "**Cloudflare named tunnel** (choice 3): create a tunnel in the Cloudflare "
             "dashboard (Zero Trust → Networks → Tunnels), add a public hostname pointing to "
             "`http://127.0.0.1:8000`; cell 6 then asks for the hostname and, once, the tunnel token "
-            "(saved to `hub/cloudflare_tunnel_token` on private Drive).",
+            "(saved to `access/cloudflare_tunnel_token` on private Drive).",
             "",
             "### Drive layout",
             "",
-            "| Path under `MyDrive/llm_models` | Contents |",
+            "| Path under `MyDrive/colab_model_server` | Contents |",
             "|---|---|",
             "| `models/<id>/` | Weights shared across engine notebooks |",
-            "| `builds/` | llama.cpp tarballs, wheels, Tailscale, cloudflared |",
-            f"| `config/settings_{engine}.json` | Selected model / ctx / Tailscale for **this** engine (no secrets) |",
-            "| `hub/api_key`, `hub/api_key.txt` | Hub Bearer token (private Drive only; the .txt copy opens on phones) |",
-            "| `hub/tailscale_authkey.txt` | Tailscale auth key (private Drive only; never in git; opens on phones) |",
-            "| `hub/cloudflare_tunnel_token.txt` | Cloudflare named-tunnel token (private Drive only; never in git) |",
-            "| `hub/endpoint.json` | Last base URL + key hint |",
-            "| `hf_cache/`, `logs/`, `outputs/` | Cache, logs, generation results |",
+            "| `engines/` | llama.cpp tarballs, wheels, Tailscale, cloudflared |",
+            f"| `settings/settings_{engine}.json` | Selected model / ctx / Tailscale for **this** engine (no secrets) |",
+            "| `access/api_key`, `access/api_key.txt` | Hub Bearer token (private Drive only; the .txt copy opens on phones) |",
+            "| `access/tailscale_authkey.txt` | Tailscale auth key (private Drive only; never in git; opens on phones) |",
+            "| `access/cloudflare_tunnel_token.txt` | Cloudflare named-tunnel token (private Drive only; never in git) |",
+            "| `access/endpoint.json` | Last base URL + key hint |",
+            "| `huggingface/`, `logs/`, `outputs/` | Cache, logs, generation results |",
             "",
             "- See `notebook_code/ENGINE_MATRIX.md` for workstation (Maya / Strata / HyperQwen) notes.",
             "- Set `REFRESH_WHEELS` / `REBUILD_LLAMA` / `refresh_tailscale_key` in settings to force updates.",
             "- **Security:** Tailscale Serve is reachable only from your tailnet (`ts_funnel` makes it public); "
             "Cloudflare URLs are public. Either way the hub API key protects GPU use. Never commit anything "
-            "under `hub/`.",
+            "under `access/`.",
         ]),
     ]
 
@@ -789,7 +789,7 @@ def build_prepare_notebook() -> dict:
     boot = json.loads(json.dumps(build_notebook("llama")["cells"][1:4]))      # same bootstrap as the GPU notebooks
     src = next(c["source"] for c in boot if any(l.startswith("ENGINE   =") for l in c["source"]))
     i = next(k for k, line in enumerate(src) if line.startswith("ENGINE   ="))
-    src[i] = 'ENGINE   = "prepare"  # settings go to config/settings_prepare.json\n'
+    src[i] = 'ENGINE   = "prepare"  # settings go to settings/settings_prepare.json\n'
     all_ids = ["recommended"] + [e["id"] for e in catalog.load()]
     cells = [
         _md([
@@ -800,7 +800,7 @@ def build_prepare_notebook() -> dict:
             "Runtime → Change runtime type → **CPU** (High-RAM is not needed). This notebook does the slow, "
             "GPU-free work so the expensive GPU runtime only loads and serves:",
             "",
-            "- **Model:** downloaded from Hugging Face straight to `MyDrive/llm_models/models/<id>/`, one file "
+            "- **Model:** downloaded from Hugging Face straight to `MyDrive/colab_model_server/models/<id>/`, one file "
             "at a time (local disk only ever holds two files). Re-running resumes; files already on Drive are "
             "skipped. Google Drive accepts about 750 GB of uploads per day, so the largest models may need two days.",
             "- **Engine:** built or cached on Drive for the GPU you pick: wheels (vLLM, SGLang, Diffusers), "
@@ -919,8 +919,8 @@ def build_index() -> dict:
             "",
             "Notebooks are grouped under `notebooks/<engine>/`. Each `<engine>_gpu.ipynb` runs the hub on an "
             "L4, A100 or G4: it installs **only that engine**, lists **only its supported models**, and saves "
-            "settings under `config/settings_<engine>.json`. Weights and builds still share "
-            "`MyDrive/llm_models/`. For a T4 use `llama/llama_cpp_t4.ipynb`; for a TPU, `vllm/vllm_tpu.ipynb`.",
+            "settings under `settings/settings_<engine>.json`. Weights and builds still share "
+            "`MyDrive/colab_model_server/`. For a T4 use `llama/llama_cpp_t4.ipynb`; for a TPU, `vllm/vllm_tpu.ipynb`.",
             "",
             *rows,
             "",
