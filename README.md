@@ -54,7 +54,7 @@ Notebooks mount Google Drive and keep **all durable state** under `MyDrive/llm_m
 | `models/<id>/` | Weights (GGUF, safetensors, Diffusers / Comfy trees), marked complete only after a full copy |
 | `builds/` | llama.cpp tarballs; wheels; TensorFold / Sparsa / ComfyUI / Strata / Maya trees; HyperQwen venv and NInfer build tarballs; `hub_pkg/`; `tools/tailscale`, `tools/cloudflared` |
 | `config/settings_<engine>.json` | Per-engine selected model, ctx overrides, Tailscale hostname/port |
-| `hf_cache/` | Hugging Face / Transformers / Diffusers cache (`HF_HOME`) |
+| `hf_cache/` | Small Hugging Face files only (`HF_HOME`: login token, tokenizer / config lookups); model weights go to `models/` |
 | `hub/api_key`, `hub/tailscale_authkey`, `hub/cloudflare_tunnel_token`, `hub/endpoint.json` | Private Drive secrets + last public URL (not in git) |
 | `logs/` | `install.log`, `hub.log`, `tailscaled.log`, engine `hub_logs/` |
 | `outputs/images/`, `outputs/chat/`, `outputs/status/` | Generation results and status snapshots |
