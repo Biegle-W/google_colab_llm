@@ -1954,3 +1954,30 @@ class DshInNotebook(unittest.TestCase):
         self.assertIn("dsh_web.ask_open(", chat)
         img = "".join("".join(c["source"]) for c in m.build_notebook("diffusers")["cells"])
         self.assertNotIn("dsh_web.ask_open(", img)
+
+
+class WarmReadBeforeMmapEngines(unittest.TestCase):
+    def test_basalt_and_strata_nvfp4_files_are_read_once_before_the_engine(self):
+        tmp = tempfile.mkdtemp()
+        try:
+            st = ModelStore(os.path.join(tmp, "d"), os.path.join(tmp, "l"), log=lambda *_: None)
+            e = {"id": "b", "name": "b", "backend": "basalt", "repo": "o/b", "files": ["*"], "size_gb": 0.001,
+                 "model_file": "m.basalt", "contexts": [[1, 1024]], "warm_read": True}
+            d = st.drive_path(e)
+            os.makedirs(d / "sub")
+            open(d / "m.basalt", "wb").write(b"x" * 300_000)
+            open(d / "sub" / "t.bin", "wb").write(b"y" * 1000)
+            write_marker(d, {"files": {}})
+            calls = []
+            orig = st.warm_read
+            st.warm_read = lambda entry, drive: calls.append(drive) or orig(entry, drive)
+            path = st.resolve(e)
+            self.assertEqual(str(path), str(d / "m.basalt"))
+            self.assertEqual(calls, [d])
+            orig(e, d, chunk=4096, workers=3)
+            self.assertEqual(st.progress["b"]["done_bytes"], 301_000)   # slices cover every byte exactly once
+            by = catalog.by_id(catalog.load())
+            for mid in ("basalt-flash-next-nvfp4-dq6k", "strata-nvfp4-flash-next-gptq"):
+                self.assertTrue(by[mid].get("warm_read"), mid)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)

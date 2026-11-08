@@ -408,9 +408,47 @@ class ModelStore:
             else:
                 self.download_to_drive(entry, staging=self.local_root / ".staging" / entry["id"])
         if not catalog.streams_from_disk(entry):
+            if entry.get("warm_read"):
+                self.warm_read(entry, drive)
             self._set(entry, "reading from Drive", entry["size_gb"] * 1e9)
             return self.model_path(entry, base=drive)
         return self._stage_streamed(entry, drive, protect)
+
+    def warm_read(self, entry, drive, chunk=64 * 1024 * 1024, workers=4):
+        """Read the model's files once, start to finish, before the engine starts.
+
+        Engines that memory-map their weights (Basalt, the Strata NVFP4 fork) then read them in small scattered
+        pieces, which the Drive mount serves at a few MB/s (measured: 9 of 68 GiB in 15 min). A sequential pass
+        runs at the mount's full speed and leaves the data in the Drive client's local cache and the page cache,
+        where the engine's own reads then find it. Files are read in parallel slices."""
+        import concurrent.futures
+        files = [p for p in Path(drive).rglob("*") if p.is_file() and p.name != MARKER]
+        total = sum(p.stat().st_size for p in files)
+        self.progress[entry["id"]] = {"phase": "reading from Drive (warming the cache)", "done_bytes": 0,
+                                      "total_bytes": total}
+        jobs = []
+        for p in files:
+            size = p.stat().st_size
+            step = max(chunk, -(-size // workers))
+            jobs += [(p, off, min(step, size - off)) for off in range(0, size, step)]
+        t0 = time.time()
+
+        def read(job):
+            path, off, length = job
+            with open(path, "rb", buffering=0) as f:
+                f.seek(off)
+                left = length
+                while left > 0:
+                    got = f.read(min(chunk, left))
+                    if not got:
+                        break
+                    left -= len(got)
+                    self._add(entry, len(got))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+            list(pool.map(read, jobs))
+        dt = max(time.time() - t0, 1e-6)
+        self.log(f"[store] {entry['id']}: read {total / 1e9:.1f} GB from Drive in {dt / 60:.1f} min "
+                 f"({total / dt / 1e6:.0f} MB/s) before starting the engine")
 
     def _stage_streamed(self, entry, drive, protect):
         lock = self._lock(entry)
