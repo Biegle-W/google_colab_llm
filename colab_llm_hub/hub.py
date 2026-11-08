@@ -15,7 +15,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import unquote, urlsplit
 
-from . import backends, catalog, gpu
+from . import backends, catalog, gpu, idle_guard
 
 MAX_BODY = 32 * 1024 * 1024
 KEEPALIVE = 10            # seconds between SSE comment keep-alives
@@ -56,6 +56,8 @@ class Hub:
         self.errors = {}          # model id -> (message, code, time)
         self.stopping = False
         self.worker = threading.Thread(target=self._loader_loop, name="hub-loader", daemon=True)
+        # Tell the idle guard (idle_guard.py) the runtime is in use while requests, loads or downloads run.
+        threading.Thread(target=self._activity_loop, name="hub-activity", daemon=True).start()
         self.worker.start()
 
     # ---- model info ------------------------------------------------------------------------
@@ -84,8 +86,20 @@ class Hub:
                     "local_free_gb": round(self.store.free_gb(), 1), "models": list(self.entries)}
 
     # ---- request side ----------------------------------------------------------------------
+    def _busy(self):
+        downloading = any(p.get("phase") not in ("ready", "reading from Drive", "on Drive")
+                          for p in self.store.progress.values())
+        return bool(self.inflight or self.loading or self.target or downloading)
+
+    def _activity_loop(self, every=20):
+        while not self.stopping:
+            if self._busy():
+                idle_guard.touch_activity()
+            time.sleep(every)
+
     def acquire(self, model_id, progress=lambda: None, timeout=NONSTREAM_WAIT):
         """Reserve the engine for one request, loading the model if needed. Returns the engine's port."""
+        idle_guard.touch_activity()
         if model_id not in self.entries:
             raise HubError(404, "Unknown model, or it does not fit this GPU. Use GET /v1/models.", "model_not_found")
         deadline = self.now() + timeout

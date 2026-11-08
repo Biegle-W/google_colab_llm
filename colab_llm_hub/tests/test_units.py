@@ -1293,3 +1293,99 @@ class ReadFromDrive(unittest.TestCase):
         cmd = backends.command(catalog.by_id(catalog.load())["hyperqwen-qwen3.8-27b-mtp"], "/d/hq", 65536,
                                {"work_dir": "/content/models"})
         self.assertEqual(cmd[cmd.index("--work-dir") + 1], "/content/models")
+
+
+class IdleGuard(unittest.TestCase):
+    """The runtime is released after N idle minutes, never while anything is happening."""
+
+    def make(self, **signals):
+        from colab_llm_hub import idle_guard
+        self.t = [1000.0]
+        self.cpu_total, self.cpu_idle, self.netb = [0], [0], [0]
+        self.released = []
+        s = {"busy": False, "last": None, "gpu": 0, "cpu_busy": 0.0, "net_rate": 0}
+        s.update(signals)
+        self.s = s
+        self.hb = os.path.join(tempfile.mkdtemp(), "hb")
+
+        def cpu():
+            return self.cpu_total[0], self.cpu_idle[0]
+
+        def advance(seconds):
+            self.t[0] += seconds
+            self.cpu_total[0] += int(100 * seconds)
+            self.cpu_idle[0] += int(100 * seconds * (1 - self.s["cpu_busy"] / 2))  # 2 cores
+            self.netb[0] += int(self.s["net_rate"] * seconds)
+        self.advance = advance
+        return idle_guard.Guard(10, interval=30, now=lambda: self.t[0], log=lambda *a: None,
+                                kernels=lambda: (self.s["busy"], self.s["last"]), cpu=cpu,
+                                net=lambda: self.netb[0], gpu=lambda: self.s["gpu"], heartbeat=self.hb,
+                                release=lambda log: self.released.append(self.t[0]) or True, ncpu=2)
+
+    def run_for(self, g, minutes):
+        for _ in range(int(minutes * 2)):
+            self.advance(30)
+            if g.step():
+                return True
+        return False
+
+    def test_released_after_ten_idle_minutes_not_before(self):
+        g = self.make()
+        self.assertFalse(self.run_for(g, 9.5))
+        self.assertTrue(self.run_for(g, 1))
+
+    def test_each_kind_of_activity_keeps_it_alive(self):
+        for signal in ({"busy": True}, {"gpu": 60}, {"cpu_busy": 1.5}, {"net_rate": 5_000_000}):
+            g = self.make(**signal)
+            self.assertFalse(self.run_for(g, 30), signal)
+
+    def test_recent_cell_or_api_request_restarts_the_clock(self):
+        g = self.make()
+        self.run_for(g, 8)
+        self.s["last"] = self.t[0]                       # a cell (or a CLI exec) just ran
+        self.assertFalse(self.run_for(g, 9))
+        open(self.hb, "w").close()
+        os.utime(self.hb, (self.t[0], self.t[0]))        # the hub answered a request
+        self.assertFalse(self.run_for(g, 9))
+        self.assertTrue(self.run_for(g, 2))
+
+    def test_release_flushes_drive_first_and_waits_if_it_cannot(self):
+        from colab_llm_hub import idle_guard
+        posted = []
+
+        class R:
+            status = 200
+            def __enter__(s): return s
+            def __exit__(s, *a): pass
+        os.environ["TBE_RUNTIME_ADDR"] = "10.0.0.1:8011"
+        try:
+            self.assertFalse(idle_guard.release_runtime(lambda *a: None, flush=lambda log: False,
+                                                        opener=lambda req, timeout=None: posted.append(req)))
+            self.assertEqual(posted, [])                  # pending Drive uploads: do not release yet
+            self.assertTrue(idle_guard.release_runtime(lambda *a: None, flush=lambda log: True,
+                                                       opener=lambda req, timeout=None: posted.append(req) or R()))
+        finally:
+            del os.environ["TBE_RUNTIME_ADDR"]
+        self.assertEqual((posted[0].full_url, posted[0].get_method()), ("http://10.0.0.1:8011/unassign", "POST"))
+
+    def test_kernel_activity_parses_jupyter(self):
+        from colab_llm_hub import idle_guard
+        import io
+
+        class R(io.BytesIO):
+            def __enter__(s): return s
+            def __exit__(s, *a): pass
+        body = json.dumps([{"execution_state": "idle", "last_activity": "2026-11-08T01:08:28.463592Z"},
+                           {"execution_state": "busy", "last_activity": "2026-11-07T22:39:55Z"}]).encode()
+        busy, last = idle_guard.kernel_activity(opener=lambda url, timeout=None: R(body))
+        self.assertTrue(busy)
+        self.assertEqual(int(last), 1794100108)
+        self.assertEqual(idle_guard.kernel_activity(opener=lambda *a, **k: (_ for _ in ()).throw(OSError())),
+                         (False, None))
+
+    def test_notebooks_start_it(self):
+        from colab_llm_hub import make_engine_notebooks
+        for nb in (make_engine_notebooks.build_notebook("vllm"), make_engine_notebooks.build_prepare_notebook()):
+            text = "".join("".join(c["source"]) for c in nb["cells"])
+            self.assertIn("idle_guard.start(IDLE_TIMEOUT_MIN)", text)
+            self.assertIn('IDLE_TIMEOUT_MIN = 10  # @param', text)
