@@ -1738,5 +1738,50 @@
     "draft_tokens": 3,
     "proposal_head": "optimized",
     "notes": "NInfer native C++/CUDA engine; upstream builds only for Blackwell sm_120 (RTX 5090 class), so G4 only. 101 GiB in 4 files: NInfer keeps hot experts on the GPU and backs the rest from host RAM (~63 GiB on a 32 GB card, less on the 96 GB G4)."
+  },
+  {
+    "id": "basalt-flash-next-nvfp4-dq6k",
+    "name": "Qwen3.8-Flash-Next NVFP4-DQ6_K (Basalt)",
+    "backend": "basalt",
+    "repo": "jesdga/Qwen3.8-Flash-Next-Basalt",
+    "files": [
+      "Qwen3.8-FN-NVFP4-DQ6_K.basalt"
+    ],
+    "model_file": "Qwen3.8-FN-NVFP4-DQ6_K.basalt",
+    "size_gb": 131.7,
+    "offload": true,
+    "contexts": [
+      [
+        90,
+        131072
+      ]
+    ],
+    "kv": "int8",
+    "gpu_arch": [
+      "120"
+    ],
+    "notes": "Basalt (Strata fork for Blackwell sm_120, CUDA 13). One self-contained .basalt file: NVIDIA's NVFP4 experts bit for bit, dense projections Q6_K, MTP drafter on by default. Experts the GPU does not hold stay in page-locked RAM (63 GiB). G4 only."
+  },
+  {
+    "id": "strata-nvfp4-flash-next-gptq",
+    "name": "Qwen3.8-Flash-Next NVFP4 GPTQ (Strata NVFP4 fork)",
+    "backend": "strata_nvfp4",
+    "repo": "Maximilian228/Qwen3.8-Flash-Next-NVFP4-GPTQ-Strata",
+    "files": [
+      "*"
+    ],
+    "size_gb": 128.8,
+    "offload": true,
+    "contexts": [
+      [
+        90,
+        131072
+      ]
+    ],
+    "strata_family": "qwen-nvfp4-gptq",
+    "gpu_arch": [
+      "120"
+    ],
+    "notes": "sergqwer/strata-nvfp4 0.2.0-beta-nvfp4.3, family qwen-nvfp4-gptq (setup's default): every expert NVFP4 by the fork's GPTQ, MTP draft head; 63 GiB of experts kept in RAM, 51 GB FP8 n-gram table. The fork's setup compiles the engine at the first start (CUDA 13, cached on Drive). G4 only."
   }
 ]

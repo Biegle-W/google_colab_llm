@@ -15,13 +15,14 @@ import urllib.request
 PORTS = {
     "llama": 30080, "vllm": 30010, "sglang": 30020, "diffusers": 30090,
     "strata": 30050, "maya": 30060, "tensorfold": 30070, "comfyui": 30095,
-    "sparsa": 30065, "hyperqwen": 30030, "ninfer": 30040,
+    "sparsa": 30065, "hyperqwen": 30030, "ninfer": 30040, "basalt": 30045, "strata_nvfp4": 30055,
 }
 READY_TIMEOUT = 1800
-CHAT_BACKENDS = ("llama", "vllm", "sglang", "strata", "maya", "tensorfold", "sparsa", "hyperqwen", "ninfer")
+CHAT_BACKENDS = ("llama", "vllm", "sglang", "strata", "maya", "tensorfold", "sparsa", "hyperqwen", "ninfer",
+                 "basalt", "strata_nvfp4")
 IMAGE_BACKENDS = ("diffusers", "comfyui")
 # Engines that advertise their own model names; readiness = OpenAI /v1/models answers.
-ALIAS_READY_BACKENDS = ("strata", "maya", "sparsa")
+ALIAS_READY_BACKENDS = ("strata", "maya", "sparsa", "strata_nvfp4")
 opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
@@ -242,6 +243,27 @@ def ninfer_command(entry, model_path, ctx, ninfer_bin, port=None):
     return args + list(entry.get("extra_args", []))
 
 
+def basalt_command(entry, model_path, ctx, root, port=None):
+    """Basalt's server: `bin/basalt serve MODEL.basalt --python PY [server args]` (binds 127.0.0.1)."""
+    root = str(root)
+    args = [os.path.join(root, "bin", "basalt"), "serve", str(model_path),
+            "--python", os.path.join(root, "venv", "bin", "python"),
+            "--port", str(port or PORTS["basalt"]), "--max-context", str(int(ctx)),
+            "--kv", entry.get("kv", "int8"), "--alias", entry["id"]]
+    return args + list(entry.get("extra_args", []))
+
+
+def strata_nvfp4_command(entry, model_path, ctx, root, python=None, port=None, builds=None):
+    """The Strata NVFP4 fork, through strata_nvfp4_launch (links the Drive copy, runs setup once, serves)."""
+    args = [python or sys.executable, "-m", "colab_llm_hub.strata_nvfp4_launch", "--root", str(root),
+            "--model", str(model_path), "--family", entry.get("strata_family", "qwen-nvfp4-gptq"),
+            "--port", str(port or PORTS["strata_nvfp4"]), "--ctx", str(int(ctx))]
+    if builds:
+        from .install import strata_nvfp4_tarball
+        args += ["--builds", str(builds), "--tarball", strata_nvfp4_tarball(str(builds))]
+    return args
+
+
 def _walk_names(root):
     out = []
     for dirpath, _, files in os.walk(root):
@@ -280,6 +302,11 @@ def command(entry, model_path, ctx, bins, port=None):
     if entry["backend"] == "ninfer":
         return ninfer_command(entry, model_path, ctx,
                               bins.get("ninfer", "/content/ninfer/apps/ninfer-serve"), port)
+    if entry["backend"] == "basalt":
+        return basalt_command(entry, model_path, ctx, bins.get("basalt", "/content/basalt"), port)
+    if entry["backend"] == "strata_nvfp4":
+        return strata_nvfp4_command(entry, model_path, ctx, bins.get("strata_nvfp4", "/content/strata-nvfp4"),
+                                    bins.get("python"), port, builds=bins.get("builds"))
     return vllm_command(entry, model_path, ctx, bins.get("vllm", "vllm"), port)
 
 
@@ -295,6 +322,14 @@ def env_for(entry, bins=None):
         ninfer_bin = (bins or {}).get("ninfer", "/content/ninfer/apps/ninfer-serve")
         lib = os.path.join(os.path.dirname(os.path.dirname(str(ninfer_bin))), "lib")
         env["LD_LIBRARY_PATH"] = lib + (":" + env["LD_LIBRARY_PATH"] if env.get("LD_LIBRARY_PATH") else "")
+    if entry["backend"] == "basalt":
+        # The cached build bundles the CUDA 13 runtime libraries in lib/.
+        lib = os.path.join(str((bins or {}).get("basalt", "/content/basalt")), "lib")
+        env["LD_LIBRARY_PATH"] = lib + (":" + env["LD_LIBRARY_PATH"] if env.get("LD_LIBRARY_PATH") else "")
+    if entry["backend"] == "strata_nvfp4":
+        env["STRATA_UPDATE_CHECK"] = "0"
+        pkg_parent = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        env["PYTHONPATH"] = pkg_parent + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
     if entry["backend"] in ("vllm", "sglang"):
         env.setdefault("VLLM_ENGINE_READY_TIMEOUT_S", str(READY_TIMEOUT))
         env["HF_HUB_OFFLINE"] = "1"                      # serve the local copy; never re-download

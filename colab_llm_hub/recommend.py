@@ -6,7 +6,7 @@ plus official Strata / Project Maya / TensorFold / Sparsa / ComfyUI docs and Col
 from . import catalog
 
 ENGINES = ("llama", "vllm", "sglang", "diffusers", "strata", "maya", "tensorfold", "comfyui", "sparsa",
-           "hyperqwen", "ninfer")
+           "hyperqwen", "ninfer", "basalt", "strata_nvfp4")
 
 # Preferred catalog ids per engine × GPU band (best-first).
 _ENGINE_PREFETCH = {
@@ -93,6 +93,8 @@ _ENGINE_PREFETCH = {
         "a100_80": [],
         "g4": ["ninfer-qwen3.8-27b-nvfp4"],
     },
+    "basalt": {"t4": [], "l4": [], "a100_40": [], "a100_80": [], "g4": ["basalt-flash-next-nvfp4-dq6k"]},
+    "strata_nvfp4": {"t4": [], "l4": [], "a100_40": [], "a100_80": [], "g4": ["strata-nvfp4-flash-next-gptq"]},
 }
 
 _ENGINE_NOTES = {
@@ -220,6 +222,13 @@ _ENGINE_NOTES = {
         "g4": ["G4: Qwen3.8-27B NVFP4 / int, Qwen3.6-35B-A3B, Flash-Next with CPU expert offload. "
                "First run builds NInfer with CUDA 13 (cached on Drive)."],
     },
+    "basalt": {**{b: ["Basalt builds only for Blackwell sm_120: use the G4 runtime."] for b in ("t4", "l4", "a100_40", "a100_80")},
+               "g4": ["G4: Flash-Next NVFP4-DQ6_K (132 GB): experts the GPU does not hold stay in RAM. "
+                      "First run builds Basalt with CUDA 13 (cached on Drive)."]},
+    "strata_nvfp4": {**{b: ["The Strata NVFP4 fork's setup here targets the G4 runtime (Blackwell sm_120)."]
+                        for b in ("t4", "l4", "a100_40", "a100_80")},
+                     "g4": ["G4: Flash-Next NVFP4 GPTQ (129 GB): every expert in RAM. First start compiles the "
+                            "engine with the fork's setup (cached on Drive)."]},
 }
 
 # Hub notebooks live under notebooks/<engine>/…
@@ -289,6 +298,18 @@ ENGINE_META = {
         "notebook": "notebooks/ninfer/ninfer_gpu.ipynb",
         "kind": "chat",
         "summary": "Native C++/CUDA (G4 only): Qwen3.8-27B NVFP4/int, Qwen3.6-35B-A3B, Flash-Next",
+    },
+    "basalt": {
+        "title": "Basalt",
+        "notebook": "notebooks/basalt/basalt_gpu.ipynb",
+        "kind": "chat",
+        "summary": "Strata fork for Blackwell (G4 only): Qwen3.8-Flash-Next NVFP4-DQ6_K",
+    },
+    "strata_nvfp4": {
+        "title": "Strata NVFP4",
+        "notebook": "notebooks/strata_nvfp4/strata_nvfp4_gpu.ipynb",
+        "kind": "chat",
+        "summary": "sergqwer/strata-nvfp4 (G4 only): Qwen3.8-Flash-Next NVFP4 GPTQ",
     },
 }
 INDEX_NOTEBOOK = "notebooks/llm_hub_colab.ipynb"

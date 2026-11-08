@@ -46,7 +46,8 @@ def _badge(notebook):
 SIBLING_NOTEBOOKS = (
     "`notebooks/llama/`, `notebooks/vllm/`, `notebooks/sglang/`, `notebooks/diffusers/`, "
     "`notebooks/strata/`, `notebooks/maya/`, `notebooks/tensorfold/`, `notebooks/comfyui/`, "
-    "`notebooks/sparsa/`, `notebooks/hyperqwen/`, `notebooks/ninfer/` — see `notebooks/llm_hub_colab.ipynb`"
+    "`notebooks/sparsa/`, `notebooks/hyperqwen/`, `notebooks/ninfer/`, `notebooks/basalt/`, "
+    "`notebooks/strata_nvfp4/` — see `notebooks/llm_hub_colab.ipynb`"
 )
 
 
@@ -153,6 +154,26 @@ def _model_table(engine):
             "Official: [Neroued/ninfer](https://github.com/Neroued/ninfer) `ninfer-serve`. "
             "Builds only for Blackwell sm_120a, so **G4 runtime only**; first run builds it with CUDA 13 "
             "and caches the build on Drive.",
+        ]
+    if engine == "basalt":
+        return [
+            "| Catalog id | Notes |",
+            "|---|---|",
+            "| `basalt-flash-next-nvfp4-dq6k` | Flash-Next NVFP4-DQ6_K, one 132 GB `.basalt` file, MTP drafting |",
+            "",
+            "Official: [jesdga95/basalt](https://github.com/jesdga95/basalt) `bin/basalt serve MODEL.basalt`. "
+            "Builds only for Blackwell sm_120, so **G4 runtime only**; first run builds it with CUDA 13 "
+            "and caches the build on Drive.",
+        ]
+    if engine == "strata_nvfp4":
+        return [
+            "| Catalog id | Notes |",
+            "|---|---|",
+            "| `strata-nvfp4-flash-next-gptq` | Flash-Next NVFP4 GPTQ (setup's default family), 129 GB |",
+            "",
+            "Official: [sergqwer/strata-nvfp4](https://github.com/sergqwer/strata-nvfp4) `./setup.sh` then "
+            "`serve/server.py --engine strata`. **G4 runtime only** here; the first start runs the fork's setup "
+            "(it compiles the engine with CUDA 13) and caches the result on Drive.",
         ]
     return [
         "| Catalog id | Notes |",
@@ -372,6 +393,8 @@ def build_notebook(engine: str) -> dict:
             "SPARSA_ROOT = str(WS.builds / \"Sparsa\")",
             "HYPERQWEN_ROOT = install.HYPERQWEN_ROOT",
             "NINFER_BIN = install.NINFER_ROOT + \"/apps/ninfer-serve\"",
+            "BASALT_ROOT = install.BASALT_ROOT",
+            "STRATA_NVFP4_ROOT = install.STRATA_NVFP4_ROOT",
             "install.ensure_hub_deps(BUILDS, refresh=REFRESH_WHEELS)",
             f'if ENGINE == "llama":',
             "    LLAMA_BIN = install.ensure_llama(BUILDS, G[\"arch\"], ref=LLAMA_CPP_REF, rebuild=REBUILD_LLAMA)",
@@ -403,6 +426,12 @@ def build_notebook(engine: str) -> dict:
             f'elif ENGINE == "ninfer":',
             "    NINFER_BIN = install.ensure_ninfer(BUILDS, G[\"arch\"], refresh=REFRESH_WHEELS)",
             "    print(\"ninfer-serve:\", NINFER_BIN)",
+            f'elif ENGINE == "basalt":',
+            "    BASALT_ROOT = install.ensure_basalt(BUILDS, G[\"arch\"], refresh=REFRESH_WHEELS)",
+            "    print(\"basalt:\", BASALT_ROOT)",
+            f'elif ENGINE == "strata_nvfp4":',
+            "    STRATA_NVFP4_ROOT = install.ensure_strata_nvfp4(BUILDS, G[\"arch\"], refresh=REFRESH_WHEELS)",
+            "    print(\"strata-nvfp4:\", STRATA_NVFP4_ROOT)",
             "print(\"Install log →\", WS.logs / \"install.log\")",
         ]),
         _md([
@@ -478,6 +507,7 @@ def build_notebook(engine: str) -> dict:
             "        \"--tensorfold-bin\", TENSORFOLD_BIN, \"--comfyui-root\", COMFYUI_ROOT,",
             "        \"--sparsa-root\", SPARSA_ROOT,",
             "        \"--hyperqwen-root\", HYPERQWEN_ROOT, \"--ninfer-bin\", NINFER_BIN,",
+            "        \"--basalt-root\", BASALT_ROOT, \"--strata-nvfp4-root\", STRATA_NVFP4_ROOT,",
             "        \"--engines\", ENGINE]",
             "if SERVE_ONLY_SELECTED:",
             "    args += [\"--models\", MODEL]   # the harness cannot trigger downloads of other models",

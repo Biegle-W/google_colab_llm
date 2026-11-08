@@ -15,6 +15,8 @@ engine and advertises only its catalog models):
 | [`notebooks/sparsa/`](../notebooks/sparsa/) | **Sparsa** (MiniMax-M3.1-Flash) |
 | [`notebooks/hyperqwen/`](../notebooks/hyperqwen/) | **HyperQwen** (Qwen3.8-27B W4A16, patched vLLM 0.32) |
 | [`notebooks/ninfer/`](../notebooks/ninfer/) | **NInfer** (native C++/CUDA, G4 only) |
+| [`notebooks/basalt/`](../notebooks/basalt/) | **Basalt** (Strata fork for Blackwell, G4 only) |
+| [`notebooks/strata_nvfp4/`](../notebooks/strata_nvfp4/) | **Strata NVFP4 fork** (G4 only) |
 | [`notebooks/comfyui/`](../notebooks/comfyui/) | **ComfyUI** (Qwen-Image Turbo, FLUX.3 Klein, video prefetch) |
 | [`notebooks/llama/`](../notebooks/llama/) | llama.cpp (Bolt IQ2, Sage, Ornith, MoE fallbacks) |
 | [`notebooks/vllm/`](../notebooks/vllm/) | vLLM |

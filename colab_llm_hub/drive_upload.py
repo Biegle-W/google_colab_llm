@@ -55,4 +55,8 @@ def upload_paced_copier(tx=tx_bytes, stall_s=1200, sleep=time.sleep, log=print, 
         copy(src, dst, on_bytes)
         if size > 50_000_000:                       # small files ride along with the next big one
             wait_uploaded(size, start, tx=tx, stall_s=stall_s, sleep=sleep, log=log, label=os.path.basename(str(dst)))
+    # For files the store downloads straight into Drive (too large to stage locally): wait the same way.
+    copier.tx = tx
+    copier.wait_uploaded = lambda size, start, label="": wait_uploaded(size, start, tx=tx, stall_s=stall_s,
+                                                                        sleep=sleep, log=log, label=label)
     return copier

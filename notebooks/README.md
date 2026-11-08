@@ -18,6 +18,8 @@ single-server notebooks, because no hub model fits a T4 and the hub does not run
 | [`sparsa/`](sparsa/) | [`sparsa_gpu.ipynb`](sparsa/sparsa_gpu.ipynb) | — |
 | [`hyperqwen/`](hyperqwen/) | [`hyperqwen_gpu.ipynb`](hyperqwen/hyperqwen_gpu.ipynb) | A100: batch entry only; L4 too small |
 | [`ninfer/`](ninfer/) | [`ninfer_gpu.ipynb`](ninfer/ninfer_gpu.ipynb) | G4 (sm_120) only |
+| [`basalt/`](basalt/) | [`basalt_gpu.ipynb`](basalt/basalt_gpu.ipynb) | G4 (sm_120) only |
+| [`strata_nvfp4/`](strata_nvfp4/) | [`strata_nvfp4_gpu.ipynb`](strata_nvfp4/strata_nvfp4_gpu.ipynb) | G4 (sm_120) only |
 | [`prepare/`](prepare/) | — | [`prepare_cpu.ipynb`](prepare/prepare_cpu.ipynb): CPU runtime downloads + builds for a GPU runtime |
 | [`unsloth/`](unsloth/) | — | `Unsloth_Studio_Colab.ipynb` |
 

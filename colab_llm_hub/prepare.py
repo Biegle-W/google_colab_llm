@@ -15,7 +15,7 @@ from .store import ModelStore, StoreError
 DEFAULT_STAGING = "/content/prepare_staging"
 # Engines compiled from source. A standard Colab CPU runtime has 2 threads and no CUDA toolkit, where these
 # take far longer than the few minutes they take on a GPU runtime's many cores, so they are skipped there.
-COMPILED_ENGINES = ("llama", "ninfer")
+COMPILED_ENGINES = ("llama", "ninfer", "basalt")
 MIN_COMPILE_THREADS = 8
 
 
@@ -63,6 +63,10 @@ def build_engine(engine, target, builds_dir, refresh=False, run=install.sh, log=
         return install.ensure_hyperqwen(builds_dir, install_now=False, **kw)
     if engine == "ninfer":
         return install.ensure_ninfer(builds_dir, arch, install_now=False, **kw)
+    if engine == "basalt":
+        return install.ensure_basalt(builds_dir, arch, install_now=False, **kw)
+    if engine == "strata_nvfp4":
+        return install.ensure_strata_nvfp4(builds_dir, arch, install_now=False, **kw)
     ensure = {"strata": install.ensure_strata, "maya": install.ensure_maya, "tensorfold": install.ensure_tensorfold,
               "comfyui": install.ensure_comfyui, "sparsa": install.ensure_sparsa}.get(engine)
     if ensure is None:

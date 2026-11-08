@@ -1525,7 +1525,8 @@ class DownloadToDriveRoom(unittest.TestCase):
             open(p, "wb").write(b"x" * 10)
             return p
         orig = shutil.disk_usage
-        shutil.disk_usage = lambda p: type("U", (), {"free": int(70e9), "total": 0, "used": 0})()
+        # 150 GB free: the file plus the Drive client's cached copy of it fit, so it is staged locally
+        shutil.disk_usage = lambda p: type("U", (), {"free": int(150e9), "total": 0, "used": 0})()
         try:
             def sparse_copy(s, d, cb=None):                    # a full-size (sparse) file, as a real copy leaves
                 os.makedirs(os.path.dirname(d), exist_ok=True)
@@ -1534,7 +1535,7 @@ class DownloadToDriveRoom(unittest.TestCase):
             st.download_to_drive(e, staging=staging, lister=lambda r, t=None: [("m.gguf", int(63.4e9))], fetch=fetch,
                                  copier=sparse_copy)
         except StoreError as ex:
-            self.fail(f"70 GB free should be enough for one 63.4 GB file: {ex}")
+            self.fail(f"150 GB free should be enough for one 63.4 GB file: {ex}")
         finally:
             shutil.disk_usage = orig
             shutil.rmtree(tmp, ignore_errors=True)
@@ -1637,3 +1638,131 @@ class TruncatedCopyNeverMarkedComplete(unittest.TestCase):
         self.assertEqual(r["saved"], ["m"])
         self.assertEqual((drive / "a.bin").stat().st_size, 100)
         self.assertEqual(self.st.verify_against_source(self.e), [])
+
+
+class BasaltAndStrataNvfp4(unittest.TestCase):
+    G4, A100 = (102.6, "120"), (85.9, "80")
+
+    def setUp(self):
+        self.by = catalog.by_id(catalog.load())
+
+    def test_g4_only(self):
+        for mid in ("basalt-flash-next-nvfp4-dq6k", "strata-nvfp4-flash-next-gptq"):
+            e = self.by[mid]
+            self.assertIsNone(catalog.why_not(e, 102.6, ram_gb=176, disk_gb=253, arch="120"), mid)
+            self.assertIn("sm_120", catalog.why_not(e, 85.9, ram_gb=167, disk_gb=350, arch="80"))
+        from colab_llm_hub import recommend
+        self.assertEqual(recommend.for_engine("basalt", 102.6, arch="120")["prefetch"], ["basalt-flash-next-nvfp4-dq6k"])
+        self.assertEqual(recommend.for_engine("strata_nvfp4", 102.6, arch="120")["prefetch"],
+                         ["strata-nvfp4-flash-next-gptq"])
+
+    def test_basalt_command_and_env(self):
+        e = self.by["basalt-flash-next-nvfp4-dq6k"]
+        st = ModelStore("/d", "/l", log=lambda *_: None)
+        path = st.model_path(e, "/d/models/basalt-flash-next-nvfp4-dq6k")
+        self.assertTrue(str(path).endswith("Qwen3.8-FN-NVFP4-DQ6_K.basalt"))
+        cmd = backends.command(e, path, 131072, {"basalt": "/opt/basalt"})
+        self.assertEqual(cmd[:3], ["/opt/basalt/bin/basalt", "serve", str(path)])
+        flags = dict(zip(cmd[3::2], cmd[4::2]))
+        self.assertEqual((flags["--python"], flags["--port"], flags["--max-context"], flags["--kv"], flags["--alias"]),
+                         ("/opt/basalt/venv/bin/python", "30045", "131072", "int8", e["id"]))
+        self.assertNotIn("--host", cmd)                     # Basalt binds 127.0.0.1 by itself; the hub does auth
+        env = backends.env_for(e, {"basalt": "/opt/basalt"})
+        self.assertTrue(env["LD_LIBRARY_PATH"].startswith("/opt/basalt/lib"))
+
+    def test_strata_nvfp4_command(self):
+        e = self.by["strata-nvfp4-flash-next-gptq"]
+        cmd = backends.command(e, "/d/models/strata-nvfp4-flash-next-gptq", 131072,
+                               {"strata_nvfp4": "/opt/snv", "python": "/py", "builds": "/d/builds"})
+        self.assertEqual(cmd[:3], ["/py", "-m", "colab_llm_hub.strata_nvfp4_launch"])
+        flags = dict(zip(cmd[3::2], cmd[4::2]))
+        self.assertEqual((flags["--root"], flags["--model"], flags["--family"], flags["--port"], flags["--ctx"]),
+                         ("/opt/snv", "/d/models/strata-nvfp4-flash-next-gptq", "qwen-nvfp4-gptq", "30055", "131072"))
+        self.assertTrue(flags["--tarball"].startswith("/d/builds/strata_nvfp4_"))
+        self.assertIn("strata_nvfp4", backends.ALIAS_READY_BACKENDS)
+
+    def test_launcher_links_and_marks(self):
+        from colab_llm_hub import strata_nvfp4_launch as L
+        tmp = tempfile.mkdtemp()
+        try:
+            src = os.path.join(tmp, "drive", "m")
+            os.makedirs(os.path.join(src, "pack"))
+            open(os.path.join(src, "pack", "experts.bin"), "wb").write(b"x" * 10)
+            open(os.path.join(src, "ple-fp8.gguf"), "wb").write(b"y" * 4)
+            pins = {"pack/experts.bin": (10, "aa"), "ple-fp8.gguf": (4, "bb")}
+            with self.assertRaises(SystemExit):              # not recorded complete by the hub yet
+                L.write_marks(src, pins, log=lambda *_: None)
+            open(os.path.join(src, MARKER), "w").write("{}")
+            L.write_marks(src, pins, log=lambda *_: None)
+            self.assertIn("sha256 aa", open(os.path.join(src, "pack", "experts.bin.done")).read())
+            self.assertIn("sha256 bb", open(os.path.join(src, "ple-fp8.gguf.done")).read())
+            with self.assertRaises(SystemExit):              # a size that is not the pinned revision's
+                L.write_marks(src, {"ple-fp8.gguf": (5, "bb")}, log=lambda *_: None)
+            link = L.link_model(os.path.join(tmp, "models"), "Owner/Repo", src)
+            self.assertEqual(os.path.basename(link), "Owner--Repo")
+            self.assertTrue(os.path.isfile(os.path.join(link, "pack", "experts.bin.done")))
+            self.assertEqual(L.link_model(os.path.join(tmp, "models"), "Owner/Repo", src), link)    # idempotent
+            args = L.setup_args("qwen-nvfp4-gptq", "/m", "/d", 30055, 131072)
+            for flag in ("--yes", "--no-start", "--no-browser"):
+                self.assertIn(flag, args)
+            self.assertEqual(args[args.index("--context") + 1], "131072")
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_cuda13_upgrade_rules(self):
+        def run_with(out):
+            calls = []
+
+            def run(cmd):
+                calls.append(cmd)
+                if "nvidia-smi" in cmd:
+                    return "580.82.07"
+                if "nvcc --version" in cmd:
+                    return out
+                return ""
+            return run, calls
+        for out, upgrade in (("Cuda compilation tools, release 13.0, V13.0.88", False),
+                             ("Cuda compilation tools, release 13.2, V13.2.51", True),     # miscompiles sm_120
+                             ("Cuda compilation tools, release 13.2, V13.2.86", False),
+                             ("Cuda compilation tools, release 12.5, V12.5.82", True)):
+            run, calls = run_with(out)
+            install.ensure_cuda13("x", run=run, log=lambda *_: None)
+            self.assertEqual(any("cuda-toolkit-13" in c for c in calls), upgrade, out)
+
+
+class DirectToDriveForHugeFiles(unittest.TestCase):
+    """A file larger than half the free local disk is downloaded straight into the Drive folder."""
+
+    def test_huge_file_goes_direct_and_small_ones_are_staged(self):
+        tmp = tempfile.mkdtemp()
+        st = ModelStore(os.path.join(tmp, "d"), os.path.join(tmp, "l"), log=lambda *_: None)
+        e = {"id": "big", "name": "big", "backend": "basalt", "repo": "o/big", "files": ["*"], "size_gb": 131.7,
+             "model_file": "m.basalt", "contexts": [[1, 1024]]}
+        listing = [("m.basalt", 120), ("README.md", 5)]
+        where, waited = {}, []
+
+        def fetch(repo, path, dest, token=None):
+            where[path] = str(dest)
+            p = os.path.join(dest, path)
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            open(p, "wb").write(b"x" * dict(listing)[path])
+            return p
+
+        def copier(s, d, cb=None):
+            os.makedirs(os.path.dirname(d), exist_ok=True)
+            shutil.copyfile(s, d)
+        copier.tx = lambda: 0
+        copier.wait_uploaded = lambda size, start, label="": waited.append((size, label))
+        orig = shutil.disk_usage
+        shutil.disk_usage = lambda p: type("U", (), {"free": int(20e9 + 200), "total": 0, "used": 0})()
+        try:
+            st.download_to_drive(e, staging=os.path.join(tmp, "stage"), lister=lambda r, t=None: listing,
+                                 fetch=fetch, copier=copier)
+        finally:
+            shutil.disk_usage = orig
+        drive = str(st.drive_path(e))
+        self.assertEqual(where["m.basalt"], drive)                       # 120 > (200) / 2: straight to Drive
+        self.assertEqual(where["README.md"], os.path.join(tmp, "stage"))  # 5: staged as usual
+        self.assertEqual(waited, [(120, "m.basalt")])
+        self.assertTrue(is_complete(st.drive_path(e)))
+        shutil.rmtree(tmp, ignore_errors=True)

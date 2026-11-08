@@ -28,6 +28,8 @@ def parse(argv=None):
     s.add_argument("--sparsa-root", default=None, help="Sparsa checkout (from ensure_sparsa)")
     s.add_argument("--hyperqwen-root", default=None, help="HyperQwen checkout with patched venv (from ensure_hyperqwen)")
     s.add_argument("--ninfer-bin", default=None, help="ninfer-serve binary (from ensure_ninfer)")
+    s.add_argument("--basalt-root", default=None, help="Basalt build (from ensure_basalt)")
+    s.add_argument("--strata-nvfp4-root", default=None, help="Strata NVFP4 checkout (from ensure_strata_nvfp4)")
     s.add_argument("--python", default=sys.executable, help="Python used to launch Diffusers / ComfyUI / Sparsa")
     s.add_argument("--catalog", default=None)
     s.add_argument("--engines",
@@ -129,6 +131,9 @@ def main(argv=None):
         "sparsa": a.sparsa_root or os.path.join(builds, "Sparsa"),
         "hyperqwen": a.hyperqwen_root or "/content/HyperQwen",
         "ninfer": a.ninfer_bin or "/content/ninfer/apps/ninfer-serve",
+        "basalt": a.basalt_root or install.BASALT_ROOT,
+        "strata_nvfp4": a.strata_nvfp4_root or install.STRATA_NVFP4_ROOT,
+        "builds": builds,
         "work_dir": a.local_dir,            # engine scratch on local disk (models themselves stay on Drive)
     }
     ram = a.ram_gb if a.ram_gb is not None else gpu.ram()["total_gb"]

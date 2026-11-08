@@ -123,7 +123,7 @@ class ModelStore:
     def model_path(self, entry, base=None):
         """What the engine is pointed at: a GGUF file for llama.cpp, a model directory otherwise."""
         base = Path(base) if base is not None else self.local_path(entry)
-        if entry["backend"] in ("llama", "ninfer"):
+        if entry["backend"] in ("llama", "ninfer", "basalt"):
             return base / entry["model_file"]
         # Strata / Maya / vLLM / SGLang / Diffusers all take a directory of shards.
         return base
@@ -314,8 +314,13 @@ class ModelStore:
                           if not ((drive / rel).is_file() and size is not None and (drive / rel).stat().st_size == size)),
                          reverse=True)
         staged = sum(p.stat().st_size for p in staging.rglob("*") if p.is_file())
-        need = max(0, sum(pending[:2]) - staged) / 1e9 + 1
-        if shutil.disk_usage(staging).free / 1e9 < need:
+        free_bytes = shutil.disk_usage(staging).free
+        # A file larger than half the free disk cannot sit in staging while the Drive client caches its copy
+        # (both are local): it is downloaded straight into the Drive folder instead.
+        direct_over = max(0, free_bytes - 20e9) / 2
+        local_pending = [n for n in pending if n <= direct_over]
+        need = max(0, sum(local_pending[:2]) - staged) / 1e9 + 1
+        if free_bytes / 1e9 < need:
             raise StoreError(f"{entry['id']}: local disk needs {need:.0f} GB free for the next files")
         copier = copier or copy_file_atomic
         pending = None                                    # (thread, local file): copy overlaps the next download
@@ -330,6 +335,11 @@ class ModelStore:
                 dst = drive / rel
                 if dst.is_file() and size is not None and dst.stat().st_size == size:
                     self._add(entry, size)
+                    continue
+                if size and size > direct_over:
+                    finish(pending)
+                    pending = None
+                    self._fetch_direct(entry, repo, path, size, drive, rel, fetch, copier)
                     continue
                 local = Path(fetch(repo, path, staging, self.token))
                 finish(pending)
@@ -364,6 +374,23 @@ class ModelStore:
         self.progress[entry["id"]]["phase"] = "on Drive"
         self.log(f"[store] {entry['id']}: saved to Drive")
         return drive
+
+    def _fetch_direct(self, entry, repo, path, size, drive, rel, fetch, copier):
+        """Download one large file into the model's Drive folder, then wait for its upload (paced copiers)."""
+        tx = getattr(copier, "tx", None)
+        start = tx() if tx else 0
+        self.log(f"[store] {entry['id']}: {rel} ({size / 1e9:.1f} GB) is larger than the local staging room; "
+                 "downloading it straight into the Drive folder")
+        base = drive / (rel[: -len(path)] if rel != path and rel.endswith(path) else "")
+        got = Path(fetch(repo, path, base, self.token))
+        if got.resolve() != (drive / rel).resolve():
+            (drive / rel).parent.mkdir(parents=True, exist_ok=True)
+            os.replace(got, drive / rel)
+        shutil.rmtree(base / ".cache", ignore_errors=True)     # hf_hub_download's local_dir metadata
+        self._add(entry, size)
+        wait = getattr(copier, "wait_uploaded", None)
+        if wait:
+            wait(size, start, os.path.basename(rel))
 
     def resolve(self, entry, protect=()):
         """Where the engine reads the model this session.

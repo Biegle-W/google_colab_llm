@@ -3,8 +3,9 @@ import json
 from pathlib import Path
 
 BACKENDS = ("llama", "vllm", "sglang", "diffusers", "strata", "maya", "tensorfold", "comfyui", "sparsa",
-            "hyperqwen", "ninfer")
-CHAT_BACKENDS = ("llama", "vllm", "sglang", "strata", "maya", "tensorfold", "sparsa", "hyperqwen", "ninfer")
+            "hyperqwen", "ninfer", "basalt", "strata_nvfp4")
+CHAT_BACKENDS = ("llama", "vllm", "sglang", "strata", "maya", "tensorfold", "sparsa", "hyperqwen", "ninfer",
+                 "basalt", "strata_nvfp4")
 IMAGE_BACKENDS = ("diffusers", "comfyui")
 REQUIRED = ("id", "name", "backend", "repo", "files", "size_gb", "contexts")
 DEFAULT_PATH = Path(__file__).with_name("catalog.json")
@@ -33,7 +34,7 @@ def validate(entries):
         seen.add(e["id"])
         if e["backend"] not in BACKENDS:
             raise CatalogError(f"{e['id']}: unknown backend {e['backend']!r}")
-        if e["backend"] in ("llama", "ninfer") and "model_file" not in e:
+        if e["backend"] in ("llama", "ninfer", "basalt") and "model_file" not in e:
             raise CatalogError(f"{e['id']}: {e['backend']} entries need model_file")
         if e["backend"] == "diffusers" and e.get("dtype", "float16") not in ("float16", "bfloat16", "float32"):
             raise CatalogError(f"{e['id']}: dtype must be float16, bfloat16 or float32")

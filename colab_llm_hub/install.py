@@ -6,6 +6,7 @@ also go under the Drive workspace ``logs/`` when ``COLAB_LLM_DRIVE`` is set.
 """
 import glob
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -604,19 +605,7 @@ def ensure_ninfer(builds_dir, arch, refresh=False, run=sh, log=print, ref=NINFER
         log("Restoring NInfer from Drive:", tar)
         run(f"rm -rf {root} && mkdir -p {root} && tar -xf {tar} -C {root}")
         return binary
-    driver = _driver_major(run)
-    if driver is not None and driver < MIN_DRIVER_FOR_CUDA13:
-        raise InstallError(f"NInfer needs CUDA 13, which needs NVIDIA driver {MIN_DRIVER_FOR_CUDA13}+; "
-                           f"this runtime has {driver}.")
-    nvcc = gpu.nvcc_version(_try(run, "nvcc --version") or _try(run, "/usr/local/cuda/bin/nvcc --version"))
-    cuda_home = "/usr/local/cuda"
-    if not nvcc or nvcc < (13, 0):
-        log(f"Installing the CUDA 13 toolkit (runtime has nvcc {nvcc})...")
-        run("cd /tmp && . /etc/os-release && distro=ubuntu$(echo $VERSION_ID | tr -d .) && "
-            "curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/$distro/x86_64/cuda-keyring_1.1-1_all.deb"
-            " -o cuda-keyring.deb && dpkg -i cuda-keyring.deb && apt-get -qq update && "
-            "DEBIAN_FRONTEND=noninteractive apt-get -qq install -y cuda-toolkit-13")
-        cuda_home = sorted(glob.glob("/usr/local/cuda-13*"))[-1] if glob.glob("/usr/local/cuda-13*") else cuda_home
+    cuda_home = ensure_cuda13("NInfer", run=run, log=log)
     run(f"{sys.executable} -m pip install -q 'cmake>=3.28'")
     for cmd in ninfer_dep_commands(_pkg_version("liburing", run), _pkg_version("libcurl", run)):
         run(cmd)
@@ -638,6 +627,127 @@ def ensure_ninfer(builds_dir, arch, refresh=False, run=sh, log=print, ref=NINFER
     run(f"tar -cf {tar}.tmp -C {root} apps lib && mv {tar}.tmp {tar}")
     log("Cached NInfer on Drive:", tar)
     return binary if install_now else tar
+
+
+def ensure_cuda13(what, run=sh, log=print):
+    """A CUDA 13 toolkit (nvcc) for engines compiled for Blackwell. Returns its CUDA_HOME.
+
+    CUDA 13.2.0 / 13.2.1 miscompile some sm_120 kernels (Strata #892 / #968, fixed in 13.2.2), so those are
+    upgraded too."""
+    driver = _driver_major(run)
+    if driver is not None and driver < MIN_DRIVER_FOR_CUDA13:
+        raise InstallError(f"{what} needs CUDA 13, which needs NVIDIA driver {MIN_DRIVER_FOR_CUDA13}+; "
+                           f"this runtime has {driver}.")
+    out = _try(run, "nvcc --version") or _try(run, "/usr/local/cuda/bin/nvcc --version")
+    nvcc = gpu.nvcc_version(out)
+    build = re.search(r"V13\.2\.(\d+)", out or "")
+    bad = nvcc == (13, 2) and bool(build) and int(build.group(1)) < 86      # 13.2.86 is CUDA 13.2.2
+    if nvcc and nvcc >= (13, 0) and not bad:
+        return "/usr/local/cuda"
+    log(f"Installing the CUDA 13 toolkit (runtime has nvcc {nvcc})...")
+    run("cd /tmp && . /etc/os-release && distro=ubuntu$(echo $VERSION_ID | tr -d .) && "
+        "curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/$distro/x86_64/cuda-keyring_1.1-1_all.deb"
+        " -o cuda-keyring.deb && dpkg -i cuda-keyring.deb && apt-get -qq update && "
+        "DEBIAN_FRONTEND=noninteractive apt-get -qq install -y cuda-toolkit-13")
+    homes = sorted(glob.glob("/usr/local/cuda-13*"), key=lambda p: [int(x) for x in p.rsplit("-", 1)[1].split(".")
+                                                                     if x.isdigit()])
+    return homes[-1] if homes else "/usr/local/cuda"
+
+
+def _uv_venv_commands(root, venv, python_version="3.12", python=None):
+    """A venv with pip at root/venv made by uv (Colab's Python has no working ensurepip), its Python inside root."""
+    python = python or sys.executable
+    uv = f"UV_PYTHON_INSTALL_DIR={root}/.python UV_CACHE_DIR=/content/.uv-cache {python} -m uv"
+    return [f"{python} -m pip install -q uv",
+            f"cd {root} && {uv} venv --seed --python {python_version} --managed-python {venv}"]
+
+
+# ---- Basalt (Strata fork for Blackwell: Qwen3.8-Flash-Next NVFP4 .basalt packs) ------------------------------
+BASALT_REPO = "https://github.com/jesdga95/basalt.git"
+BASALT_PIN = "364815560d2d2fc5e0db37c86191065abe7c6309"      # v0.3.1
+BASALT_ROOT = "/content/basalt"
+
+
+def basalt_tarball(builds_dir, ref=BASALT_PIN):
+    return os.path.join(builds_dir, f"basalt_{ref[:10]}_sm120.tar")
+
+
+def ensure_basalt(builds_dir, arch, refresh=False, run=sh, log=print, ref=BASALT_PIN, root=BASALT_ROOT,
+                  install_now=True):
+    """Build Basalt (bin/basalt + its Python server venv) for sm_120 and cache it on Drive. Returns root.
+
+    Its README: cmake -S . -B build; cmake --build build -j; pip install -r requirements.txt. Needs CUDA 13
+    and GCC 13+ (Ubuntu 24.04 has both after the toolkit install)."""
+    if str(arch) != "120":
+        raise InstallError(f"Basalt builds only for Blackwell sm_120 (G4 runtime); this GPU is sm_{arch}.")
+    tar = basalt_tarball(builds_dir, ref)
+    if not install_now and os.path.isfile(tar) and not refresh:
+        log("Basalt build already on Drive:", tar)
+        return tar
+    if os.path.isfile(os.path.join(root, "bin", "basalt")) and not refresh:
+        return root
+    if os.path.isfile(tar) and not refresh:
+        log("Restoring Basalt from Drive:", tar)
+        run(f"rm -rf {root} && mkdir -p {os.path.dirname(root)} && tar -xf {tar} -C {os.path.dirname(root)}")
+        return root
+    cuda_home = ensure_cuda13("Basalt", run=run, log=log)
+    run(f"{sys.executable} -m pip install -q 'cmake>=3.28' ninja")
+    log(f"Building Basalt {ref[:10]} for sm_120 (first run takes a while)...")
+    run(f"rm -rf {root} && mkdir -p {root} && cd {root} && git init -q && "
+        f"git fetch -q --depth 1 {BASALT_REPO} {ref} && git checkout -q FETCH_HEAD")
+    env = f"PATH={cuda_home}/bin:$PATH CUDACXX={cuda_home}/bin/nvcc CUDA_HOME={cuda_home}"
+    run(f"cd {root} && {env} cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && "
+        f"{env} cmake --build build -j")
+    for cmd in _uv_venv_commands(root, "venv"):
+        run(cmd)
+    run(f"cd {root} && venv/bin/python -m pip install -q -r requirements.txt")
+    # Bundle the CUDA 13 runtime libraries the binaries link, so a restored build runs without the toolkit.
+    run(f"mkdir -p {root}/lib && for b in {root}/bin/*; do ldd $b 2>/dev/null; done | awk '/=> \\// {{print $3}}' "
+        f"| grep -E '^/usr/local' | sort -u | xargs -r -I{{}} cp -L {{}} {root}/lib/")
+    os.makedirs(builds_dir, exist_ok=True)
+    run(f"tar -cf {tar}.tmp -C {os.path.dirname(root)} --exclude={os.path.basename(root)}/build "
+        f"{os.path.basename(root)} && mv {tar}.tmp {tar}")
+    log("Cached Basalt on Drive:", tar)
+    return root if install_now else tar
+
+
+# ---- Strata NVFP4 fork (sergqwer/strata-nvfp4: Qwen3.8-Flash-Next NVFP4 GPTQ) --------------------------------
+STRATA_NVFP4_REPO = "https://github.com/sergqwer/strata-nvfp4.git"
+STRATA_NVFP4_PIN = "57293b8ec57203a741dc7b2abd69f24f077037ab"     # v0.2.0-beta-nvfp4.3
+STRATA_NVFP4_ROOT = "/content/strata-nvfp4"
+
+
+def strata_nvfp4_tarball(builds_dir, ref=STRATA_NVFP4_PIN):
+    return os.path.join(builds_dir, f"strata_nvfp4_{ref[:10]}_sm120.tar")
+
+
+def ensure_strata_nvfp4(builds_dir, arch, refresh=False, run=sh, log=print, ref=STRATA_NVFP4_PIN,
+                        root=STRATA_NVFP4_ROOT, install_now=True):
+    """The fork's checkout with a uv venv and the CUDA 13 toolkit. Returns root.
+
+    Its ./setup.sh compiles the engine on Linux and checks the model files, so the first build happens at
+    the first start on the GPU runtime (strata_nvfp4_launch), which then caches the whole folder on Drive."""
+    if str(arch) != "120":
+        raise InstallError("This Strata NVFP4 setup is for the G4 runtime (Blackwell sm_120); "
+                           f"this GPU is sm_{arch}.")
+    tar = strata_nvfp4_tarball(builds_dir, ref)
+    if not install_now:
+        log("Strata NVFP4 is built on the GPU runtime at its first start" +
+            (f" (cached: {tar})" if os.path.isfile(tar) else ""))
+        return tar
+    if os.path.isfile(os.path.join(root, ".venv", "bin", "python")) and not refresh:
+        return root
+    if os.path.isfile(tar) and not refresh:
+        log("Restoring Strata NVFP4 from Drive:", tar)
+        run(f"rm -rf {root} && mkdir -p {os.path.dirname(root)} && tar -xf {tar} -C {os.path.dirname(root)}")
+        return root
+    ensure_cuda13("Strata NVFP4", run=run, log=log)
+    run(f"rm -rf {root} && mkdir -p {root} && cd {root} && git init -q && "
+        f"git fetch -q --depth 1 {STRATA_NVFP4_REPO} {ref} && git checkout -q FETCH_HEAD")
+    for cmd in _uv_venv_commands(root, ".venv"):
+        run(cmd)
+    log("Strata NVFP4 checked out; its engine is compiled at the first start (cached on Drive after that)")
+    return root
 
 
 def _try(run, cmd):
