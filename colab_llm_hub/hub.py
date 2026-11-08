@@ -252,8 +252,11 @@ def make_handler(hub, token):
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
 
-        def log_message(self, fmt, *args):                 # never log bodies or credentials
-            print(self.command, urlsplit(self.path).path, flush=True)
+        def log_request(self, code="-", size="-"):         # method, path and status; never bodies or credentials
+            print(self.command, urlsplit(self.path).path, getattr(code, "value", code), flush=True)
+
+        def log_message(self, fmt, *args):
+            pass
 
         def send_json(self, status, value, headers=None):
             body = json.dumps(value).encode()
