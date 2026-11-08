@@ -644,12 +644,42 @@ class HubPackageCache(unittest.TestCase):
         self.assertFalse(install.restore_hub_package(builds, os.path.join(tmp, "out"), ref="main", log=lambda *a: None))
         shutil.rmtree(tmp, ignore_errors=True)
 
-    def test_notebooks_fetch_from_github_before_using_the_drive_copy(self):
-        nb = json.load(open(os.path.join(os.path.dirname(__file__), "..", "..", "notebooks", "llama",
-                                         "llama_gpu.ipynb")))
-        boot = "".join(nb["cells"][2]["source"])
-        self.assertLess(boot.index("git clone"), boot.index("shutil.copytree(cached"))
-        self.assertIn("if fresh:", boot)                              # the Drive copy is refreshed after a fetch
+    def test_notebooks_carry_the_current_hub_code_and_download_none(self):
+        """Every notebook is self-contained: its packed hub code matches this package, and no cell clones it."""
+        import base64, glob as _glob, io, re, zipfile
+        from colab_llm_hub import make_engine_notebooks as m
+        root = os.path.join(os.path.dirname(__file__), "..", "..")
+        want = m.package_files()
+        paths = [os.path.join(root, m.ENGINE_META[e]["notebook"]) for e in m.ENGINES]
+        paths += [os.path.join(root, m.PREPARE_NOTEBOOK)] + [os.path.join(root, p) for p in m.STANDALONE_NOTEBOOKS]
+        for path in paths:
+            nb = json.load(open(path))
+            payload = [c for c in nb["cells"] if m.PAYLOAD_TAG in c.get("metadata", {}).get("tags", [])]
+            self.assertEqual(len(payload), 1, path)
+            src = "".join(payload[0]["source"])
+            b64 = re.search(r'HUB_ZIP = """\n(.*?)\n"""', src, re.S).group(1).replace("\n", "")
+            z = zipfile.ZipFile(io.BytesIO(base64.b64decode(b64)))
+            got = {n: z.read(n) for n in z.namelist()}
+            self.assertEqual(got, want, f"{path} is stale: run python -m colab_llm_hub.make_engine_notebooks")
+            rest = "".join("".join(c["source"]) for c in nb["cells"] if c is not payload[0])
+            self.assertNotIn("github.com/Biegle-W/google_colab_llm ", rest, path)
+            self.assertNotIn("git clone -q --depth 1 https://github.com/Biegle-W", rest, path)
+            self.assertNotIn("{HUB_REPO}", rest, path)
+
+    def test_payload_cell_unpacks_a_working_package(self):
+        from colab_llm_hub import make_engine_notebooks as m
+        tmp = tempfile.mkdtemp()
+        try:
+            src = "".join(m.payload_cell(hub_dir=tmp)["source"])
+            import subprocess, sys as _sys
+            code = src + "\nimport colab_llm_hub.catalog as c; print(len(c.load()) > 10)"
+            r = subprocess.run([_sys.executable, "-c", code], cwd=tmp, capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, r.stderr[-2000:])
+            self.assertIn("True", r.stdout)
+            self.assertTrue(os.path.isfile(os.path.join(tmp, "colab_llm_hub", "catalog.json")))
+            self.assertFalse(os.path.isdir(os.path.join(tmp, "colab_llm_hub", "tests")))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
 
 
 class SingleModelSelection(unittest.TestCase):
@@ -691,7 +721,8 @@ class SingleModelSelection(unittest.TestCase):
     def test_hub_serves_only_the_selected_model(self):
         from colab_llm_hub import make_engine_notebooks
         nb = make_engine_notebooks.build_notebook("llama")
-        text = "".join("".join(c["source"]) for c in nb["cells"])
+        text = "".join("".join(c["source"]) for c in nb["cells"]
+                       if make_engine_notebooks.PAYLOAD_TAG not in c.get("metadata", {}).get("tags", []))
         self.assertIn('args += ["--models", MODEL]', text)
         self.assertIn('TUNNEL = saved.get("tunnel") or "tailscale"', text)        # Tailscale stays the default
         self.assertIn("tunnel.choose_tunnel(", text)                              # picked in a prompt, not code
@@ -1056,8 +1087,8 @@ class PrepareOnCpu(unittest.TestCase):
         self.assertIn("prepare.prepare(", text)
         self.assertIn('ENGINE   = "prepare"', text)
         self.assertNotIn("gpu.detect", text)                                         # no GPU required
-        gpu_boot = "".join(make_engine_notebooks.build_notebook("vllm")["cells"][2]["source"])
-        self.assertIn(gpu_boot.split("OFFLINE_HUB")[1][:400], text)                  # same bootstrap code
+        gpu_boot = "".join(make_engine_notebooks.build_notebook("vllm")["cells"][3]["source"])
+        self.assertIn(gpu_boot.split("DRIVE_DIR = ")[1][:400], text)                 # same bootstrap code
 
     def test_cli(self):
         from colab_llm_hub import __main__ as cli

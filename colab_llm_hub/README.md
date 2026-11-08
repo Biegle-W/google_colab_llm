@@ -49,7 +49,7 @@ Hugging Face ──once, file by file──> Drive models/
 every session:  VRAM+RAM models: engine reads Drive directly
                 SSD-streamed models: streamed files Drive ──copy──> local disk, the rest read from Drive
                 (wheels/builds/Tailscale restored too;
-                hub code is fetched from GitHub each run, hub_pkg/ on Drive is only the offline fallback)
+                the hub code itself is packed inside each notebook: nothing is fetched from GitHub)
 ```
 
 | Piece | File |

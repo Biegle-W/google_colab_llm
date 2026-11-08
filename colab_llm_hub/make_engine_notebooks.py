@@ -24,6 +24,67 @@ def _src(lines):
     return out
 
 
+PAYLOAD_TAG = "colab-llm-hub-code"
+PACKAGE_DIR = Path(__file__).resolve().parent
+_SKIP_DIRS = {"tests", "__pycache__"}
+_SKIP_FILES = {"make_engine_notebooks.py"}
+
+
+def package_files(pkg=PACKAGE_DIR):
+    """{relative path: bytes} of the hub package as it runs on Colab (no tests, docs or generator)."""
+    out = {}
+    for path in sorted(Path(pkg).rglob("*")):
+        rel = path.relative_to(pkg)
+        if path.is_dir() or _SKIP_DIRS & set(rel.parts) or rel.name in _SKIP_FILES or path.suffix in (".pyc", ".md"):
+            continue
+        out[str(Path("colab_llm_hub") / rel)] = path.read_bytes()
+    return out
+
+
+def package_zip(files=None):
+    """The package as a deterministic zip (fixed timestamps, sorted), so unchanged code gives an unchanged notebook."""
+    import io
+    import zipfile
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
+        for name, data in sorted((files or package_files()).items()):
+            info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.external_attr = 0o644 << 16
+            z.writestr(info, data)
+    return buf.getvalue()
+
+
+def payload_cell(hub_dir="/content/hub_repo"):
+    """A collapsed code cell holding the whole hub package; running it unpacks it on the runtime.
+
+    The notebook needs nothing from GitHub: this cell is the code the later cells run."""
+    import base64
+    import hashlib
+    data = package_zip()
+    b64 = base64.b64encode(data).decode()
+    digest = hashlib.sha256(data).hexdigest()[:12]
+    lines = ["# @title Hub code, packed in this notebook (run this cell; nothing is downloaded)",
+             "# Generated from the colab_llm_hub package; unpacked to " + hub_dir + " on this runtime.",
+             "import base64, io, os, shutil, sys, zipfile",
+             f'HUB_DIR = "{hub_dir}"',
+             f'HUB_CODE_VERSION = "{digest}"',
+             'HUB_ZIP = """']
+    lines += [b64[i:i + 100] for i in range(0, len(b64), 100)]
+    lines += ['"""',
+              "shutil.rmtree(HUB_DIR, ignore_errors=True)",
+              "zipfile.ZipFile(io.BytesIO(base64.b64decode(HUB_ZIP))).extractall(HUB_DIR)",
+              "del HUB_ZIP",
+              "if HUB_DIR not in sys.path:",
+              "    sys.path.insert(0, HUB_DIR)",
+              "for _m in [m for m in sys.modules if m == \"colab_llm_hub\" or m.startswith(\"colab_llm_hub.\")]:",
+              "    del sys.modules[_m]          # a re-run picks up this cell's code, not an older import",
+              "print(\"Hub code\", HUB_CODE_VERSION, \"unpacked to\", HUB_DIR)"]
+    cell = _code(lines)
+    cell["metadata"] = {"cellView": "form", "tags": [PAYLOAD_TAG]}
+    return cell
+
+
 def _md(lines):
     return {"cell_type": "markdown", "metadata": {}, "source": _src(lines)}
 
@@ -216,66 +277,29 @@ def build_notebook(engine: str) -> dict:
             "Runtime → Change runtime type → **L4, A100 or G4**, then run the cells in order.",
         ]),
         _md([
-            "## 1. Mount Drive, create the workspace, fetch (or restore) the hub code",
+            "## 1. Mount Drive and create the workspace",
             "",
-            "Each run fetches the latest hub code from GitHub and refreshes its copy on Drive; "
-            "only if GitHub cannot be reached does it fall back to that Drive copy. Settings and "
-            "tool binaries are restored from Drive.",
+            "The hub's code is packed into this notebook (the collapsed cell below): nothing is downloaded "
+            "from GitHub. Settings, models and engine builds are restored from Drive.",
         ]),
+        payload_cell(),
         _code([
             "import os, re, shutil, subprocess, sys",
             "from google.colab import drive",
             "drive.mount(\"/content/drive\")",
             "",
             f'ENGINE   = "{engine}"  # locked for this notebook',
-            f'HUB_REPO  = "{REPO}"',
-            f'HUB_REF   = "main"  # always clone hub package from main',
             'DRIVE_DIR = "/content/drive/MyDrive/llm_models"',
-            'HUB_DIR   = "/content/hub_repo"',
-            "",
-            "def sh(cmd):",
-            "    r = subprocess.run(cmd, shell=True, capture_output=True, text=True)",
-            "    if r.returncode:",
-            "        raise RuntimeError(f\"{cmd}\\n{r.stdout}{r.stderr}\")",
-            "    return r.stdout.strip()",
-            "",
-            "OFFLINE_HUB = False   # True = skip GitHub and use the hub code saved on Drive",
-            "",
+            'HUB_REF   = HUB_CODE_VERSION  # the packed code version (recorded in settings)',
+            "assert os.path.isdir(f\"{HUB_DIR}/colab_llm_hub\"), \"Run the hub code cell above first.\"",
             "os.makedirs(DRIVE_DIR, exist_ok=True)",
-            "sys.path.insert(0, HUB_DIR)",
-            "ref_key = (HUB_REF or \"default\").replace(\"/\", \"_\")",
-            "cached = f\"{DRIVE_DIR}/builds/hub_pkg/{ref_key}/colab_llm_hub\"",
-            "have_cache = os.path.isdir(cached) and os.path.isfile(f\"{DRIVE_DIR}/builds/hub_pkg/{ref_key}/COMPLETE\")",
-            "fresh = False",
-            "if not OFFLINE_HUB:",
-            "    try:                          # always prefer the latest code: fixes land without reopening",
-            "        sh(f\"rm -rf {HUB_DIR}\")",
-            "        if HUB_REF and re.fullmatch(r\"[0-9a-f]{40}\", HUB_REF):",
-            "            sh(f\"mkdir -p {HUB_DIR} && cd {HUB_DIR} && git init -q && "
-            "git fetch -q --depth 1 {HUB_REPO} {HUB_REF} && git checkout -q FETCH_HEAD\")",
-            "        else:",
-            "            sh(f\"git clone -q --depth 1 {'--branch ' + HUB_REF if HUB_REF else ''} "
-            "{HUB_REPO} {HUB_DIR}\")",
-            "        fresh = True",
-            "        print(\"Fetched hub code from GitHub:\", sh(f\"cd {HUB_DIR} && git rev-parse --short HEAD\"))",
-            "    except RuntimeError as e:",
-            "        print(\"Could not fetch from GitHub; using the copy on Drive.\", str(e)[-300:])",
-            "if not fresh:",
-            "    if not have_cache:",
-            "        raise RuntimeError(\"No hub code: GitHub was unreachable and there is no copy on Drive yet.\")",
-            "    shutil.rmtree(HUB_DIR, ignore_errors=True)",
-            "    os.makedirs(HUB_DIR, exist_ok=True)",
-            "    shutil.copytree(cached, f\"{HUB_DIR}/colab_llm_hub\")",
-            "    print(\"Restored hub package from Drive (it may be older than GitHub)\")",
             "",
             "from colab_llm_hub.workspace import open_workspace",
             "from colab_llm_hub import install",
             "WS = open_workspace(DRIVE_DIR, engine=ENGINE)",
             "print(\"Drive workspace:\", WS.describe())",
-            "if fresh:                         # keep the Drive copy current for offline fallback",
-            "    install.cache_hub_package(HUB_DIR, str(WS.builds), ref=HUB_REF or \"default\")",
             "import colab_llm_hub",
-            "print(\"hub\", colab_llm_hub.__version__, \"engine\", ENGINE)",
+            "print(\"hub\", colab_llm_hub.__version__, \"(code\", HUB_CODE_VERSION + \")\", \"engine\", ENGINE)",
         ]),
         _md(["## 2. Detect GPU, CPU, and RAM — then list this engine's models"]),
         _code([
@@ -731,7 +755,7 @@ def build_notebook(engine: str) -> dict:
             "| Path under `MyDrive/llm_models` | Contents |",
             "|---|---|",
             "| `models/<id>/` | Weights shared across engine notebooks |",
-            "| `builds/` | llama.cpp tarballs, wheels, hub_pkg, Tailscale, cloudflared |",
+            "| `builds/` | llama.cpp tarballs, wheels, Tailscale, cloudflared |",
             f"| `config/settings_{engine}.json` | Selected model / ctx / Tailscale for **this** engine (no secrets) |",
             "| `hub/api_key`, `hub/api_key.txt` | Hub Bearer token (private Drive only; the .txt copy opens on phones) |",
             "| `hub/tailscale_authkey.txt` | Tailscale auth key (private Drive only; never in git; opens on phones) |",
@@ -762,8 +786,8 @@ def build_notebook(engine: str) -> dict:
 def build_prepare_notebook() -> dict:
     """CPU-runtime notebook: download a model and build its engine on Drive for a GPU runtime."""
     from . import runtimes
-    boot = json.loads(json.dumps(build_notebook("llama")["cells"][1:3]))      # same bootstrap as the GPU notebooks
-    src = boot[1]["source"]
+    boot = json.loads(json.dumps(build_notebook("llama")["cells"][1:4]))      # same bootstrap as the GPU notebooks
+    src = next(c["source"] for c in boot if any(l.startswith("ENGINE   =") for l in c["source"]))
     i = next(k for k, line in enumerate(src) if line.startswith("ENGINE   ="))
     src[i] = 'ENGINE   = "prepare"  # settings go to config/settings_prepare.json\n'
     all_ids = ["recommended"] + [e["id"] for e in catalog.load()]
@@ -923,6 +947,33 @@ def build_index() -> dict:
     }
 
 
+STANDALONE_NOTEBOOKS = ("notebooks/llama/llama_cpp_t4.ipynb", "notebooks/vllm/vllm_tpu.ipynb")
+_CLONE_LINES = (
+    'HUB_DIR = "/content/hub_repo"\n',
+    'if not os.path.isdir(f"{HUB_DIR}/colab_llm_hub"):\n',
+    '    subprocess.run(f"rm -rf {HUB_DIR} && git clone -q --depth 1 https://github.com/Biegle-W/google_colab_llm {HUB_DIR}",\n',
+    '                   shell=True, check=True)\n',
+)
+
+
+def embed_in_standalone(nb):
+    """Put the packed hub code into a hand-written notebook that uses its tunnel helpers (T4, TPU): the
+    payload cell goes right before the first cell that imports colab_llm_hub, and its GitHub clone goes."""
+    cells = [c for c in nb["cells"] if PAYLOAD_TAG not in c.get("metadata", {}).get("tags", [])]
+    for i, c in enumerate(cells):
+        if c["cell_type"] == "code" and any("from colab_llm_hub import" in l for l in c["source"]):
+            c["source"] = [l for l in c["source"] if l not in _CLONE_LINES]
+            c["source"] = [l.replace("# Uses the hub package's tunnel helpers (standard library only; nothing to install).",
+                                     "# Uses the hub's tunnel helpers, unpacked by the hub code cell above.")
+                           for l in c["source"]]
+            cells.insert(i, payload_cell())
+            break
+    else:
+        raise ValueError("no cell imports colab_llm_hub")
+    nb["cells"] = cells
+    return nb
+
+
 def write_all(root: Path | None = None):
     root = Path(root or ROOT)
     written = []
@@ -935,6 +986,12 @@ def write_all(root: Path | None = None):
     prep.parent.mkdir(parents=True, exist_ok=True)
     prep.write_text(json.dumps(build_prepare_notebook(), indent=1) + "\n")
     written.append(prep)
+    for rel in STANDALONE_NOTEBOOKS:
+        path = root / rel
+        if path.is_file():
+            nb = embed_in_standalone(json.loads(path.read_text()))
+            path.write_text(json.dumps(nb, indent=1, ensure_ascii=False) + "\n")
+            written.append(path)
     index = root / INDEX_NOTEBOOK
     index.parent.mkdir(parents=True, exist_ok=True)
     index.write_text(json.dumps(build_index(), indent=1) + "\n")
