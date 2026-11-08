@@ -1480,3 +1480,30 @@ class PrepareMany(unittest.TestCase):
         self.assertTrue(all(catalog.kind_for(by[m]) == "chat" for m in g4))
         self.assertTrue(all(catalog.kind_for(by[m]) != "chat" for m in prepare.recommended_models("g4", "image")))
         self.assertNotIn("deepseek-strata-ist-2.00", prepare.recommended_models("a100", "all"))
+
+
+class PrepareManyResume(unittest.TestCase):
+    def test_files_left_in_staging_count_as_room(self):
+        from colab_llm_hub import prepare
+        tmp = tempfile.mkdtemp()
+        os.makedirs(os.path.join(tmp, "a"))
+        with open(os.path.join(tmp, "a", "shard.gguf"), "wb") as f:
+            f.truncate(int(90e9 / 1e3))                       # sparse stand-in, sized below
+        orig = prepare.os.path.getsize
+        prepare.os.path.getsize = lambda p: 90e9 if p.endswith("shard.gguf") else orig(p)
+
+        class Store:
+            saved = []
+            def state(self, e): return {"on_drive": False}
+            def download_to_drive(self, e, staging=None): self.saved.append(e["id"])
+        entries = [{"id": "a", "name": "a", "backend": "vllm", "repo": "o/a", "files": ["*"], "size_gb": 100,
+                    "contexts": [[1, 1024]]}]
+        try:
+            st = Store()
+            r = prepare.prepare_many(["a"], store=st, staging=tmp, workers=1, free=lambda p: 60, wait_free_s=0,
+                                     log=lambda *a: None, entries=entries)
+        finally:
+            prepare.os.path.getsize = orig
+            shutil.rmtree(tmp, ignore_errors=True)
+        self.assertEqual(st.saved, ["a"])                     # 60 GB free + 90 GB already staged is enough
+        self.assertEqual(r["errors"], {})

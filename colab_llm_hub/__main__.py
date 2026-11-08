@@ -68,6 +68,7 @@ def parse(argv=None):
 
 def run_prepare(a):
     from . import prepare
+    sys.stdout.reconfigure(line_buffering=True)         # progress shows up in a log file as it happens
     if a.models:
         if a.models.startswith("recommended-"):
             ids = prepare.recommended_models(a.target, kind=a.models.split("-", 1)[1])

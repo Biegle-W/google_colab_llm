@@ -176,8 +176,20 @@ def prepare_many(models, drive_dir="/content/drive/MyDrive/llm_models", staging=
     stop = threading.Event()
     lock = threading.Lock()
 
+    def staged_gb(m):
+        """Data an earlier, interrupted run already left in this model's staging folder (it is reused)."""
+        total = 0
+        for root, _, files in os.walk(os.path.join(staging, m)):
+            for f in files:
+                try:
+                    total += os.path.getsize(os.path.join(root, f))
+                except OSError:
+                    pass
+        return total / 1e9
+
     def room_for(e):
-        need = min_free_gb + 2 * min(float(e["size_gb"]), 50.0)          # two largest files in flight, <= 50 GB each
+        # Two of the model's largest files in flight (<= 50 GB each), minus what is already staged for it.
+        need = min_free_gb + max(0.0, 2 * min(float(e["size_gb"]), 50.0) - staged_gb(e["id"]))
         waited = 0
         while free(staging if os.path.isdir(staging) else "/") < need:
             if waited >= wait_free_s or stop.is_set():
