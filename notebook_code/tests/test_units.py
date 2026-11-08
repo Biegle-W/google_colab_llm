@@ -636,7 +636,7 @@ class SingleModelSelection(unittest.TestCase):
         self.assertIn('args += ["--models", MODEL]', text)
         self.assertIn('TUNNEL = saved.get("tunnel") or "tailscale"', text)        # Tailscale stays the default
         self.assertIn("tunnel.choose_tunnel(", text)                              # picked in a prompt, not code
-        self.assertNotIn("npx", text)                                    # no harness runs inside the notebook
+        self.assertNotIn("npx", text)                                    # dsh runs only when asked (cell 6b)
 
     def test_only_filter(self):
         entries = catalog.load()
@@ -1912,3 +1912,45 @@ class EnginesRunFromLocalDisk(unittest.TestCase):
         src = open(cli.__file__).read()
         for name in ("project-maya", "ComfyUI", "Sparsa", "strata_data", "maya_models"):
             self.assertIn(f'"/content/{name}"', src)
+
+
+class DshInNotebook(unittest.TestCase):
+    def test_patch_points_dsh_at_the_local_hub(self):
+        from notebook_code import dsh_web
+        tmp = tempfile.mkdtemp()
+        try:
+            p = os.path.join(tmp, "p.yml")
+            models = [{"id": "img", "name": "img", "context_length": 1024, "kind": "image"},
+                      {"id": "m1", "name": "M1", "context_length": 65536, "kind": "chat"}]
+            self.assertEqual(dsh_web.write_patch(p, models, 8000, default_model="nope"), "m1")
+            patch = json.load(open(p))
+            prov = patch[0]["config"]["providers"]["colab"]
+            self.assertEqual(prov["baseURL"], "http://127.0.0.1:8000/v1")
+            self.assertEqual(prov["apiKeyEnv"], "COLAB_LLM_API_KEY")
+            self.assertEqual([m["id"] for m in prov["models"]], ["m1"])            # no image models
+            self.assertEqual(patch[1]["config"], {"provider": "colab", "model": "m1"})
+            self.assertEqual(set(prov) & {"apiKey", "key", "token"}, set())        # only the env var's name
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_web_args_token_and_prompt(self):
+        from notebook_code import dsh_web
+        a = dsh_web.web_args("/r", "/p.yml", public_url="https://x-3080.colab.dev/", trusted_hosts=["x-3080.colab.dev"])
+        self.assertEqual(a[:2], ["/r/node/bin/node", "/r/node_modules/@deepseek-ai/dsh/lib/bin.js"])
+        self.assertEqual(a[a.index("--host") + 1], "127.0.0.1")                  # never a public interface
+        self.assertIn("--no-open", a)
+        self.assertEqual(a[a.index("--trusted-host") + 1], "x-3080.colab.dev")
+        self.assertEqual(dsh_web.parse_token("dsh web: http://127.0.0.1:3080/?token=Ab_c-1\n"), "Ab_c-1")
+        self.assertIsNone(dsh_web.parse_token("starting"))
+        it = iter(["maybe", "y"])
+        self.assertTrue(dsh_web.ask_open(False, ask=lambda p: next(it), log=lambda *a: None))
+        self.assertTrue(dsh_web.ask_open(True, ask=lambda p: "", log=lambda *a: None))
+        self.assertFalse(dsh_web.ask_open(None, ask=lambda p: "", log=lambda *a: None))
+        self.assertEqual(dsh_web.host_of("https://abc-3080.colab.dev/x"), "abc-3080.colab.dev")
+
+    def test_chat_notebooks_offer_it_image_ones_do_not(self):
+        from notebook_code import make_engine_notebooks as m
+        chat = "".join("".join(c["source"]) for c in m.build_notebook("hyperqwen")["cells"])
+        self.assertIn("dsh_web.ask_open(", chat)
+        img = "".join("".join(c["source"]) for c in m.build_notebook("diffusers")["cells"])
+        self.assertNotIn("dsh_web.ask_open(", img)

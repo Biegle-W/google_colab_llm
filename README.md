@@ -74,7 +74,7 @@ Cell 6 asks how your machine connects (type 1, 2 or 3; Enter keeps the last choi
 
 Keys: add `TAILSCALE_AUTHKEY` (and `HF_TOKEN`, `CLOUDFLARE_TUNNEL_TOKEN`) once in Colab's Secrets panel (key icon, left sidebar) and no notebook asks for them. Otherwise cell 6 asks in a hidden input box and keeps the key on **your private Google Drive** (`MyDrive/colab_model_server/access/tailscale_authkey.txt`, which the Drive app on a phone opens); type `1 new` at the tunnel prompt to replace it. The hub API key is also Drive-only (`access/api_key.txt`). Nothing secret is ever written into a notebook or this repository.
 
-The Cloudflare link is printed only after the tunnel has registered and the hub answers through it. Your harness (dsh or any OpenAI client) runs on your own machine, never in a notebook. The T4 / TPU notebooks offer `tailscale` and `cloudflare` too.
+The Cloudflare link is printed only after the tunnel has registered and the hub answers through it. Your harness (dsh or any OpenAI client) normally runs on your own machine. Optionally, cell 6b runs dsh inside the notebook instead, already pointed at the runtime's models, and opens its web UI through Colab's own proxy (only you can open it; dsh also requires the token in its link). Its conversations are kept on Drive in `dsh/`, and the agent works in `workspace/`. The T4 / TPU notebooks offer `tailscale` and `cloudflare` too.
 
 Fit checks use the GPU's VRAM, system RAM (for models that spill into it) and the local disk (streamed files, plus the Drive client's cache of everything read from Drive); the model table says why a model is excluded. Streamed files go to the larger of `/content` and `/mnt/local-scratch` (the A100 80 GB's extra ~350 GB NVMe disk).
 

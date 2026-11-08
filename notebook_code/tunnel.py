@@ -497,6 +497,21 @@ def serve_error(mode, output):
     return f"tailscale {mode} failed or timed out:\n{output}"
 
 
+def tailscale_serve_port(local_port, https_port, base_url, drive_dir=None):
+    """Also publish http://127.0.0.1:<local_port> on the tailnet at <base_url>:<https_port> (the daemon
+    start_tailscale started). Returns that URL, or None when Serve refuses it."""
+    socket_path = os.path.join("/tmp/colab-llm-tailscale", "tailscaled.sock")
+    if not (base_url and os.path.exists(socket_path)):
+        return None
+    ts, _ = ensure_tailscale(drive_dir=drive_dir)
+    code, out = _serve(ts, socket_path, ["serve", "--bg", "--yes", f"--https={int(https_port)}",
+                                         f"http://127.0.0.1:{int(local_port)}"])
+    if code != 0:
+        code, out = _serve(ts, socket_path, ["serve", "--bg", f"--https={int(https_port)}",
+                                             f"http://127.0.0.1:{int(local_port)}"])
+    return f"{base_url.rstrip('/')}:{int(https_port)}/" if code == 0 else None
+
+
 def stop_tailscale(drive_dir=None):
     """Best-effort teardown of a userspace Tailscale daemon started by this hub."""
     runtime = "/tmp/colab-llm-tailscale"

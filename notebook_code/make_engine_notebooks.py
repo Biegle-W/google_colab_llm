@@ -629,6 +629,52 @@ def build_notebook(engine: str) -> dict:
             "print(provider.openai_env(BASE, API_KEY))",
         ]),
     ]
+    if not is_image:
+        cells += [
+            _md([
+                "## 6b. Optional: the dsh harness in this notebook (web UI)",
+                "",
+                "Instead of (or as well as) connecting a harness on your own machine, this cell can run **dsh** "
+                "(the same `@deepseek-ai/dsh` the reference setup uses) right here, already pointed at this "
+                "runtime's models, and open its web UI, like the Unsloth Studio notebook opens its own.",
+                "",
+                "- It asks `y`/`n` when it runs (Enter keeps your last answer); nothing to edit.",
+                "- The link opens through **Colab's own proxy**, which only you (signed in to Colab) can open; with "
+                "the Tailscale tunnel it is also on your tailnet. dsh also requires the token in the link.",
+                "- Conversations are kept on Drive (`dsh/`), and the agent works in Drive's `workspace/` folder, "
+                "so both survive the runtime. The agent can run commands **on this Colab runtime**.",
+                "- Talking to dsh counts as activity, so the idle timeout does not release the runtime mid-task.",
+            ]),
+            _code([
+                "from notebook_code import dsh_web",
+                "from IPython.display import HTML, display",
+                "",
+                "OPEN_DSH = dsh_web.ask_open(saved.get(\"dsh_web\"))",
+                "WS.save_settings({**WS.load_settings(), \"dsh_web\": OPEN_DSH})",
+                "if OPEN_DSH:",
+                "    DSH_ROOT = dsh_web.ensure(str(WS.builds))",
+                "    DSH_PATCH = str(WS.config / f\"dsh_{ENGINE}.patch.yml\")   # no secrets: the key comes from the env",
+                "    DSH_MODEL = dsh_web.write_patch(DSH_PATCH, MODELS, PORT, default_model=MODEL)",
+                "    PROXY_URL = dsh_web.colab_proxy_url()",
+                "    HOSTS = [dsh_web.host_of(PROXY_URL)] if PROXY_URL else []",
+                "    TS_DSH_URL = None",
+                "    if TUNNEL == \"tailscale\":",
+                "        TS_DSH_URL = tunnel.tailscale_serve_port(dsh_web.PORT, dsh_web.TS_HTTPS_PORT, BASE, drive_dir=DRIVE_DIR)",
+                "        if TS_DSH_URL:",
+                "            HOSTS.append(dsh_web.host_of(TS_DSH_URL))",
+                "    DSH_PROC, DSH_TOKEN = dsh_web.start(DSH_ROOT, str(WS.drive / \"dsh\"), str(WS.drive / \"workspace\"),",
+                "                                        DSH_PATCH, API_KEY, public_url=PROXY_URL, trusted_hosts=HOSTS)",
+                "    print(f\"dsh is running with {DSH_MODEL} (provider 'Colab (this runtime)'). Its log: /content/dsh_web.log\")",
+                "    for label, url in ((\"Open dsh (Colab proxy, only you)\", PROXY_URL), (\"Open dsh on your tailnet\", TS_DSH_URL)):",
+                "        if url:",
+                "            link = f\"{url}?token={DSH_TOKEN}\"",
+                "            display(HTML(f'<p><a href=\"{link}\" target=\"_blank\">{label}</a></p>'))",
+                "            print(label + \":\", link)",
+                "else:",
+                "    dsh_web.stop()",
+                "    print(\"dsh not started: connect your own harness with the settings printed above.\")",
+            ]),
+        ]
 
     if is_image:
         cells += [
@@ -709,6 +755,11 @@ def build_notebook(engine: str) -> dict:
         _md(["## 9. Stop"]),
         _code([
             "hub_proc.terminate()        # stops the hub and the engine it started",
+            "try:",
+            "    from notebook_code import dsh_web",
+            "    dsh_web.stop()            # the in-notebook harness, if it was started",
+            "except Exception:",
+            "    pass",
             "try:",
             "    tunnel_proc.terminate()",
             "except Exception:",
