@@ -349,7 +349,16 @@ class ModelStore:
             if pending:
                 pending[0].join()
         shutil.rmtree(staging, ignore_errors=True)
-        write_marker(drive, entry["repo"])
+        # Mark complete only when every file on Drive has the size the source lists: a copy cut off midway
+        # (a killed process, a stuck Drive client) must never be recorded as a finished model.
+        expected = {rel: size for _, _, size, rel in jobs}
+        wrong = [f"{rel} ({(drive / rel).stat().st_size if (drive / rel).is_file() else 'missing'} != {n})"
+                 for rel, n in expected.items()
+                 if n is not None and not ((drive / rel).is_file() and (drive / rel).stat().st_size == n)]
+        if wrong:
+            raise StoreError(f"{entry['id']}: files on Drive do not match the source: {', '.join(wrong[:3])}")
+        files = {rel: (n if n is not None else (drive / rel).stat().st_size) for rel, n in expected.items()}
+        (drive / MARKER).write_text(json.dumps({"repo": entry["repo"], "files": files}))
         if entry.get("model_file") and not (drive / entry["model_file"]).is_file():
             raise StoreError(f"{entry['model_file']} was not found in {entry['repo']}")
         self.progress[entry["id"]]["phase"] = "on Drive"
@@ -411,6 +420,23 @@ class ModelStore:
         finally:
             fcntl.flock(lock, fcntl.LOCK_UN)
             lock.close()
+
+    def verify_against_source(self, entry, lister=hf_list_files):
+        """Problems with a model marked complete on Drive, checked against the source's file list and sizes
+        (empty = good). Catches files truncated before the marker was written."""
+        drive = self.drive_path(entry)
+        problems = []
+        sources = [(entry["repo"], entry["files"], entry.get("exclude"), "")]
+        sources += [(x["repo"], x.get("files") or ["*"], x.get("exclude"), x.get("subdir", "extra"))
+                    for x in entry.get("extra_downloads") or []]
+        for repo, allow, exclude, sub in sources:
+            for path, size in select_files(lister(repo, self.token), allow, exclude):
+                p = drive / (f"{sub}/{path}" if sub else path)
+                if not p.is_file():
+                    problems.append(f"{p.name} missing")
+                elif size is not None and p.stat().st_size != size:
+                    problems.append(f"{p.name} is {p.stat().st_size} bytes, source has {size}")
+        return problems
 
     def prefetch(self, entry, protect=()):
         """Make sure the model is saved on Drive (downloading it if needed) without keeping the hub waiting on it."""

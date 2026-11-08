@@ -162,6 +162,14 @@ def prepare_many(models, drive_dir="/content/drive/MyDrive/llm_models", staging=
     queue, planned = [], 0.0
     for m in models:
         e = by[m]
+        if store.state(e)["on_drive"] and hasattr(store, "verify_against_source"):
+            problems = store.verify_against_source(e)
+            if problems:
+                log(f"[prepare] {m} is marked complete but does not match the source ({problems[0]}); redoing it")
+                try:
+                    os.remove(os.path.join(str(store.drive_path(e)), ".complete.json"))
+                except OSError:
+                    pass
         if store.state(e)["on_drive"]:
             result["skipped"].append(m)
         elif e.get("engine_download"):

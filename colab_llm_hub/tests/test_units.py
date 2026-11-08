@@ -1528,9 +1528,12 @@ class DownloadToDriveRoom(unittest.TestCase):
         orig = shutil.disk_usage
         shutil.disk_usage = lambda p: type("U", (), {"free": int(70e9), "total": 0, "used": 0})()
         try:
+            def sparse_copy(s, d, cb=None):                    # a full-size (sparse) file, as a real copy leaves
+                os.makedirs(os.path.dirname(d), exist_ok=True)
+                with open(d, "wb") as f:
+                    f.truncate(int(63.4e9))
             st.download_to_drive(e, staging=staging, lister=lambda r, t=None: [("m.gguf", int(63.4e9))], fetch=fetch,
-                                 copier=lambda s, d, cb=None: (os.makedirs(os.path.dirname(d), exist_ok=True),
-                                                               shutil.copyfile(s, d)))
+                                 copier=sparse_copy)
         except StoreError as ex:
             self.fail(f"70 GB free should be enough for one 63.4 GB file: {ex}")
         finally:
@@ -1592,3 +1595,46 @@ class UploadPacing(unittest.TestCase):
                                  entries=[mk("a"), mk("b")], copier=object())
         self.assertEqual(st.calls, ["a"])                       # b never started behind a stuck upload
         self.assertEqual(r["deferred"], ["b"])
+
+
+class TruncatedCopyNeverMarkedComplete(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.st = ModelStore(os.path.join(self.tmp, "d"), os.path.join(self.tmp, "l"), log=lambda *_: None)
+        self.e = {"id": "m", "name": "m", "backend": "vllm", "repo": "o/m", "files": ["*"], "size_gb": 0,
+                  "contexts": [[1, 1024]]}
+        self.listing = [("a.bin", 100), ("b.bin", 50)]
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def fetch(self, repo, path, dest, token=None):
+        p = os.path.join(dest, path)
+        open(p, "wb").write(b"x" * dict(self.listing)[path])
+        return p
+
+    def test_cut_off_copy_is_not_marked_complete(self):
+        def short_copy(src, dst, cb=None):                 # what a killed process leaves behind
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            open(dst, "wb").write(b"x" * (10 if dst.name == "a.bin" else 50))
+        with self.assertRaises(StoreError):
+            self.st.download_to_drive(self.e, lister=lambda r, t=None: self.listing, fetch=self.fetch, copier=short_copy)
+        self.assertFalse(self.st.state(self.e)["on_drive"])
+
+    def test_existing_truncated_model_is_detected_and_redone(self):
+        from colab_llm_hub import prepare
+        drive = self.st.drive_path(self.e)
+        drive.mkdir(parents=True)
+        (drive / "a.bin").write_bytes(b"x" * 10)            # truncated, but recorded as complete
+        (drive / "b.bin").write_bytes(b"x" * 50)
+        (drive / MARKER).write_text(json.dumps({"repo": "o/m", "files": {"a.bin": 10, "b.bin": 50}}))
+        self.assertTrue(self.st.state(self.e)["on_drive"])
+        orig_verify = self.st.verify_against_source
+        self.st.verify_against_source = lambda e: orig_verify(e, lister=lambda r, t=None: self.listing)
+        orig_dl = self.st.download_to_drive
+        self.st.download_to_drive = lambda e, staging=None, **kw: orig_dl(
+            e, staging=staging, lister=lambda r, t=None: self.listing, fetch=self.fetch, **kw)
+        r = prepare.prepare_many(["m"], store=self.st, free=lambda p: 500, log=lambda *a: None, entries=[self.e])
+        self.assertEqual(r["saved"], ["m"])
+        self.assertEqual((drive / "a.bin").stat().st_size, 100)
+        self.assertEqual(self.st.verify_against_source(self.e), [])
