@@ -446,7 +446,7 @@ def build_notebook(engine: str) -> dict:
             "Re-running this cell restarts the hub. Secrets stay on **your private Google Drive** "
             "(`MyDrive/llm_models/hub/`), never in this public GitHub repo or in settings JSON:",
             "",
-            "- `hub/api_key` — hub Bearer token (auto-created)",
+            "- `hub/api_key` — hub Bearer token (auto-created; `hub/api_key.txt` is the same key, viewable on a phone)",
             "- `hub/tailscale_authkey` — Tailscale auth key (prompted once, then reused)",
             "- `hub/cloudflare_tunnel_token` — only for `cloudflare-named` (prompted once, then reused)",
             "",
@@ -676,7 +676,7 @@ def build_notebook(engine: str) -> dict:
             "| `models/<id>/` | Weights shared across engine notebooks |",
             "| `builds/` | llama.cpp tarballs, wheels, hub_pkg, Tailscale, cloudflared |",
             f"| `config/settings_{engine}.json` | Selected model / ctx / Tailscale for **this** engine (no secrets) |",
-            "| `hub/api_key` | Hub Bearer token (private Drive only) |",
+            "| `hub/api_key`, `hub/api_key.txt` | Hub Bearer token (private Drive only; the .txt copy opens on phones) |",
             "| `hub/tailscale_authkey` | Tailscale auth key (private Drive only; never in git) |",
             "| `hub/cloudflare_tunnel_token` | Cloudflare named-tunnel token (private Drive only; never in git) |",
             "| `hub/endpoint.json` | Last base URL + key hint |",

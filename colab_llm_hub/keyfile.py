@@ -1,6 +1,7 @@
 """Secrets kept on the user's private Google Drive (never committed to git).
 
-- ``api_key`` — hub Bearer token (auto-created once)
+- ``api_key`` — hub Bearer token (auto-created once), mirrored as ``api_key.txt`` so phone apps (the Google
+  Drive app on iOS previews only files with a known extension) can show it
 - ``tailscale_authkey`` — Tailscale auth key (prompted once, then reused from Drive)
 """
 import os
@@ -14,16 +15,33 @@ def _chmod_private(path):
         pass
 
 
+def _mirror_txt(path, key):
+    """Keep a viewable <path>.txt copy (same secret, same private Drive folder)."""
+    txt = path + ".txt"
+    try:
+        if not os.path.exists(txt) or open(txt).read().strip() != key:
+            with open(txt, "w") as f:
+                f.write(key + "\n")
+            _chmod_private(txt)
+    except OSError:
+        pass
+
+
 def load_or_create(path):
-    if os.path.exists(path):
-        key = open(path).read().strip()
-        if len(key) >= 24:
-            return key
+    for candidate in (path, path + ".txt"):
+        if os.path.exists(candidate):
+            key = open(candidate, encoding="utf-8-sig").read().strip()
+            if len(key) >= 24:
+                if candidate != path:
+                    write_secret(path, key)
+                _mirror_txt(path, key)
+                return key
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     key = secrets.token_urlsafe(32)
     with open(path, "w") as f:
         f.write(key + "\n")
     _chmod_private(path)
+    _mirror_txt(path, key)
     return key
 
 

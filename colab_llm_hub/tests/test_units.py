@@ -1418,3 +1418,18 @@ class TailscaleServeNotEnabled(unittest.TestCase):
         msg = tunnel.serve_error("serve", text)
         self.assertIn("https://login.tailscale.com/f/serve?node=noYD7JjLFD21CNTRL", msg)
         self.assertIn("one-time admin setting", msg)
+
+
+class ApiKeyMirror(unittest.TestCase):
+    def test_key_gets_a_txt_copy_phones_can_open(self):
+        tmp = tempfile.mkdtemp()
+        path = os.path.join(tmp, "hub", "api_key")
+        key = keyfile.load_or_create(path)
+        self.assertEqual(open(path + ".txt").read().strip(), key)
+        self.assertEqual(oct(os.stat(path + ".txt").st_mode & 0o777), "0o600")
+        os.remove(path + ".txt")
+        self.assertEqual(keyfile.load_or_create(path), key)                    # same key, mirror restored
+        self.assertTrue(os.path.exists(path + ".txt"))
+        os.remove(path)
+        self.assertEqual(keyfile.load_or_create(path), key)                    # only the .txt left: reused
+        shutil.rmtree(tmp, ignore_errors=True)
