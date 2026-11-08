@@ -79,6 +79,7 @@ by their authors, not re-measured here.
 | GLM-5.3-Flash Maya-L IQ3_S (156 GB), Maya | 2× RTX PRO 6000 | ~127–137 tok/s at 51K ctx | lcz.me topic 2882 |
 | DeepSeek-V4.1-Flash-1017 EXL3 2.7 bpw, Strata-DS fork | 2× RTX PRO 6000, Engram on NVMe | 80.8 tok/s with DSpark, 524K ctx | lcz.me topic 2452 |
 
+Not added to the catalog (not requested): the Qwen3.5-122B, gpt-oss-120b and GLM AJ-IQ2_XXS rows above.
 Candidates not yet integrated: **Basalt** (github.com/jesdga95/basalt; sm_120 + CUDA 13, which the G4 has;
 packs at huggingface.co/jesdga/Qwen3.8-Flash-Next-Basalt, default NVFP4-DQ6_K 131.7 GB, and a DeepSeek
 1017 repo) and NVIDIA **Flare** (github.com/NVIDIA/spark-local-inference; research prototype, no weights or

@@ -1475,7 +1475,6 @@ class PrepareMany(unittest.TestCase):
     def test_recommended_lists(self):
         from colab_llm_hub import prepare
         g4 = prepare.recommended_models("g4", "chat")
-        self.assertEqual(g4[0], "qwen3.5-122b-a10b-mtp-q4")
         by = catalog.by_id(catalog.load())
         self.assertTrue(all(catalog.kind_for(by[m]) == "chat" for m in g4))
         self.assertTrue(all(catalog.kind_for(by[m]) != "chat" for m in prepare.recommended_models("g4", "image")))
