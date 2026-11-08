@@ -794,8 +794,8 @@ class HyperQwenAndNInfer(unittest.TestCase):
 
     def test_hyperqwen_disk_counts_the_prepared_copy(self):
         e = catalog.by_id(catalog.load())["hyperqwen-qwen3.8-27b-mtp"]
-        self.assertIsNone(catalog.why_not(e, 102.6, disk_gb=30))             # model read from Drive
-        self.assertIn("disk", catalog.why_not(e, 102.6, disk_gb=25))         # its 19.5 GB prepared copy + 8
+        self.assertIsNone(catalog.why_not(e, 102.6, disk_gb=50))             # 19.5 Drive cache + 19.5 copy + 8
+        self.assertIn("disk", catalog.why_not(e, 102.6, disk_gb=40))
 
     def test_ninfer_command_and_env(self):
         e = catalog.by_id(catalog.load())["ninfer-qwen3.8-27b-nvfp4"]
@@ -1265,10 +1265,9 @@ class ReadFromDrive(unittest.TestCase):
 
     def test_disk_fit_counts_only_local_files(self):
         big = {"id": "x", "backend": "vllm", "size_gb": 200, "contexts": [[10, 1024]]}
-        self.assertIsNone(catalog.why_not(big, 24, disk_gb=50))                   # read from Drive
-        stream = dict(big, resident_gb=100, stream_gb=120)
-        self.assertIn("local disk", catalog.why_not(stream, 24, disk_gb=50))
-        self.assertEqual(catalog.local_disk_gb(stream), 120)
+        self.assertIn("local disk", catalog.why_not(big, 24, disk_gb=150))       # Drive cache lands locally
+        self.assertIsNone(catalog.why_not(big, 24, disk_gb=250))
+        self.assertEqual(catalog.local_disk_gb(dict(big, work_gb=20)), 220)
 
     def test_network_fs_detection_and_engine_flags(self):
         mounts = os.path.join(self.tmp, "mounts")
@@ -1405,3 +1404,17 @@ class IdleGuard(unittest.TestCase):
         finally:
             glob.glob = orig
         self.assertTrue(idle_guard.has_accelerator(which=lambda n: "/usr/bin/nvidia-smi", env={}))
+
+
+class TailscaleServeNotEnabled(unittest.TestCase):
+    def test_enable_link_is_reported_instead_of_hanging(self):
+        out = ("Serve is not enabled on your tailnet.\nTo enable, visit:\n\n"
+               "         https://login.tailscale.com/f/serve?node=noYD7JjLFD21CNTRL\n")
+
+        def run(cmd, **kw):
+            raise tunnel.subprocess.TimeoutExpired(cmd, kw.get("timeout"), output=out.encode(), stderr=None)
+        code, text = tunnel._serve("/ts", "/sock", ["serve", "--bg", "--yes", "http://127.0.0.1:8000"], run=run)
+        self.assertIsNone(code)
+        msg = tunnel.serve_error("serve", text)
+        self.assertIn("https://login.tailscale.com/f/serve?node=noYD7JjLFD21CNTRL", msg)
+        self.assertIn("one-time admin setting", msg)

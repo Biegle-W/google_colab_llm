@@ -69,9 +69,12 @@ def streams_from_disk(entry):
 
 
 def local_disk_gb(entry):
-    """Local (runtime) disk a model needs: its streamed files, plus any engine scratch (work_gb)."""
-    streamed = float(entry.get("stream_gb", entry["size_gb"])) if streams_from_disk(entry) else 0.0
-    return streamed + float(entry.get("work_gb", 0))
+    """Local (runtime) disk a model ends up using: the whole model, plus engine scratch (work_gb).
+
+    Even a model read straight from Drive lands on local disk: Colab's Drive client caches what it reads
+    there, and the cache has no size cap (measured on Colab: reading a 23.7 GB file left 22.6 GB cached).
+    SSD-streamed files are copied explicitly; the cache covers the rest."""
+    return float(entry["size_gb"]) + float(entry.get("work_gb", 0))
 
 
 def resident_gb(entry):
@@ -92,7 +95,7 @@ def why_not(entry, vram_gb, ram_gb=None, disk_gb=None, arch=None):
         return "needs GPU arch " + " or ".join(f"sm_{a}" for a in archs) + f" (this GPU is sm_{arch})"
     if vram_gb < min_vram_gb(entry):
         return f"needs {min_vram_gb(entry)} GB VRAM"
-    # Models are read from Drive; only SSD-streamed files and engine scratch (work_gb) take local disk.
+    # Drive-read files still fill local disk through the Drive client's cache, so count the whole model.
     need_disk = local_disk_gb(entry)
     if disk_gb is not None and need_disk and need_disk + DISK_HEADROOM_GB > disk_gb:
         return f"needs {need_disk + DISK_HEADROOM_GB:.0f} GB local disk, {disk_gb:.0f} available"

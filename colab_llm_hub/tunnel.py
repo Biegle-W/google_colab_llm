@@ -370,17 +370,13 @@ def start_tailscale(port, authkey, hostname=None, drive_dir=None, funnel=False,
 
     mode = "funnel" if funnel else "serve"
     # Proxy the hub over HTTPS on the MagicDNS name (Serve = tailnet only; Funnel = public).
-    serve = _run_ts(ts, socket_path, [mode, "--bg", "--yes", f"http://127.0.0.1:{port}"],
-                    check=False, timeout=120)
-    if serve.returncode:
-        # Older CLIs may not support --yes; retry without it.
-        serve = _run_ts(ts, socket_path, [mode, "--bg", f"http://127.0.0.1:{port}"],
-                        check=False, timeout=120)
-    if serve.returncode:
+    code, out = _serve(ts, socket_path, [mode, "--bg", "--yes", f"http://127.0.0.1:{port}"])
+    if code and "flag provided but not defined" in out:          # older CLIs have no --yes
+        code, out = _serve(ts, socket_path, [mode, "--bg", f"http://127.0.0.1:{port}"])
+    if code != 0:
         proc.terminate()
-        raise RuntimeError(
-            f"tailscale {mode} failed:\n" + (serve.stdout or "") + (serve.stderr or "")
-        )
+        raise RuntimeError(serve_error(mode, out))
+    serve = subprocess.CompletedProcess([], 0, out, "")
 
     url = None
     for _ in range(wait):
@@ -404,6 +400,27 @@ def start_tailscale(port, authkey, hostname=None, drive_dir=None, funnel=False,
         f"Tailscale {mode} started but no https://….ts.net URL appeared.\n"
         + (serve.stdout or "") + open(log_path).read()[-1500:]
     )
+
+
+def _serve(ts, socket_path, args, timeout=45, run=subprocess.run):
+    """Run tailscale serve / funnel. Returns (returncode or None on timeout, combined output). When Serve or
+    Funnel is not enabled on the tailnet, the CLI prints an enable link and then waits indefinitely."""
+    try:
+        r = run([ts, "--socket", socket_path] + list(args), capture_output=True, text=True, timeout=timeout,
+                env=_ts_env(socket_path))
+        return r.returncode, (r.stdout or "") + (r.stderr or "")
+    except subprocess.TimeoutExpired as e:
+        parts = [e.stdout, e.stderr]
+        return None, "".join(p.decode(errors="replace") if isinstance(p, bytes) else (p or "") for p in parts)
+
+
+def serve_error(mode, output):
+    m = re.search(r"https://login\.tailscale\.com/f/\S+", output or "")
+    if m and "not enabled" in output:
+        what = "Funnel" if mode == "funnel" else "Serve (HTTPS certificates)"
+        return (f"Tailscale {what} is not enabled on your tailnet. This is a one-time admin setting: open "
+                f"{m.group(0)} , enable it, then re-run this cell. (Or set TUNNEL = \"cloudflare\".)")
+    return f"tailscale {mode} failed or timed out:\n{output}"
 
 
 def stop_tailscale(drive_dir=None):
