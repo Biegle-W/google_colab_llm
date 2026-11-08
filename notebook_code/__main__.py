@@ -29,6 +29,7 @@ def parse(argv=None):
     s.add_argument("--hyperqwen-root", default=None, help="HyperQwen checkout with patched venv (from ensure_hyperqwen)")
     s.add_argument("--ninfer-bin", default=None, help="ninfer-serve binary (from ensure_ninfer)")
     s.add_argument("--basalt-root", default=None, help="Basalt build (from ensure_basalt)")
+    s.add_argument("--sglang-python", default=None, help="python of SGLang's venv (from ensure_sglang)")
     s.add_argument("--strata-nvfp4-root", default=None, help="Strata NVFP4 checkout (from ensure_strata_nvfp4)")
     s.add_argument("--python", default=sys.executable, help="Python used to launch Diffusers / ComfyUI / Sparsa")
     s.add_argument("--catalog", default=None)
@@ -132,6 +133,8 @@ def main(argv=None):
         "hyperqwen": a.hyperqwen_root or "/content/HyperQwen",
         "ninfer": a.ninfer_bin or "/content/ninfer/apps/ninfer-serve",
         "basalt": a.basalt_root or install.BASALT_ROOT,
+        "sglang": a.sglang_python or (os.path.join(install.SGLANG_ROOT, "venv", "bin", "python")
+                                      if os.path.isfile(os.path.join(install.SGLANG_ROOT, "venv", "bin", "python")) else None),
         "strata_nvfp4": a.strata_nvfp4_root or install.STRATA_NVFP4_ROOT,
         "builds": builds,
         "work_dir": a.local_dir,            # engine scratch on local disk (models themselves stay on Drive)

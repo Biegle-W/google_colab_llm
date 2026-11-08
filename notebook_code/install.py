@@ -194,30 +194,43 @@ def sglang_wheelhouse(builds_dir):
     return os.path.join(builds_dir, f"sglang_gpu_py{sys.version_info.major}{sys.version_info.minor}")
 
 
-def ensure_sglang(builds_dir, refresh=False, run=sh, log=print, install_now=True):
-    """Install SGLang from wheels cached on Drive (chat serving; diffusion/H3 is separate)."""
-    wheels = sglang_wheelhouse(builds_dir)
-    pip = f"{sys.executable} -m pip"
-    if not install_now:
-        return _cache_wheels(wheels, "'sglang[all]'", refresh, run, log)
-    cached = bool(glob.glob(f"{wheels}/*.whl")) and not refresh
-    if cached:
-        log("Installing SGLang from the wheels saved on Drive...")
-        try:
-            run(f"{pip} install -q --no-index --find-links {wheels} 'sglang[all]'")
-        except InstallError as e:
-            log("Cached SGLang install failed, rebuilding the wheel cache:", str(e)[:300])
-            cached = False
-    if not cached:
-        log("Downloading SGLang and its dependencies (several GB, one time)...")
-        os.makedirs(wheels, exist_ok=True)
-        try:
-            run(f"{pip} wheel -q -w {wheels} 'sglang[all]'")
-            run(f"{pip} install -q --no-index --find-links {wheels} 'sglang[all]'")
-        except InstallError:
-            log("Wheel cache incomplete; falling back to a direct pip install of sglang...")
-            run(f"{pip} install -q -U 'sglang[all]'")
-    return run(f"{pip} show sglang").split("Version:")[-1].split()[0]
+SGLANG_ROOT = "/content/sglang"
+SGLANG_PYTHON = "3.12"      # sglang[all] needs outlines_core, which has no wheels for Colab's Python 3.13
+SGLANG_SPEC = "sglang[all]"
+
+
+def sglang_tarball(builds_dir):
+    return os.path.join(builds_dir, f"sglang_py{SGLANG_PYTHON.replace('.', '')}.tar")
+
+
+def ensure_sglang(builds_dir, refresh=False, run=sh, log=print, install_now=True, root=SGLANG_ROOT):
+    """SGLang in its own uv venv (Python 3.12, managed by uv inside `root`), cached on Drive as one tarball.
+
+    Returns the venv's python (the hub runs `python -m sglang.launch_server` with it). Needs no GPU, so a CPU
+    runtime can build the tarball (install_now=False returns once it is on Drive)."""
+    tar = sglang_tarball(builds_dir)
+    python = os.path.join(root, "venv", "bin", "python")
+    if not install_now and os.path.isfile(tar) and not refresh:
+        log("SGLang build already on Drive:", tar)
+        return tar
+    if os.path.isfile(python) and not refresh:
+        return python
+    if os.path.isfile(tar) and not refresh:
+        log("Restoring SGLang (its venv) from Drive:", tar)
+        run(f"rm -rf {root} && mkdir -p {os.path.dirname(root)} && tar -xf {tar} -C {os.path.dirname(root)}")
+        return python
+    log("Building SGLang's venv (Python 3.12, several GB, one time)...")
+    run(f"rm -rf {root} && mkdir -p {root}")
+    for cmd in _uv_venv_commands(root, "venv", python_version=SGLANG_PYTHON):
+        run(cmd)
+    uv = f"UV_PYTHON_INSTALL_DIR={root}/.python UV_CACHE_DIR=/content/.uv-cache {sys.executable} -m uv"
+    run(f"cd {root} && {uv} pip install --python venv/bin/python '{SGLANG_SPEC}'")
+    version = run(f"{python} -c 'import sglang; print(sglang.__version__)'").strip().splitlines()[-1]
+    log("SGLang", version)
+    os.makedirs(builds_dir, exist_ok=True)
+    run(f"tar -cf {tar}.tmp -C {os.path.dirname(root)} {os.path.basename(root)} && mv {tar}.tmp {tar}")
+    log("Cached SGLang on Drive:", tar)
+    return python if install_now else tar
 
 
 STRATA_INSTALL_SH = "https://github.com/Niko1221/Strata/releases/latest/download/install.sh"

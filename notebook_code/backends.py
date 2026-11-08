@@ -95,7 +95,9 @@ def vllm_command(entry, model_path, ctx, vllm_bin="vllm", port=None, gpu_util=0.
 
 def sglang_command(entry, model_path, ctx, sglang_bin=None, port=None):
     # `python -m sglang.launch_server` is the usual Colab install; allow an override binary.
-    if sglang_bin:
+    if sglang_bin and os.path.basename(str(sglang_bin)).startswith("python"):
+        args = [str(sglang_bin), "-m", "sglang.launch_server"]          # the SGLang venv's python
+    elif sglang_bin:
         args = [str(sglang_bin)]
     else:
         args = [sys.executable, "-m", "sglang.launch_server"]

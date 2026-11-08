@@ -422,7 +422,7 @@ def build_notebook(engine: str) -> dict:
             f'elif ENGINE == "vllm":',
             "    print(\"vLLM\", install.ensure_vllm(BUILDS, refresh=REFRESH_WHEELS))",
             f'elif ENGINE == "sglang":',
-            "    print(\"SGLang\", install.ensure_sglang(BUILDS, refresh=REFRESH_WHEELS))",
+            "    print(\"SGLang venv python:\", install.ensure_sglang(BUILDS, refresh=REFRESH_WHEELS))",
             f'elif ENGINE == "diffusers":',
             "    print(\"diffusers\", install.ensure_diffusers(BUILDS, refresh=REFRESH_WHEELS))",
             f'elif ENGINE == "strata":',
