@@ -39,7 +39,7 @@ _ENGINE_PREFETCH = {
         "l4": ["qwen-image-2.1-nf4", "sdxl-turbo", "sdxl-base"],
         "a100_40": ["qwen-image-2.1", "flux-schnell", "sdxl-turbo"],
         "a100_80": ["qwen-image-2.1", "flux-schnell"],
-        "g4": ["qwen-image-2.1", "flux-schnell"],   # minimax-h3 is prefetch-only here (210 GB); use the ComfyUI notebook
+        "g4": ["qwen-image-2.1", "flux-schnell"],   # MiniMax H3 video: the ComfyUI notebook
     },
     "strata": {
         "t4": [],
@@ -67,10 +67,12 @@ _ENGINE_PREFETCH = {
     },
     "comfyui": {
         "t4": ["qwen-image-2.1-turbo-comfy"],
-        "l4": ["qwen-image-2.1-turbo-comfy", "flux3-klein-comfy"],
+        "l4": ["qwen-image-2.1-turbo-comfy", "flux3-klein-comfy", "minimax-h3-l4-comfy"],
         "a100_40": ["qwen-image-2.1-turbo-comfy", "flux3-klein-comfy", "wan22-5b-comfy"],
-        "a100_80": ["qwen-image-2.1-turbo-comfy", "flux3-klein-comfy", "wan22-5b-comfy"],
-        "g4": ["qwen-image-2.1-turbo-comfy", "flux3-klein-comfy", "wan22-5b-comfy", "minimax-h3-comfy"],
+        "a100_80": ["qwen-image-2.1-turbo-bf16-comfy", "qwen-image-2.1-bf16-comfy", "flux3-klein-comfy",
+                    "wan22-5b-comfy", "minimax-h3-comfy"],
+        "g4": ["qwen-image-2.1-turbo-bf16-comfy", "qwen-image-2.1-bf16-comfy", "flux3-klein-comfy",
+               "wan22-5b-comfy", "minimax-h3-g4-comfy"],
     },
     "sparsa": {
         "t4": [],

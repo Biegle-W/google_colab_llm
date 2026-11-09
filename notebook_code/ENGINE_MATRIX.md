@@ -22,9 +22,9 @@ models. Settings: `settings/settings_<engine>.json`.
 | **MiniMax-M3.1-Flash** | **Sparsa** (IQ2_XS-D3 / IQ2_KT) | — | stock llama.cpp / Diffusers |
 | **Nemotron-3.5-Bolt-74B** | **llama.cpp native IQ2** (workstation selected) | vLLM W4A16 experimental | — |
 | **Sage-A1.5 / Ornith-1.5** | llama.cpp Q4 / vLLM FP8 (Sage) | — | Ornith needs G4-class VRAM |
-| **Qwen-Image-2.1** | **ComfyUI Turbo** or **Diffusers** NF4 / BF16 | — | — |
+| **Qwen-Image-2.1** | **ComfyUI**: Turbo INT8 + INT8 encoder (L4); Turbo / base BF16 (A100, G4) | Diffusers NF4 / BF16 | — |
 | **FLUX.3 Klein / Wan 2.2** | **ComfyUI** | — | Diffusers hub (not catalogued) |
-| **MiniMax-H3** | **ComfyUI** prefetch + UI | — | Diffusers hub server |
+| **MiniMax-H3** | **ComfyUI** (`/v1/videos/generations`): pruned INT8 (L4), INT8 + INT8 encoder (A100), INT8 + NVFP4 encoder (G4); Turbo 8-step LoRA | — | Diffusers (no H3 pipeline) |
 
 ## Official references
 
@@ -122,8 +122,9 @@ request can turn it on with `chat_template_kwargs: {"enable_thinking": true}`.
 | Catalog id | Engine | Role |
 |---|---|---|
 | `qwen3.8-27b-exl3-2bpw` | **TensorFold** | Mia EXL3 + DFlash2 |
-| `qwen-image-2.1-turbo-comfy`, `flux3-klein-comfy` | **ComfyUI** | Interactive / API images |
-| `wan22-5b-comfy`, `minimax-h3-comfy` | **ComfyUI** | Video prefetch |
+| `qwen-image-2.1-turbo-comfy` (L4), `qwen-image-2.1-turbo-bf16-comfy`, `qwen-image-2.1-bf16-comfy` (A100 / G4), `flux3-klein-comfy` | **ComfyUI** | API images |
+| `minimax-h3-l4-comfy`, `minimax-h3-comfy` (A100), `minimax-h3-g4-comfy` | **ComfyUI** | API video + audio |
+| `wan22-5b-comfy` | **ComfyUI** | Video prefetch (UI workflow) |
 | `minimax-m3.1-flash-iq2-*` | **Sparsa** | MiniMax-M3.1-Flash |
 | `hyperqwen-qwen3.8-27b-{mtp,dflash2,batch}` | **HyperQwen** | Qwen3.8-27B single-user / batch |
 | `ninfer-qwen3.8-27b{,-nvfp4}`, `ninfer-qwen3.6-35b-a3b`, `ninfer-qwen3.8-flash-next` | **NInfer** | G4 only |

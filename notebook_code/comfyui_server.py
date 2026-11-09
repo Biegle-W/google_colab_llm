@@ -1,7 +1,8 @@
-"""OpenAI-compatible text-to-image server backed by ComfyUI.
+"""OpenAI-compatible text-to-image (and text-to-video) server backed by ComfyUI.
 
 Starts ComfyUI as a child process against a Drive-restored model directory, then exposes
-POST /v1/images/generations by queueing a stock API workflow graph.
+POST /v1/images/generations (or, for a video model, POST /v1/videos/generations: prompt, size, seconds;
+the MP4 comes back as b64_mp4) by queueing a stock API workflow graph.
 """
 from __future__ import annotations
 
@@ -53,7 +54,56 @@ def load_workflow(name):
     return json.loads(path.read_text())
 
 
-def apply_prompt(graph, prompt, *, negative="", seed=None, width=None, height=None, steps=None):
+LOADER_FOLDERS = {"UNETLoader": ("unet_name", "diffusion_models"), "CLIPLoader": ("clip_name", "text_encoders"),
+                  "VAELoader": ("vae_name", "vae"), "LoraLoaderModelOnly": ("lora_name", "loras")}
+
+
+def bind_files(graph, model_path):
+    """Point the workflow's loaders at the files this model's folder holds.
+
+    One workflow serves several quants (INT8 on an L4 or A100, BF16, NVFP4 on a G4): each catalog entry downloads
+    one file per role, so a loader whose file is missing takes the folder's file for that role (an audio VAE
+    loader the audio VAE). A LoRA loader with no LoRA in the folder is bypassed."""
+    root = Path(model_path)
+    names = {}
+    for folder in ("diffusion_models", "text_encoders", "vae", "loras"):
+        found = []
+        for base in (root, root / "split_files"):
+            d = base / folder
+            if d.is_dir():
+                found += sorted(p.name for p in d.iterdir() if p.suffix in (".safetensors", ".gguf", ".pt"))
+        names[folder] = found
+    for nid, node in list(graph.items()):
+        kind = node.get("class_type")
+        if kind not in LOADER_FOLDERS:
+            continue
+        key, folder = LOADER_FOLDERS[kind]
+        inputs = node.setdefault("inputs", {})
+        have = names[folder]
+        if inputs.get(key) in have:
+            continue
+        if kind == "VAELoader":
+            audio = "audio" in str(inputs.get(key, ""))
+            have = [n for n in have if ("audio" in n) == audio]
+        if have:
+            inputs[key] = have[0]
+        elif kind == "LoraLoaderModelOnly":
+            source = inputs.get("model")
+            del graph[nid]
+            for other in graph.values():
+                for k, v in other.get("inputs", {}).items():
+                    if isinstance(v, list) and v and v[0] == nid:
+                        other["inputs"][k] = source
+    return graph
+
+
+def video_length(seconds, fps=24):
+    """Frames for `seconds` of video on MiniMax H3's 17k+5 grid (the official template's formula)."""
+    n = max(5, round(float(seconds) * fps))
+    return n + (5 - n % 17) % 17
+
+
+def apply_prompt(graph, prompt, *, negative="", seed=None, width=None, height=None, steps=None, seconds=None):
     """Fill prompt / seed / size into known node classes without depending on node ids."""
     seed = int(seed if seed is not None else (time.time_ns() % (2**31 - 1)))
     for node in graph.values():
@@ -81,6 +131,18 @@ def apply_prompt(graph, prompt, *, negative="", seed=None, width=None, height=No
                 inputs["seed"] = seed
             if steps is not None and "steps" in inputs:
                 inputs["steps"] = int(steps)
+        if kind == "MiniMaxH3ImageToVideo":
+            inputs["prompt"] = prompt
+            if width:
+                inputs["width"] = int(width)
+            if height:
+                inputs["height"] = int(height)
+            if seconds:
+                inputs["length"] = video_length(seconds)
+        if kind == "BasicScheduler" and steps is not None:
+            inputs["steps"] = int(steps)
+        if kind == "SaveVideo":
+            inputs["filename_prefix"] = f"video/colab-{seed}"
         if kind in ("EmptyLatentImage", "EmptyFlux2LatentImage", "EmptySD3LatentImage"):
             if width:
                 inputs["width"] = int(width)
@@ -151,12 +213,12 @@ def collect_images(comfy_port, history, output_dir):
 import urllib.parse  # noqa: E402
 
 
-def clamp_size(width, height, max_edge):
+def clamp_size(width, height, max_edge, multiple=8):
     width = int(width or max_edge)
     height = int(height or max_edge)
     scale = min(1.0, max_edge / max(width, height))
-    width = max(64, int(round(width * scale / 8) * 8))
-    height = max(64, int(round(height * scale / 8) * 8))
+    width = max(64, int(round(width * scale / multiple) * multiple))
+    height = max(64, int(round(height * scale / multiple) * multiple))
     return width, height
 
 
@@ -190,11 +252,10 @@ def make_handler(state):
 
         def do_POST(self):
             path = self.path.split("?", 1)[0]
-            if path != "/v1/images/generations":
-                return self.error_json(404, "Only /v1/images/generations is exposed.", "not_found")
-            if state.get("kind") == "video":
-                return self.error_json(501, "Video workflows are prefetch-only on this Colab hub; "
-                                       "open ComfyUI UI workflows for interactive video.", "unsupported")
+            video = state.get("kind") == "video"
+            want = "/v1/videos/generations" if video else "/v1/images/generations"
+            if path != want:
+                return self.error_json(404, f"This engine serves {want} only.", "not_found")
             try:
                 length = int(self.headers.get("Content-Length", "0"))
                 data = json.loads(self.rfile.read(length))
@@ -214,21 +275,31 @@ def make_handler(state):
                     width, height = (int(x) for x in size.lower().split("x", 1))
                 except ValueError:
                     pass
-            width, height = clamp_size(width, height, state["max_edge"])
+            if video and not width and "x" not in size:
+                width, height = 832, 480                         # 16:9 at ~0.4 MP, the official template's size
+            width, height = clamp_size(width, height, state["max_edge"], multiple=32 if video else 8)
             steps = data.get("steps") or data.get("num_inference_steps") or state["default_steps"]
+            seconds = min(float(data.get("seconds") or data.get("duration") or 5), 15.0) if video else None
             try:
                 graph = json.loads(json.dumps(state["workflow"]))  # deep copy
+                graph = bind_files(graph, state["model_path"])
                 graph, seed = apply_prompt(
                     graph, prompt, negative=data.get("negative_prompt") or "",
-                    seed=data.get("seed"), width=width, height=height, steps=steps)
+                    seed=data.get("seed"), width=width, height=height, steps=steps, seconds=seconds)
                 prompt_id = queue_prompt(state["comfy_port"], graph, state["client_id"])
-                history = wait_history(state["comfy_port"], prompt_id)
+                history = wait_history(state["comfy_port"], prompt_id, timeout=3600 if video else 900)
                 pngs = collect_images(state["comfy_port"], history, state["output_dir"])
                 if not pngs:
-                    return self.error_json(500, "ComfyUI finished without image outputs.", "generation_failed")
+                    return self.error_json(500, f"ComfyUI finished without {'video' if video else 'image'} outputs.",
+                                           "generation_failed")
             except Exception as e:
                 traceback.print_exc()
                 return self.error_json(500, f"Generation failed: {e}", "generation_failed")
+            if video:
+                return self.send_json(200, {
+                    "created": int(time.time()), "model": state["model_id"],
+                    "data": [{"b64_mp4": base64.b64encode(pngs[0]).decode("ascii")}],
+                    "size": f"{width}x{height}", "seconds": seconds, "steps": int(steps), "seed": seed})
             self.send_json(200, {
                 "created": int(time.time()),
                 "model": state["model_id"],
@@ -285,7 +356,7 @@ def main(argv=None):
     state = {
         "model_id": a.model_id, "max_edge": a.max_edge, "default_steps": a.steps,
         "default_guidance": a.guidance, "workflow": workflow, "comfy_port": a.comfy_port,
-        "client_id": str(uuid.uuid4()), "output_dir": output_dir, "kind": a.kind,
+        "client_id": str(uuid.uuid4()), "output_dir": output_dir, "kind": a.kind, "model_path": a.model_path,
         "proc": proc,
     }
     print(f"[comfyui] ready on 127.0.0.1:{a.port} (ComfyUI UI :{a.comfy_port})", flush=True)

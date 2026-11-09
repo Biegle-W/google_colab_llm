@@ -77,7 +77,7 @@ class Catalog(unittest.TestCase):
         self.assertEqual(catalog.context_for(e, 24.2), 1024)
         self.assertFalse(catalog.fits(by["flux-schnell"], 24.2))
         self.assertTrue(catalog.fits(by["flux-schnell"], 42.9))
-        self.assertEqual(catalog.kind_for(by["minimax-h3"]), "video")
+        self.assertEqual(catalog.kind_for(by["minimax-h3-comfy"]), "video")
         self.assertTrue(catalog.fits(by["flash-next-q3"], 102.6))
         self.assertFalse(catalog.fits(by["flash-next-q3"], 42.9))
         self.assertIn("glm-5.3-flash-iq1s", by)
@@ -1798,6 +1798,77 @@ class DirectToDriveWithOverlap(unittest.TestCase):
         self.assertEqual(where["b.gguf"], drive)
         self.assertEqual(where["c.json"], os.path.join(tmp, "stage"))
         shutil.rmtree(tmp, ignore_errors=True)
+
+
+class ComfyImageAndVideo(unittest.TestCase):
+    """Qwen-Image 2.1 and MiniMax H3 per runtime: one workflow per family, the files bound per entry."""
+
+    def folder(self, files):
+        d = tempfile.mkdtemp()
+        for f in files:
+            Path(d, f).parent.mkdir(parents=True, exist_ok=True)
+            Path(d, f).write_text("x")
+        return d
+
+    def test_workflows_are_wired_and_every_entry_has_its_files_bound(self):
+        from notebook_code import comfyui_server as cs
+        by = catalog.by_id(catalog.load())
+        for mid in ("qwen-image-2.1-turbo-comfy", "qwen-image-2.1-turbo-bf16-comfy", "qwen-image-2.1-bf16-comfy",
+                    "minimax-h3-l4-comfy", "minimax-h3-comfy", "minimax-h3-g4-comfy"):
+            e = by[mid]
+            g = cs.bind_files(cs.load_workflow(e["workflow"]), self.folder(e["files"]))
+            for nid, node in g.items():                       # every link points at a node that exists
+                for v in node["inputs"].values():
+                    if isinstance(v, list):
+                        self.assertIn(v[0], g, f"{mid}: node {nid} links to missing {v[0]}")
+            used = {n["inputs"][k] for n in g.values() for k in ("unet_name", "clip_name", "vae_name", "lora_name")
+                    if k in n["inputs"]}
+            self.assertEqual(used, {os.path.basename(f) for f in e["files"]}, mid)
+
+    def test_audio_and_video_vaes_go_to_their_own_loaders(self):
+        from notebook_code import comfyui_server as cs
+        e = catalog.by_id(catalog.load())["minimax-h3-l4-comfy"]
+        g = cs.bind_files(cs.load_workflow(e["workflow"]), self.folder(e["files"]))
+        self.assertEqual(g["3"]["inputs"]["vae_name"], "minimax_h3_video_vae_int8_convrot.safetensors")
+        self.assertEqual(g["4"]["inputs"]["vae_name"], "minimax_h3_audio_vae_fp32.safetensors")
+
+    def test_a_missing_lora_is_bypassed(self):
+        from notebook_code import comfyui_server as cs
+        g = cs.bind_files(cs.load_workflow("minimax-h3-t2v.api.json"),
+                          self.folder(["diffusion_models/a.safetensors", "text_encoders/b.safetensors",
+                                       "vae/v.safetensors", "vae/audio.safetensors"]))
+        self.assertNotIn("5", g)
+        self.assertEqual(g["9"]["inputs"]["model"], ["1", 0])
+        self.assertEqual(g["10"]["inputs"]["model"], ["1", 0])
+
+    def test_video_prompt_size_and_length(self):
+        from notebook_code import comfyui_server as cs
+        g, seed = cs.apply_prompt(cs.load_workflow("minimax-h3-t2v.api.json"), "a cat", seed=7, width=832,
+                                  height=480, steps=8, seconds=5)
+        node = g["6"]["inputs"]
+        self.assertEqual((node["prompt"], node["width"], node["height"]), ("a cat", 832, 480))
+        self.assertEqual(node["length"], 124)                   # the template's 5 s on the 17k+5 grid
+        self.assertEqual(cs.video_length(10), 243)
+        self.assertEqual(g["9"]["inputs"]["steps"], 8)
+        self.assertEqual(g["7"]["inputs"]["noise_seed"], 7)
+        self.assertEqual(cs.clamp_size(840, 470, 1344, multiple=32), (832, 480))
+
+    def test_qwen_prompt_goes_to_the_qwen_encoder(self):
+        from notebook_code import comfyui_server as cs
+        g, _ = cs.apply_prompt(cs.load_workflow("qwen-image-2.1-turbo.api.json"), "a fox", width=768, height=768)
+        self.assertEqual(g["5"]["inputs"]["prompt"], "a fox")
+        self.assertEqual((g["6"]["inputs"]["width"], g["6"]["inputs"]["height"]), (768, 768))
+
+    def test_comfyui_keeps_colabs_torch(self):
+        d = tempfile.mkdtemp()
+        Path(d, "requirements.txt").write_text("torch\ntorchvision\ntorchaudio>=2\ncomfy-kitchen==0.2.40\nav>=17.0.0\n")
+        got = Path(install.comfyui_requirements(d, os.path.join(d, "r.txt"))).read_text().split()
+        self.assertEqual(got, ["comfy-kitchen==0.2.40", "av>=17.0.0"])
+        self.assertIn(install.COMFYUI_PIN, install.comfyui_wheelhouse("/b"))
+
+    def test_hub_sends_each_kind_to_its_endpoint(self):
+        from notebook_code import hub as hubmod
+        self.assertEqual(hubmod.KIND_PATHS["video"], "/v1/videos/generations")
 
 
 class TunnelPrompt(unittest.TestCase):

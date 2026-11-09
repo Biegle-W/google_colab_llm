@@ -26,6 +26,9 @@ POLL = 1                  # seconds between readiness checks while an engine sta
 ERROR_TTL = 20            # repeat a failed load's error for this long instead of retrying at once
 
 
+VIDEO_PATH = "/v1/videos/generations"
+KIND_PATHS = {"image": "/v1/images/generations", "video": VIDEO_PATH}
+
 class HubError(Exception):
     def __init__(self, status, message, code, retry_after=None):
         super().__init__(message)
@@ -341,23 +344,24 @@ def make_handler(hub, token):
                 except HubError as e:
                     return self.error_json(e.status, str(e), e.code)
                 return self.send_json(200, {"status": "unloaded"})
-            if path not in ("/v1/chat/completions", "/v1/completions", "/v1/images/generations"):
-                return self.error_json(404, "Only OpenAI chat/completion and image endpoints are exposed.", "not_found")
+            if path not in ("/v1/chat/completions", "/v1/completions", "/v1/images/generations", VIDEO_PATH):
+                return self.error_json(404, "Only OpenAI chat/completion, image and video endpoints are exposed.",
+                                       "not_found")
             model = data.get("model")
             if not isinstance(model, str):
                 return self.error_json(400, "A model ID is required. Use GET /v1/models.", "bad_request")
             if model in hub.entries:
                 kind = catalog.kind_for(hub.entries[model])
-                if path == "/v1/images/generations" and kind != "image":
-                    return self.error_json(400, f"{model} is a chat model; use /v1/chat/completions.", "wrong_endpoint")
-                if path != "/v1/images/generations" and kind == "image":
-                    return self.error_json(400, f"{model} is an image model; use /v1/images/generations.", "wrong_endpoint")
+                want = KIND_PATHS.get(kind, "/v1/chat/completions")
+                if (path in KIND_PATHS.values() or kind in KIND_PATHS) and path != want:
+                    return self.error_json(400, f"{model} is a{'n' if kind == 'image' else ''} {kind} model; "
+                                                f"use {want}.", "wrong_endpoint")
             entry = hub.entries.get(model)
             if entry is not None and catalog.served_name(entry) != model:
                 # The engine answers to a fixed name of its own (HyperQwen); clients keep using the catalog id.
                 data["model"] = catalog.served_name(entry)
                 body = json.dumps(data).encode()
-            if data.get("stream") and path != "/v1/images/generations":
+            if data.get("stream") and path not in KIND_PATHS.values():
                 return self.stream(model, path, body)
             try:
                 port = hub.acquire(model, timeout=NONSTREAM_WAIT)

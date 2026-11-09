@@ -317,7 +317,8 @@ TENSORFOLD_URL = (
     f"tensorfold-{TENSORFOLD_VERSION}-linux-x86_64.tar.gz"
 )
 COMFYUI_REPO = "https://github.com/Comfy-Org/ComfyUI.git"
-COMFYUI_PIN = "v0.3.60"  # recent stable tag; refresh via REFRESH_WHEELS rebuild
+COMFYUI_PIN = "v0.43.2"  # 2026-10-30: MiniMax H3 + Qwen-Image 2.1 nodes, comfy-kitchen INT8 / NVFP4 kernels
+COMFYUI_KEEP = ("torch", "torchvision", "torchaudio")   # Colab's CUDA builds stay; PyPI's would replace them
 SPARSA_VERSION = "v0.2.2-experimental"
 SPARSA_REPO = "https://github.com/LyJonathan/Sparsa.git"
 SPARSA_TARBALL = (
@@ -346,7 +347,22 @@ def ensure_tensorfold(builds_dir, refresh=False, run=sh, log=print):
 
 
 def comfyui_wheelhouse(builds_dir):
-    return os.path.join(builds_dir, f"comfyui_gpu_py{sys.version_info.major}{sys.version_info.minor}")
+    return os.path.join(builds_dir, f"comfyui_{COMFYUI_PIN}_gpu_py{sys.version_info.major}{sys.version_info.minor}")
+
+
+def comfyui_requirements(root, dest="/content/comfyui-requirements.txt"):
+    """ComfyUI's requirements.txt without torch / torchvision / torchaudio (Colab's own builds are kept)."""
+    src = os.path.join(root, "requirements.txt")
+    if not os.path.isfile(src):
+        return None
+    keep = []
+    for line in open(src).read().splitlines():
+        name = re.split(r"[<>=!~\[; ]", line.strip(), maxsplit=1)[0].lower()
+        if name not in COMFYUI_KEEP:
+            keep.append(line)
+    with open(dest, "w") as f:
+        f.write("\n".join(keep) + "\n")
+    return dest
 
 
 def ensure_comfyui(builds_dir, refresh=False, run=sh, log=print):
@@ -363,16 +379,16 @@ def ensure_comfyui(builds_dir, refresh=False, run=sh, log=print):
         except InstallError:
             log(f"Tag {COMFYUI_PIN} unavailable; cloning default branch...")
             run(f"rm -rf {root} && git clone -q --depth 1 {COMFYUI_REPO} {root}")
-    root = local_tree("ComfyUI", builds_dir, ready, build, refresh, run, log, "ComfyUI")
+    root = local_tree(f"ComfyUI-{COMFYUI_PIN}", builds_dir, ready, build, refresh, run, log, "ComfyUI")
     wheels = comfyui_wheelhouse(builds_dir)
     pkgs = " ".join(COMFYUI_PKGS)
-    # Prefer ComfyUI's requirements.txt when present; fall back to the pinned package list.
-    req = os.path.join(root, "requirements.txt")
+    # Prefer ComfyUI's requirements.txt when present (less torch); fall back to the pinned package list.
+    req = comfyui_requirements(root) or ""
     cached = bool(glob.glob(f"{wheels}/*.whl")) and not refresh
     if cached:
         log("Installing ComfyUI deps from Drive wheels...")
         try:
-            if os.path.isfile(req):
+            if req:
                 run(f"{pip} install -q --no-index --find-links {wheels} -r {req}")
             else:
                 run(f"{pip} install -q --no-index --find-links {wheels} {pkgs}")
@@ -383,7 +399,7 @@ def ensure_comfyui(builds_dir, refresh=False, run=sh, log=print):
     log("Downloading ComfyUI Python deps (one time; saved to Drive)...")
     os.makedirs(wheels, exist_ok=True)
     try:
-        if os.path.isfile(req):
+        if req:
             run(f"{pip} wheel -q -w {wheels} -r {req}")
             run(f"{pip} install -q --no-index --find-links {wheels} -r {req}")
         else:
@@ -391,7 +407,7 @@ def ensure_comfyui(builds_dir, refresh=False, run=sh, log=print):
             run(f"{pip} install -q --no-index --find-links {wheels} {pkgs}")
     except InstallError:
         log("Wheel cache incomplete; falling back to a direct pip install...")
-        if os.path.isfile(req):
+        if req:
             run(f"{pip} install -q -r {req}")
         else:
             run(f"{pip} install -q {pkgs}")

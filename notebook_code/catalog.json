@@ -735,41 +735,6 @@
     ]
   },
   {
-    "id": "minimax-h3",
-    "name": "MiniMax-H3 (video+audio; experimental on Colab)",
-    "backend": "diffusers",
-    "repo": "MiniMaxAI/MiniMax-H3",
-    "files": [
-      "*"
-    ],
-    "size_gb": 210.4,
-    "contexts": [
-      [
-        70,
-        480
-      ],
-      [
-        90,
-        768
-      ]
-    ],
-    "pipeline": "unsupported_use_comfy_or_sglang",
-    "dtype": "bfloat16",
-    "default_steps": 20,
-    "default_guidance": 0.0,
-    "offload": true,
-    "experimental": true,
-    "kind": "video",
-    "notes": "Not an LLM. Prefer the ComfyUI notebook (`minimax-h3-comfy`) or SGLang diffusion with layerwise offload. Prefetch stores weights on Drive; the Diffusers hub server will refuse to start this id.",
-    "exclude": [
-      "FL2VA/*",
-      "Ref2VA/*",
-      "assets/*",
-      "scripts/*",
-      "docs/*"
-    ]
-  },
-  {
     "id": "glm-5.3-flash-iq1s",
     "name": "GLM-5.3-Flash UD-IQ1_S (llama.cpp; ~93 GB)",
     "backend": "llama",
@@ -1003,7 +968,7 @@
     ],
     "offload": true,
     "maya_model": "glm-maya-s24",
-    "notes": "Official Maya quant for \u226424 GB cards (+14% decode vs Maya-S). OpenAI API via ./setup.sh. Colab needs high host RAM + Drive for the ~95 GB pack."
+    "notes": "Official Maya quant for ≤24 GB cards (+14% decode vs Maya-S). OpenAI API via ./setup.sh. Colab needs high host RAM + Drive for the ~95 GB pack."
   },
   {
     "id": "glm-maya-s",
@@ -1151,26 +1116,22 @@
   },
   {
     "id": "qwen-image-2.1-turbo-comfy",
-    "name": "Qwen-Image-2.1 Turbo (ComfyUI)",
+    "name": "Qwen-Image-2.1 Turbo INT8 (ComfyUI; L4)",
     "backend": "comfyui",
     "repo": "Comfy-Org/Qwen-Image-2.1",
     "files": [
       "diffusion_models/qwen_image_2.1_turbo_int8_convrot.safetensors",
-      "text_encoders/qwen3vl_8b_w4a8.safetensors",
+      "text_encoders/qwen3vl_8b_int8_convrot.safetensors",
       "vae/qwen_image_2.1_vae_bf16.safetensors"
     ],
-    "size_gb": 14.3,
+    "size_gb": 17.3,
     "contexts": [
       [
-        12,
-        768
-      ],
-      [
-        16,
+        18,
         1024
       ],
       [
-        24,
+        22,
         2048
       ]
     ],
@@ -1178,8 +1139,62 @@
     "workflow": "qwen-image-2.1-turbo.api.json",
     "default_steps": 8,
     "default_guidance": 1.0,
-    "notes": "Workstation comfy-runtime qwen-image-2.1-turbo weights via Comfy-Org. OpenAI image API through comfyui_server.",
-    "offload": true
+    "offload": true,
+    "notes": "Official Comfy-Org INT8 ConvRot Turbo (8 steps) + INT8 Qwen3-VL 8B encoder: fits a 24 GB L4 at 1024 px; INT8 runs on the L4's tensor cores."
+  },
+  {
+    "id": "qwen-image-2.1-turbo-bf16-comfy",
+    "name": "Qwen-Image-2.1 Turbo BF16 (ComfyUI; A100 / G4)",
+    "backend": "comfyui",
+    "repo": "Comfy-Org/Qwen-Image-2.1",
+    "files": [
+      "diffusion_models/qwen_image_2.1_turbo_bf16.safetensors",
+      "text_encoders/qwen3vl_8b_bf16.safetensors",
+      "vae/qwen_image_2.1_vae_bf16.safetensors"
+    ],
+    "size_gb": 32.4,
+    "contexts": [
+      [
+        36,
+        1024
+      ],
+      [
+        44,
+        2048
+      ]
+    ],
+    "kind": "image",
+    "workflow": "qwen-image-2.1-turbo.api.json",
+    "default_steps": 8,
+    "default_guidance": 1.0,
+    "notes": "Full-precision Turbo (8 steps) and encoder for 80 GB+ GPUs: no quantization loss."
+  },
+  {
+    "id": "qwen-image-2.1-bf16-comfy",
+    "name": "Qwen-Image-2.1 BF16 (ComfyUI; best quality, A100 / G4)",
+    "backend": "comfyui",
+    "repo": "Comfy-Org/Qwen-Image-2.1",
+    "files": [
+      "diffusion_models/qwen_image_2.1_bf16.safetensors",
+      "text_encoders/qwen3vl_8b_bf16.safetensors",
+      "vae/qwen_image_2.1_vae_bf16.safetensors"
+    ],
+    "size_gb": 32.4,
+    "contexts": [
+      [
+        36,
+        1024
+      ],
+      [
+        44,
+        2048
+      ]
+    ],
+    "kind": "image",
+    "workflow": "qwen-image-2.1.api.json",
+    "default_steps": 25,
+    "default_guidance": 1.0,
+    "notes": "The base model (25 steps, the official template's count): slower than Turbo, the best images."
   },
   {
     "id": "flux3-klein-comfy",
@@ -1247,33 +1262,85 @@
   },
   {
     "id": "minimax-h3-comfy",
-    "name": "MiniMax-H3 (ComfyUI video; prefetch)",
+    "name": "MiniMax-H3 INT8 (ComfyUI video + audio; A100)",
+    "backend": "comfyui",
+    "repo": "Comfy-Org/MiniMax-H3",
+    "files": [
+      "diffusion_models/minimax_h3_fl2va_int8_convrot.safetensors",
+      "text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+      "vae/minimax_h3_video_vae_fp16.safetensors",
+      "vae/minimax_h3_audio_vae_fp32.safetensors",
+      "loras/minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors"
+    ],
+    "size_gb": 69.0,
+    "contexts": [
+      [
+        70,
+        1344
+      ]
+    ],
+    "kind": "video",
+    "workflow": "minimax-h3-t2v.api.json",
+    "default_steps": 8,
+    "default_guidance": 1.0,
+    "experimental": true,
+    "notes": "Full (unpruned) INT8 video model + INT8 Qwen3-VL 32B encoder + Turbo 8-step LoRA: INT8 is the A100's fast path (no FP8 / NVFP4 there)."
+  },
+  {
+    "id": "minimax-h3-l4-comfy",
+    "name": "MiniMax-H3 pruned INT8 (ComfyUI video + audio; L4)",
     "backend": "comfyui",
     "repo": "Comfy-Org/MiniMax-H3",
     "files": [
       "diffusion_models/minimax_h3_fl2va_pruned_int8_convrot.safetensors",
-      "text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
-      "vae/minimax_h3_video_vae_fp16.safetensors",
-      "vae/minimax_h3_audio_vae_fp32.safetensors"
+      "text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+      "vae/minimax_h3_video_vae_int8_convrot.safetensors",
+      "vae/minimax_h3_audio_vae_fp32.safetensors",
+      "loras/minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors"
     ],
-    "size_gb": 42.48,
+    "size_gb": 53.5,
     "contexts": [
       [
-        70,
-        480
-      ],
-      [
-        90,
-        768
+        22,
+        832
       ]
     ],
     "kind": "video",
-    "workflow": "qwen-image-2.1-turbo.api.json",
-    "default_steps": 20,
+    "workflow": "minimax-h3-t2v.api.json",
+    "default_steps": 8,
+    "default_guidance": 1.0,
+    "offload": true,
+    "experimental": true,
+    "notes": "Pruned INT8 video model + INT8 encoder (held in RAM between prompts) + Turbo 8-step LoRA. Slow on 24 GB: short 480p clips."
+  },
+  {
+    "id": "minimax-h3-g4-comfy",
+    "name": "MiniMax-H3 INT8 + NVFP4 encoder (ComfyUI video + audio; G4)",
+    "backend": "comfyui",
+    "repo": "Comfy-Org/MiniMax-H3",
+    "files": [
+      "diffusion_models/minimax_h3_fl2va_int8_convrot.safetensors",
+      "text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "vae/minimax_h3_video_vae_fp16.safetensors",
+      "vae/minimax_h3_audio_vae_fp32.safetensors",
+      "loras/minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors"
+    ],
+    "size_gb": 57.5,
+    "contexts": [
+      [
+        60,
+        1344
+      ]
+    ],
+    "kind": "video",
+    "workflow": "minimax-h3-t2v.api.json",
+    "default_steps": 8,
     "default_guidance": 1.0,
     "experimental": true,
-    "offload": true,
-    "notes": "Large video/audio pack. Prefer ComfyUI UI after prefetch; Diffusers hub refuses this family."
+    "gpu_arch": [
+      "120"
+    ],
+    "notes": "Full INT8 video model + the NVFP4 AWQ encoder (Blackwell only) + Turbo 8-step LoRA. Shares the video model with minimax-h3-comfy."
   },
   {
     "id": "flash-next-gyro-s",

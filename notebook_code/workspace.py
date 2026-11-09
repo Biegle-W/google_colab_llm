@@ -190,6 +190,10 @@ class Workspace:
         path.with_suffix(path.suffix + ".json").write_text(json.dumps(meta, indent=2) + "\n")
         return path
 
+    def save_video_b64(self, b64_mp4, model_id, prompt=""):
+        """A generated MP4 (with its audio track) next to the images, plus a .json with the prompt."""
+        return self.save_image_b64(b64_mp4, model_id, prompt=prompt, ext="mp4")
+
     def save_chat(self, model_id, messages, response, usage=None):
         return self.save_json(self.chat, model_id or "chat", {
             "model": model_id, "messages": messages, "response": response, "usage": usage,
