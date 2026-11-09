@@ -949,7 +949,8 @@
     "strata_family": "qwen",
     "strata_model": "iq3_s",
     "vision": "off",
-    "notes": "ISTA recommended quality point; needs ~55 GB RAM for experts + headroom."
+    "notes": "ISTA recommended quality point; needs ~55 GB RAM for experts + headroom. Copied to local disk each start: read over the Drive mount, Strata's engine self-test (a full model load) did not finish in its 10-minute limit on the G4.",
+    "disk_stream": true
   },
   {
     "id": "deepseek-strata-ist-2.00",
