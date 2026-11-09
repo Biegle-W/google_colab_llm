@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+import subprocess
 import tempfile
 import threading
 import time
@@ -155,6 +156,25 @@ class Catalog(unittest.TestCase):
         self.assertGreater(backends.start_copy_seconds(by["glm-maya-s"]), 1200)
         self.assertGreater(backends.start_copy_seconds(by["flash-next-strata-iq3-s"]), 0)
         self.assertEqual(backends.start_copy_seconds(by["qwen3.8-27b-w4a16-sglang"]), 0)
+
+    def test_a_damaged_engine_tarball_is_rebuilt(self):
+        from notebook_code import install
+        with tempfile.TemporaryDirectory() as d:
+            Path(d, "eng-x.tar").write_bytes(b"cut off")
+            built = []
+            def run(cmd):
+                if "tar -xf" in cmd:
+                    raise RuntimeError("tar: Unexpected EOF")
+                if "tar -cf" in cmd:
+                    return
+                return subprocess.run(cmd, shell=True, check=True)
+            def build(root):
+                built.append(root); Path(root, "ok").write_text("1")
+            got = install.local_tree("eng-x-test", d, lambda r: r if os.path.isfile(os.path.join(r, "ok")) else None,
+                                     build, run=run, log=lambda *a: None)
+            shutil.rmtree("/content/eng-x-test", ignore_errors=True)
+        self.assertEqual(built, ["/content/eng-x-test"])
+        self.assertEqual(got, "/content/eng-x-test")
 
     def test_maya_imports_drive_files_then_starts(self):
         from notebook_code import backends

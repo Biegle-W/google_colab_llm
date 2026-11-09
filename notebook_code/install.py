@@ -252,7 +252,10 @@ def local_tree(name, builds_dir, ready, build, refresh=False, run=sh, log=print,
             return got
         if os.path.isfile(tar):
             log(f"Restoring {title} from Drive:", tar)
-            run(f"rm -rf {root} && tar -xf {tar} -C /content")
+            try:
+                run(f"rm -rf {root} && tar -xf {tar} -C /content")
+            except Exception as e:      # a tarball cut off mid-upload (runtime stopped before Drive synced)
+                log(f"Could not unpack the cached {title} ({e})")
             got = ready(root)
             if got:
                 return got
