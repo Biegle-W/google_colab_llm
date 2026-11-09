@@ -1519,7 +1519,8 @@ class DownloadToDriveRoom(unittest.TestCase):
         def fetch(repo, path, dest, token=None):
             fetched.append(path)
             p = os.path.join(dest, path)
-            open(p, "wb").write(b"x" * 10)
+            with open(p, "wb") as f:
+                f.truncate(int(63.4e9))                     # full size (sparse), as a finished download is
             return p
         orig = shutil.disk_usage
         # 150 GB free: the file plus the Drive client's cached copy of it fit, so it is staged locally
@@ -1893,6 +1894,28 @@ class RateLimitRetry(unittest.TestCase):
             self.assertEqual(waits, [60, 120])
         finally:
             huggingface_hub.hf_hub_download = orig
+
+
+class ShortDownloadsAreRefetched(unittest.TestCase):
+    def test_a_cut_off_file_is_downloaded_again(self):
+        from notebook_code import store
+        d = tempfile.mkdtemp()
+        meta = Path(d, ".cache/huggingface/download/m.safetensors.metadata")
+        meta.parent.mkdir(parents=True)
+        meta.write_text("x")
+        sizes = iter([3, 10])
+
+        def fetch(repo, path, dest, token=None):
+            p = Path(dest, path)
+            p.write_bytes(b"x" * next(sizes))
+            return str(p)
+        got = store.fetch_checked(fetch, "o/r", "m.safetensors", d, 10, log=lambda *a: None)
+        self.assertEqual(got.stat().st_size, 10)
+        self.assertFalse(meta.exists())
+        with self.assertRaises(StoreError):
+            store.fetch_checked(lambda r, p, dest, t=None: str(Path(dest, p)), "o/r", "m.safetensors", d, 99,
+                                log=lambda *a: None)
+        shutil.rmtree(d)
 
 
 class TunnelPrompt(unittest.TestCase):

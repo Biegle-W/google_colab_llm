@@ -64,6 +64,21 @@ def hf_fetch_file(repo, path, dest, token=None, waits=RATE_LIMIT_WAITS, sleep=ti
             sleep(wait)
 
 
+def fetch_checked(fetch, repo, path, dest, size, token=None, log=print):
+    """fetch() one file and check it has the size the repo lists; a short file (a download cut off by a killed
+    runtime, which hf_hub_download can later return as finished) is deleted with its metadata and fetched again."""
+    for attempt in (1, 2):
+        got = Path(fetch(repo, path, dest, token))
+        have = got.stat().st_size if got.is_file() else 0
+        if size is None or have == size:
+            return got
+        log(f"[store] {path}: {have} bytes, the repo lists {size}; downloading it again")
+        got.unlink(missing_ok=True)
+        for meta in Path(dest).glob(f".cache/huggingface/download/{path}*"):
+            meta.unlink()
+    raise StoreError(f"{path}: downloaded {got.stat().st_size if got.is_file() else 0} bytes twice, expected {size}")
+
+
 def select_files(files, allow=None, exclude=None):
     """Filter [(path, size)] the way snapshot_download's allow_patterns / ignore_patterns do."""
     def norm(patterns):
@@ -364,7 +379,7 @@ class ModelStore:
                     pending = None
                     self._fetch_direct(entry, repo, path, size, drive, rel, fetch, copier)
                     continue
-                local = Path(fetch(repo, path, staging, self.token))
+                local = fetch_checked(fetch, repo, path, staging, size, self.token, self.log)
                 finish(pending)
                 errors = []
 
@@ -405,7 +420,7 @@ class ModelStore:
         self.log(f"[store] {entry['id']}: {rel} ({size / 1e9:.1f} GB) is larger than the local staging room; "
                  "downloading it straight into the Drive folder")
         base = drive / (rel[: -len(path)] if rel != path and rel.endswith(path) else "")
-        got = Path(fetch(repo, path, base, self.token))
+        got = fetch_checked(fetch, repo, path, base, size, self.token, self.log)
         if got.resolve() != (drive / rel).resolve():
             (drive / rel).parent.mkdir(parents=True, exist_ok=True)
             os.replace(got, drive / rel)
