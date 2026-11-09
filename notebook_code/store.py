@@ -318,9 +318,10 @@ class ModelStore:
                          reverse=True)
         staged = sum(p.stat().st_size for p in staging.rglob("*") if p.is_file())
         free_bytes = shutil.disk_usage(staging).free
-        # A file larger than half the free disk cannot sit in staging while the Drive client caches its copy
-        # (both are local): it is downloaded straight into the Drive folder instead.
-        direct_over = max(0, free_bytes - 20e9) / 2
+        # Up to three copies of a file size are local at once: the next file downloading, the staged one being
+        # copied, and the Drive client's cache of that copy (two with a single file). A larger file is
+        # downloaded straight into the Drive folder instead (measured: 2 x 80.6 GB staged + the cache filled 225 GB).
+        direct_over = max(0, free_bytes - 20e9) / (3 if len(pending) > 1 else 2)   # one file: no overlap
         local_pending = [n for n in pending if n <= direct_over]
         need = max(0, sum(local_pending[:2]) - staged) / 1e9 + 1
         if free_bytes / 1e9 < need:

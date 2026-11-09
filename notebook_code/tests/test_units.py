@@ -1765,6 +1765,41 @@ class DirectToDriveForHugeFiles(unittest.TestCase):
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+class DirectToDriveWithOverlap(unittest.TestCase):
+    def test_files_over_a_third_of_the_disk_skip_staging_when_several_are_pending(self):
+        tmp = tempfile.mkdtemp()
+        st = ModelStore(os.path.join(tmp, "d"), os.path.join(tmp, "l"), log=lambda *_: None)
+        e = {"id": "ds", "name": "ds", "backend": "maya", "repo": "o/ds", "files": ["*"], "size_gb": 0,
+             "contexts": [[1, 1024]]}
+        listing = [("a.gguf", 80), ("b.gguf", 80), ("c.json", 1)]       # 80 > (220 - 20) / 3, 80 < 200 / 2
+        where = {}
+
+        def fetch(repo, path, dest, token=None):
+            where[path] = str(dest)
+            p = os.path.join(dest, path)
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            open(p, "wb").write(b"x" * dict(listing)[path])
+            return p
+
+        def copier(s, d, cb=None):
+            os.makedirs(os.path.dirname(d), exist_ok=True)
+            shutil.copyfile(s, d)
+        copier.tx = lambda: 0
+        copier.wait_uploaded = lambda size, start, label="": None
+        orig = shutil.disk_usage
+        shutil.disk_usage = lambda p: type("U", (), {"free": int(20e9 + 200), "total": 0, "used": 0})()
+        try:
+            st.download_to_drive(e, staging=os.path.join(tmp, "stage"), lister=lambda r, t=None: listing,
+                                 fetch=fetch, copier=copier)
+        finally:
+            shutil.disk_usage = orig
+        drive = str(st.drive_path(e))
+        self.assertEqual(where["a.gguf"], drive)
+        self.assertEqual(where["b.gguf"], drive)
+        self.assertEqual(where["c.json"], os.path.join(tmp, "stage"))
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 class TunnelPrompt(unittest.TestCase):
     """The tunnel is picked from a prompt in the cell output; nothing in the notebook code is edited."""
 
