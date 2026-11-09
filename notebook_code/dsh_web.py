@@ -67,6 +67,39 @@ def ensure(builds_dir, refresh=False, run=install.sh, log=print):
     return install.local_tree(name(), builds_dir, ready, build, refresh, run, log, "dsh")
 
 
+BWRAP_SHIM = """#!/bin/sh
+# dsh confines the agent's commands with bubblewrap: read-only /, writable workspace and private /tmp,
+# its own PID namespace. Colab's container refuses to mount a fresh /proc inside that namespace
+# ("Can't mount proc on /newroot/proc: Permission denied"), so this passes the existing /proc through
+# instead; every other part of dsh's profile is unchanged.
+prev=""; done_opts=""
+for a in "$@"; do
+  shift
+  if [ -n "$done_opts" ]; then set -- "$@" "$a"; continue; fi          # the command itself: untouched
+  if [ "$prev" = "--proc" ]; then set -- "$@" "/proc" "$a"; prev=""; continue; fi
+  if [ "$a" = "--proc" ]; then set -- "$@" "--bind"; prev="--proc"; continue; fi
+  [ "$a" = "--" ] && done_opts=1
+  set -- "$@" "$a"; prev="$a"
+done
+exec /usr/bin/bwrap "$@"
+"""
+
+
+def ensure_sandbox(root, run=install.sh, log=print):
+    """bubblewrap (apt, every session: system packages are not kept) and the /proc shim. Returns its dir."""
+    if not os.path.isfile("/usr/bin/bwrap"):
+        log("Installing bubblewrap (dsh's command sandbox)...")
+        run("DEBIAN_FRONTEND=noninteractive apt-get -qq install -y bubblewrap || "
+            "(apt-get -qq update && DEBIAN_FRONTEND=noninteractive apt-get -qq install -y bubblewrap)")
+    shim_dir = Path(root) / "sandbox-bin"
+    shim_dir.mkdir(parents=True, exist_ok=True)
+    shim = shim_dir / "bwrap"
+    if not shim.is_file() or shim.read_text() != BWRAP_SHIM:
+        shim.write_text(BWRAP_SHIM)
+    shim.chmod(0o755)
+    return str(shim_dir)
+
+
 def write_patch(path, models, hub_port, default_model=None):
     """A dsh patch overlay: the hub as provider `colab` (reached on 127.0.0.1) and the default model."""
     import json
@@ -120,6 +153,13 @@ def stop(port=PORT):
                    capture_output=True)
 
 
+def run_env(root, dsh_home, api_key, sandbox=None):
+    node, _ = paths(root)
+    sandbox = sandbox or ensure_sandbox(root)
+    return dict(os.environ, DSH_HOME=str(dsh_home), COLAB_LLM_API_KEY=api_key,
+                PATH=f"{sandbox}:{node.parent}:{os.environ.get('PATH', '')}")
+
+
 def start(root, dsh_home, workspace, patch, api_key, port=PORT, public_url=None, trusted_hosts=(),
           log_path="/content/dsh_web.log", wait=120, sleep=time.sleep, popen=subprocess.Popen):
     """Start dsh's web UI. Returns (process, token)."""
@@ -127,8 +167,7 @@ def start(root, dsh_home, workspace, patch, api_key, port=PORT, public_url=None,
     os.makedirs(dsh_home, exist_ok=True)
     os.makedirs(workspace, exist_ok=True)
     node, _ = paths(root)
-    env = dict(os.environ, DSH_HOME=str(dsh_home), COLAB_LLM_API_KEY=api_key,
-               PATH=f"{node.parent}:{os.environ.get('PATH', '')}")
+    env = run_env(root, dsh_home, api_key)
     out = open(log_path, "w")
     proc = popen(web_args(root, patch, port, public_url, trusted_hosts), cwd=str(workspace), env=env,
                  stdout=out, stderr=subprocess.STDOUT, start_new_session=True)

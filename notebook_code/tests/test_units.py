@@ -1981,3 +1981,21 @@ class WarmReadBeforeMmapEngines(unittest.TestCase):
                 self.assertTrue(by[mid].get("warm_read"), mid)
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
+
+
+class DshSandboxShim(unittest.TestCase):
+    def test_proc_mount_becomes_a_bind_and_the_command_is_untouched(self):
+        import subprocess as sp
+        from notebook_code import dsh_web
+        tmp = tempfile.mkdtemp()
+        try:
+            shim = os.path.join(tmp, "bwrap")
+            open(shim, "w").write(dsh_web.BWRAP_SHIM.replace("exec /usr/bin/bwrap", "printf '%s|'"))
+            os.chmod(shim, 0o755)
+            out = sp.run([shim, "--ro-bind", "/", "/", "--dev", "/dev", "--unshare-pid", "--proc", "/proc",
+                          "--die-with-parent", "--", "sh", "-c", "ls --proc 'a b'"], capture_output=True, text=True).stdout
+            self.assertEqual(out.split("|")[:-1], ["--ro-bind", "/", "/", "--dev", "/dev", "--unshare-pid", "--bind",
+                                                   "/proc", "/proc", "--die-with-parent", "--", "sh", "-c",
+                                                   "ls --proc 'a b'"])
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
