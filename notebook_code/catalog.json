@@ -1079,7 +1079,7 @@
     ],
     "offload": true,
     "experimental": true,
-    "maya_model": "deepseek-maya-xs",
+    "maya_model": "DeepSeek-V4.1-Flash-1017",
     "ds4_quant": "maya-xs",
     "notes": "Official Maya DeepSeek path for ~128 GB memory pool (Engram on SSD). Huge Drive download.",
     "resident_gb": 121.1
@@ -1107,7 +1107,7 @@
     ],
     "offload": true,
     "experimental": true,
-    "maya_model": "deepseek-maya-s",
+    "maya_model": "DeepSeek-V4.1-Flash-1017",
     "ds4_quant": "maya-s",
     "notes": "Closer-to-original Maya DeepSeek quant (~340 GB). Prefer workstation unless Colab G4 + large disk.",
     "resident_gb": 186.2

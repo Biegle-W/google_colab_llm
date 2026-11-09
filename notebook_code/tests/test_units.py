@@ -176,6 +176,14 @@ class Catalog(unittest.TestCase):
         self.assertEqual(built, ["/content/eng-x-test"])
         self.assertEqual(got, "/content/eng-x-test")
 
+    def test_deepseek_maya_uses_mayas_model_name(self):
+        from notebook_code import backends
+        by = catalog.by_id(catalog.load())
+        for mid, quant in (("deepseek-maya-xs", "maya-xs"), ("deepseek-maya-s", "maya-s")):
+            cmd = backends.maya_command(by[mid], "/tmp/missing", 8192, "/tmp/maya", port=30060)
+            self.assertEqual(cmd[cmd.index("--model") + 1], "DeepSeek-V4.1-Flash-1017")   # maya.py: a.model == DS4
+            self.assertEqual(cmd[cmd.index("--ds4-quant") + 1], quant)
+
     def test_maya_imports_drive_files_then_starts(self):
         from notebook_code import backends
         by = catalog.by_id(catalog.load())
