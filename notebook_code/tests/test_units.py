@@ -361,6 +361,16 @@ class Store(unittest.TestCase):
         (drive / MARKER).unlink(missing_ok=True)
         self.assertFalse(is_complete(drive))
 
+    def test_maya_imports_from_drive_without_a_hub_copy(self):
+        e = entry("m", backend="maya")
+        self.store.ensure_local(e)
+        self.store.wait_for_drive_copies()
+        shutil.rmtree(self.tmp + "/local")
+        os.makedirs(self.tmp + "/local")
+        path = self.store.ensure_local(e)
+        self.assertEqual(path, self.store.drive_path(e))
+        self.assertFalse(self.store.local_path(e).exists())          # no second copy on local disk
+
     def test_part_files_are_ignored(self):
         e = entry("a")
         d = self.store.local_path(e)

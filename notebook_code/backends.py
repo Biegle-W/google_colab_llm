@@ -19,7 +19,7 @@ PORTS = {
     "sparsa": 30065, "hyperqwen": 30030, "ninfer": 30040, "basalt": 30045, "strata_nvfp4": 30055,
 }
 READY_TIMEOUT = 1800
-COPY_SECONDS_PER_GB = 15    # Drive read at ~130 MB/s, twice (Maya's import checks sha256, then copies)
+COPY_SECONDS_PER_GB = 20    # Drive read at ~100-130 MB/s, twice (Maya's import checks sha256, then copies)
 
 
 def start_copy_seconds(entry):

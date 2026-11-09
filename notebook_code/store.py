@@ -228,6 +228,12 @@ class ModelStore:
             if is_complete(local):
                 self.touch(entry)
                 return self.model_path(entry)
+            if entry.get("backend") == "maya" and is_complete(drive):
+                # Maya's own --import-model --copy makes the one local copy; a hub copy first would
+                # need the disk twice over (DeepSeek Maya-XS: 2 x 282 GB on a 340 GB A100 disk).
+                self._set(entry, "ready", entry["size_gb"] * 1e9)
+                self.log(f"[store] {entry['id']}: Maya imports straight from Drive ({drive})")
+                return self.model_path(entry, drive)
             if (local / MARKER).exists():
                 shutil.rmtree(local)               # marked complete once, but files are missing or changed
             # Otherwise keep partial downloads: Hugging Face resumes them.
