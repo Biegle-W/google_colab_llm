@@ -149,6 +149,13 @@ class Catalog(unittest.TestCase):
         self.assertIn("glm-maya-s24", mcmd)
         self.assertIn("--download-model", mcmd)
 
+    def test_copying_engines_get_more_start_time(self):
+        from notebook_code import backends
+        by = catalog.by_id(catalog.load())
+        self.assertGreater(backends.start_copy_seconds(by["glm-maya-s"]), 1200)
+        self.assertGreater(backends.start_copy_seconds(by["flash-next-strata-iq3-s"]), 0)
+        self.assertEqual(backends.start_copy_seconds(by["qwen3.8-27b-w4a16-sglang"]), 0)
+
     def test_maya_imports_drive_files_then_starts(self):
         from notebook_code import backends
         by = catalog.by_id(catalog.load())

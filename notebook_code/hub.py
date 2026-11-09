@@ -188,7 +188,8 @@ class Hub:
         # 3. Start the new engine and wait until it answers.
         self._set_phase("starting the engine")
         engine = self._launch(entry, path, ctx, self.bins, self.log_dir)
-        deadline = self.now() + self.ready_timeout
+        timeout = self.ready_timeout + backends.start_copy_seconds(entry)
+        deadline = self.now() + timeout
         while True:
             if self.stopping:
                 engine.stop()
@@ -201,7 +202,7 @@ class Hub:
                                     f"{tail[-1] if tail else 'see ' + engine.log_path}", "backend_start_failed")
             if self.now() >= deadline:
                 engine.stop()
-                raise HubError(504, f"{model_id} did not become ready in {self.ready_timeout // 60} minutes.",
+                raise HubError(504, f"{model_id} did not become ready in {timeout // 60} minutes.",
                                "backend_start_timeout")
             self._set_phase(f"loading into GPU memory ({int(deadline - self.now())} s left before timeout)")
             self.sleep(POLL)
