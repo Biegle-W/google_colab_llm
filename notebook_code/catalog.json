@@ -1784,8 +1784,13 @@
     "gpu_arch": [
       "120"
     ],
-    "notes": "sergqwer/strata-nvfp4 0.2.0-beta-nvfp4.3, family qwen-nvfp4-gptq (setup's default): every expert NVFP4 by the fork's GPTQ, MTP draft head; 63 GiB of experts kept in RAM, 51 GB FP8 n-gram table. The fork's setup compiles the engine at the first start (CUDA 13, cached on Drive). G4 only.",
-    "warm_read": true,
-    "work_gb": 0
+    "notes": "sergqwer/strata-nvfp4 0.2.0-beta-nvfp4.3, family qwen-nvfp4-gptq (setup's default): every expert NVFP4 by the fork's GPTQ, MTP draft head; 63 GiB of experts kept in RAM, 51 GB FP8 n-gram table. The fork's setup compiles the engine at the first start (CUDA 13, cached on Drive). G4 only. The 51 GB FP8 n-gram table is read during every token, so it (with the dense and embedding GGUFs, ~58 GB) is copied to local disk each start; read over the Drive mount it held decode to ~19 tok/s on the G4.",
+    "work_gb": 0,
+    "disk_stream": true,
+    "stream_files": [
+      "ple-fp8.gguf",
+      "qwen-nvfp4-gptq-dense.gguf",
+      "token-embd-bf16.gguf"
+    ]
   }
 ]

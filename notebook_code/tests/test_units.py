@@ -1979,8 +1979,10 @@ class WarmReadBeforeMmapEngines(unittest.TestCase):
             orig(e, d, chunk=4096, workers=3)
             self.assertEqual(st.progress["b"]["done_bytes"], 301_000)   # slices cover every byte exactly once
             by = catalog.by_id(catalog.load())
-            for mid in ("basalt-flash-next-nvfp4-dq6k", "strata-nvfp4-flash-next-gptq"):
-                self.assertTrue(by[mid].get("warm_read"), mid)
+            self.assertTrue(by["basalt-flash-next-nvfp4-dq6k"].get("warm_read"))
+            snv = by["strata-nvfp4-flash-next-gptq"]                   # its PLE table is read every token: local copy
+            self.assertTrue(catalog.streams_from_disk(snv))
+            self.assertIn("ple-fp8.gguf", snv["stream_files"])
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
