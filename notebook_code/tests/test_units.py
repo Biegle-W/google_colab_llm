@@ -1871,6 +1871,30 @@ class ComfyImageAndVideo(unittest.TestCase):
         self.assertEqual(hubmod.KIND_PATHS["video"], "/v1/videos/generations")
 
 
+class RateLimitRetry(unittest.TestCase):
+    def test_a_429_is_waited_out_and_other_errors_are_not(self):
+        import huggingface_hub
+        from notebook_code import store
+        calls, waits = [], []
+
+        def fake(**kw):
+            calls.append(1)
+            if len(calls) < 3:
+                raise RuntimeError("CAS Client Error: HTTP status client error (429 Too Many Requests)")
+            return "/x/f"
+        orig = huggingface_hub.hf_hub_download
+        huggingface_hub.hf_hub_download = fake
+        try:
+            got = store.hf_fetch_file("o/r", "f", "/x", sleep=waits.append, log=lambda *a: None)
+            self.assertEqual((got, waits), ("/x/f", [60, 120]))
+            huggingface_hub.hf_hub_download = lambda **kw: (_ for _ in ()).throw(OSError("disk full"))
+            with self.assertRaises(OSError):
+                store.hf_fetch_file("o/r", "f", "/x", sleep=waits.append, log=lambda *a: None)
+            self.assertEqual(waits, [60, 120])
+        finally:
+            huggingface_hub.hf_hub_download = orig
+
+
 class TunnelPrompt(unittest.TestCase):
     """The tunnel is picked from a prompt in the cell output; nothing in the notebook code is edited."""
 

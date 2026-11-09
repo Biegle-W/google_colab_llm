@@ -39,10 +39,29 @@ def hf_list_files(repo, token=None):
     return [(s.rfilename, s.size) for s in info.siblings]
 
 
-def hf_fetch_file(repo, path, dest, token=None):
-    """Download one file into dest (keeping its repo path) and return the local path."""
+RATE_LIMIT_WAITS = (60, 120, 240, 480, 600, 600)   # Hugging Face answers 429 to bursts of anonymous downloads
+
+
+def is_rate_limited(error):
+    text = str(error)
+    return "429" in text or "Too Many Requests" in text
+
+
+def hf_fetch_file(repo, path, dest, token=None, waits=RATE_LIMIT_WAITS, sleep=time.sleep, log=print):
+    """Download one file into dest (keeping its repo path) and return the local path.
+
+    A 429 (rate limit) is waited out and retried; the partial download is resumed. A Hugging Face token
+    (HF_TOKEN, a Colab secret) raises the limit."""
     from huggingface_hub import hf_hub_download
-    return hf_hub_download(repo_id=repo, filename=path, local_dir=str(dest), token=token)
+    for wait in list(waits) + [None]:
+        try:
+            return hf_hub_download(repo_id=repo, filename=path, local_dir=str(dest), token=token)
+        except Exception as e:
+            if wait is None or not is_rate_limited(e):
+                raise
+            log(f"[store] Hugging Face rate limit (429) on {path}; retrying in {wait} s"
+                + ("" if token else " (an HF_TOKEN secret raises the limit)"))
+            sleep(wait)
 
 
 def select_files(files, allow=None, exclude=None):
