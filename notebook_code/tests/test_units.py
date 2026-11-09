@@ -5,6 +5,7 @@ import tempfile
 import threading
 import time
 import unittest
+from pathlib import Path
 
 from notebook_code import backends, catalog, gpu, install, keyfile, provider, tunnel
 from notebook_code.store import MARKER, ModelStore, StoreError, is_complete, write_marker
@@ -146,6 +147,23 @@ class Catalog(unittest.TestCase):
         self.assertEqual(mcmd[0], "bash")
         self.assertIn("--model", mcmd)
         self.assertIn("glm-maya-s24", mcmd)
+        self.assertIn("--download-model", mcmd)
+
+    def test_maya_imports_drive_files_then_starts(self):
+        from notebook_code import backends
+        by = catalog.by_id(catalog.load())
+        with tempfile.TemporaryDirectory() as d:
+            Path(d, "m-00001-of-00002.gguf").write_text("x")
+            cmd = backends.maya_command(by["glm-maya-s"], d, 32768, "/tmp/maya", port=30060,
+                                        models_dir="/content/maya_models")
+        self.assertEqual(cmd[:2], ["bash", "-c"])
+        imp, start = cmd[2].split(" && exec ")
+        self.assertIn("--import-model", imp)
+        self.assertIn("--copy", imp)
+        self.assertIn("--models-dir /content/maya_models", imp)
+        self.assertNotIn("--import-model", start)
+        self.assertNotIn("--download-model", start)
+        self.assertIn("--model glm-maya-s", start)
 
     def test_tensorfold_comfy_sparsa_commands(self):
         from notebook_code import backends

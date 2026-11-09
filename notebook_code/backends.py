@@ -6,6 +6,7 @@ Diffusers runs as `python -m notebook_code.diffusers_server` against a Drive-res
 """
 import json
 import os
+import shlex
 import signal
 import subprocess
 import sys
@@ -160,17 +161,25 @@ def maya_command(entry, model_path, ctx, maya_root, port=None, models_dir=None):
             "--drafting", entry.get("drafting", "off")]
     if models_dir:
         args += ["--models-dir", str(models_dir)]
-    if model_path and os.path.isdir(str(model_path)) and any(
-            p.endswith(".gguf") or p.endswith(".safetensors") for p in _walk_names(model_path)):
-        args += ["--import-model", str(model_path)]
-    else:
+    have_files = model_path and os.path.isdir(str(model_path)) and any(
+        p.endswith(".gguf") or p.endswith(".safetensors") for p in _walk_names(model_path))
+    if not have_files:
         args += ["--download-model"]
     # DeepSeek Maya quants also accept --ds4-quant when maya_model is the family name.
     if entry.get("ds4_quant"):
         args += ["--ds4-quant", str(entry["ds4_quant"])]
     if entry.get("mm3_quant"):
         args += ["--mm3-quant", str(entry["mm3_quant"])]
-    return args + list(entry.get("extra_args", []))
+    args += list(entry.get("extra_args", []))
+    if not have_files:
+        return args
+    # Maya's --import-model only places the files (found by size + sha256) and exits, so import first, then start.
+    # --copy: the Drive folder is another drive than the local models folder (and a local copy reads far faster).
+    imp = ["bash", setup, "--import-model", str(model_path), "--copy", "--yes", "--plain"]
+    if models_dir:
+        imp += ["--models-dir", str(models_dir)]
+    return ["bash", "-c", " ".join(shlex.quote(a) for a in imp) + " && exec " +
+            " ".join(shlex.quote(a) for a in args)]
 
 
 def tensorfold_command(entry, model_path, ctx, tensorfold_bin, port=None):
