@@ -15,6 +15,9 @@ import time
 from pathlib import Path
 
 MARKER = ".complete.json"
+# Engines that memory-map their weights and read them in small scattered pieces, which the Drive mount serves at
+# a few MB/s: their models are read once, start to finish, before the engine starts (see warm_read).
+WARM_READ_BACKENDS = ("strata", "maya", "sparsa", "basalt", "strata_nvfp4")
 USED = ".last_used"
 CHUNK = 16 * 1024 * 1024
 
@@ -408,7 +411,7 @@ class ModelStore:
             else:
                 self.download_to_drive(entry, staging=self.local_root / ".staging" / entry["id"])
         if not catalog.streams_from_disk(entry):
-            if entry.get("warm_read"):
+            if entry.get("warm_read", entry["backend"] in WARM_READ_BACKENDS):
                 self.warm_read(entry, drive)
             self._set(entry, "reading from Drive", entry["size_gb"] * 1e9)
             return self.model_path(entry, base=drive)

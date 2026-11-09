@@ -293,11 +293,18 @@ def ensure_strata(builds_dir, refresh=False, run=sh, log=print):
 def ensure_maya(builds_dir, refresh=False, run=sh, log=print):
     """Project Maya (git clone; its ./setup.sh runs at the first model load) in /content/project-maya."""
     def ready(root):
-        return root if os.path.isfile(os.path.join(root, "setup.sh")) else None
+        ok = os.path.isfile(os.path.join(root, "setup.sh")) and os.path.exists(os.path.join(root, ".pybin", "python3"))
+        return root if ok else None
 
     def build(root):
         log("Cloning Project Maya (mw00/project-maya)...")
         run(f"rm -rf {root} && git clone -q --depth 1 {MAYA_REPO} {root} && chmod +x {root}/*.sh")
+        # maya.sh makes its venv with `python3 -m venv`; Colab's Python has no working ensurepip, so a uv-managed
+        # Python 3.12 (inside root, so the Drive tarball carries it) goes first on Maya's PATH as python3.
+        uv = f"UV_PYTHON_INSTALL_DIR={root}/.python UV_CACHE_DIR=/content/.uv-cache {sys.executable} -m uv"
+        run(f"{sys.executable} -m pip install -q uv && {uv} python install 3.12")
+        py = run(f"{uv} python find --managed-python 3.12").strip().splitlines()[-1]
+        run(f"mkdir -p {root}/.pybin && ln -sf {py} {root}/.pybin/python3 && ln -sf {py} {root}/.pybin/python")
     return local_tree("project-maya", builds_dir, ready, build, refresh, run, log, "Project Maya")
 
 

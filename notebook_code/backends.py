@@ -342,6 +342,9 @@ def env_for(entry, bins=None):
         env.setdefault("TENSORFOLD_NO_UPDATE_CHECK", "1")
         env.setdefault("TENSORFOLD_NO_LIVE", "1")
         env["HF_HUB_OFFLINE"] = "1"
+    if entry["backend"] == "maya":
+        root = str((bins or {}).get("maya", "/content/project-maya"))
+        env["PATH"] = os.path.join(root, ".pybin") + os.pathsep + env.get("PATH", "")
     if entry["backend"] in ("strata", "maya", "sparsa"):
         # Long first-start downloads; keep HF token available for gated packs.
         env.setdefault("HF_HUB_ENABLE_HF_TRANSFER", "1")

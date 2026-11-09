@@ -583,7 +583,9 @@ class SelfContainedNotebooks(unittest.TestCase):
             src = "".join(m.payload_cell(hub_dir=tmp)["source"])
             import subprocess, sys as _sys
             code = src + "\nimport notebook_code.catalog as c; print(len(c.load()) > 10)"
-            r = subprocess.run([_sys.executable, "-c", code], cwd=tmp, capture_output=True, text=True)
+            script = os.path.join(tmp, "cell.py")
+            open(script, "w").write(code)
+            r = subprocess.run([_sys.executable, script], cwd=tmp, capture_output=True, text=True)
             self.assertEqual(r.returncode, 0, r.stderr[-2000:])
             self.assertIn("True", r.stdout)
             self.assertTrue(os.path.isfile(os.path.join(tmp, "notebook_code", "catalog.json")))
