@@ -1918,6 +1918,24 @@ class ShortDownloadsAreRefetched(unittest.TestCase):
         shutil.rmtree(d)
 
 
+class ComfyProcessLifetime(unittest.TestCase):
+    def test_comfyui_shares_the_wrappers_process_group_and_stale_ones_are_stopped(self):
+        import inspect
+        from notebook_code import comfyui_server as cs
+        self.assertNotIn("start_new_session", inspect.getsource(cs.start_comfy))
+        self.assertIn("stop_stale_comfy(comfy_port)", inspect.getsource(cs.start_comfy))
+        calls = []
+        orig_wait, orig_run = cs.wait_comfy, cs.subprocess.run
+        answers = iter([True, True, False])
+        cs.wait_comfy = lambda port, timeout=1: next(answers)
+        cs.subprocess.run = lambda args, **kw: calls.append(args)
+        try:
+            self.assertTrue(cs.stop_stale_comfy(8188, sleep=lambda s: None))
+        finally:
+            cs.wait_comfy, cs.subprocess.run = orig_wait, orig_run
+        self.assertEqual(calls, [["pkill", "-TERM", "-f", "main.py --listen 127.0.0.1 --port 8188"]])
+
+
 class TunnelPrompt(unittest.TestCase):
     """The tunnel is picked from a prompt in the cell output; nothing in the notebook code is edited."""
 

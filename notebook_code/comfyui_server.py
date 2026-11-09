@@ -171,8 +171,11 @@ def queue_prompt(comfy_port, graph, client_id):
     req = urllib.request.Request(
         f"http://127.0.0.1:{comfy_port}/prompt", data=body,
         headers={"Content-Type": "application/json"}, method="POST")
-    with opener.open(req, timeout=60) as r:
-        return json.load(r)["prompt_id"]
+    try:
+        with opener.open(req, timeout=60) as r:
+            return json.load(r)["prompt_id"]
+    except urllib.error.HTTPError as e:              # ComfyUI explains a rejected graph in the body (node_errors)
+        raise RuntimeError(f"ComfyUI rejected the workflow ({e.code}): {e.read()[:2000].decode(errors='replace')}")
 
 
 def wait_history(comfy_port, prompt_id, timeout=900):
@@ -313,7 +316,23 @@ def make_handler(state):
     return Handler
 
 
+def stop_stale_comfy(comfy_port, sleep=time.sleep):
+    """A ComfyUI left on our port (an earlier model's, from a wrapper that was killed) would answer in place of
+    the new one, with the wrong models: stop it before starting ours."""
+    if not wait_comfy(comfy_port, timeout=1):
+        return False
+    print(f"[comfyui] stopping a ComfyUI already on :{comfy_port} (left by an earlier model)", flush=True)
+    subprocess.run(["pkill", "-TERM", "-f", f"main.py --listen 127.0.0.1 --port {int(comfy_port)}"], capture_output=True)
+    for _ in range(30):
+        if not wait_comfy(comfy_port, timeout=1):
+            return True
+        sleep(1)
+    subprocess.run(["pkill", "-KILL", "-f", f"main.py --listen 127.0.0.1 --port {int(comfy_port)}"], capture_output=True)
+    return True
+
+
 def start_comfy(comfy_root, model_path, comfy_port, log_path):
+    stop_stale_comfy(comfy_port)
     extra = Path(comfy_root) / "extra_model_paths.yaml"
     write_extra_model_paths(model_path, extra)
     output_dir = Path(comfy_root) / "output"
@@ -325,8 +344,8 @@ def start_comfy(comfy_root, model_path, comfy_port, log_path):
            "--disable-auto-launch",
            "--extra-model-paths-config", str(extra)]
     log = open(log_path, "ab")
-    proc = subprocess.Popen(cmd, cwd=comfy_root, env=env, stdout=log, stderr=subprocess.STDOUT,
-                            start_new_session=True)
+    # Same process group as this wrapper, so the hub's stop (a signal to the group) ends ComfyUI too.
+    proc = subprocess.Popen(cmd, cwd=comfy_root, env=env, stdout=log, stderr=subprocess.STDOUT)
     if not wait_comfy(comfy_port, timeout=300):
         proc.terminate()
         raise RuntimeError(f"ComfyUI did not become ready on :{comfy_port}; see {log_path}")
@@ -360,6 +379,13 @@ def main(argv=None):
         "proc": proc,
     }
     print(f"[comfyui] ready on 127.0.0.1:{a.port} (ComfyUI UI :{a.comfy_port})", flush=True)
+    import signal
+
+    def on_term(signum, frame):                  # SIGTERM skips `finally`: stop ComfyUI explicitly
+        if proc.poll() is None:
+            proc.terminate()
+        raise SystemExit(0)
+    signal.signal(signal.SIGTERM, on_term)
     try:
         ThreadingHTTPServer.daemon_threads = True
         ThreadingHTTPServer(("127.0.0.1", a.port), make_handler(state)).serve_forever()
