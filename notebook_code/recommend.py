@@ -93,7 +93,7 @@ _ENGINE_PREFETCH = {
         "l4": [],
         "a100_40": [],
         "a100_80": [],
-        "g4": ["ninfer-qwen3.8-27b-nvfp4"],
+        "g4": ["ninfer-qwen3.8-flash-next", "ninfer-qwen3.8-27b-nvfp4"],   # flash-next: tested, 66 tok/s
     },
     "basalt": {"t4": [], "l4": [], "a100_40": [], "a100_80": [], "g4": ["basalt-flash-next-nvfp4-dq6k"]},
     "strata_nvfp4": {"t4": [], "l4": [], "a100_40": [], "a100_80": [], "g4": ["strata-nvfp4-flash-next-gptq"]},
@@ -306,7 +306,7 @@ INDEX_NOTEBOOK = "notebooks/llm_hub_colab.ipynb"
 RUNTIMES = {
     "l4": {"band": "l4", "label": "L4 (24 GB)"},
     "a100": {"band": "a100_80", "label": "A100 80 GB (High-RAM)"},
-    "g4": {"band": "g4", "label": "G4 (96 GB)"},
+    "g4": {"band": "g4", "label": "G4 (RTX PRO 6000 Blackwell, 96 GB)"},
 }
 
 

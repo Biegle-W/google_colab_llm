@@ -32,7 +32,7 @@ OpenAI-compatible API), and keeps the weights and engine builds on Google Drive.
 | **Sparsa** (`sparsa/`) | [`minimax-m3.1-flash-iq2-kt`](a100/sparsa/minimax-m3.1-flash-iq2-kt.ipynb) |
 | **HyperQwen** (`hyperqwen/`) | [`hyperqwen-qwen3.8-27b-batch`](a100/hyperqwen/hyperqwen-qwen3.8-27b-batch.ipynb) |
 
-### G4 (96 GB) — `g4/`
+### G4 (RTX PRO 6000 Blackwell, 96 GB) — `g4/`
 
 | Engine | Model notebook |
 |---|---|
@@ -46,7 +46,7 @@ OpenAI-compatible API), and keeps the weights and engine builds on Google Drive.
 | **ComfyUI** (`comfyui/`) | [`qwen-image-2.1-turbo-bf16-comfy`](g4/comfyui/qwen-image-2.1-turbo-bf16-comfy.ipynb), [`qwen-image-2.1-bf16-comfy`](g4/comfyui/qwen-image-2.1-bf16-comfy.ipynb), [`flux3-klein-comfy`](g4/comfyui/flux3-klein-comfy.ipynb), [`wan22-5b-comfy`](g4/comfyui/wan22-5b-comfy.ipynb), [`minimax-h3-g4-comfy`](g4/comfyui/minimax-h3-g4-comfy.ipynb) |
 | **Sparsa** (`sparsa/`) | [`minimax-m3.1-flash-iq2-xs-d3`](g4/sparsa/minimax-m3.1-flash-iq2-xs-d3.ipynb), [`minimax-m3.1-flash-iq2-kt`](g4/sparsa/minimax-m3.1-flash-iq2-kt.ipynb) |
 | **HyperQwen** (`hyperqwen/`) | [`hyperqwen-qwen3.8-27b-dflash2`](g4/hyperqwen/hyperqwen-qwen3.8-27b-dflash2.ipynb) |
-| **NInfer** (`ninfer/`) | [`ninfer-qwen3.8-27b-nvfp4`](g4/ninfer/ninfer-qwen3.8-27b-nvfp4.ipynb) |
+| **NInfer** (`ninfer/`) | [`ninfer-qwen3.8-flash-next`](g4/ninfer/ninfer-qwen3.8-flash-next.ipynb), [`ninfer-qwen3.8-27b-nvfp4`](g4/ninfer/ninfer-qwen3.8-27b-nvfp4.ipynb) |
 | **Basalt** (`basalt/`) | [`basalt-flash-next-nvfp4-dq6k`](g4/basalt/basalt-flash-next-nvfp4-dq6k.ipynb) |
 | **Strata NVFP4** (`strata_nvfp4/`) | [`strata-nvfp4-flash-next-gptq`](g4/strata_nvfp4/strata-nvfp4-flash-next-gptq.ipynb) |
 

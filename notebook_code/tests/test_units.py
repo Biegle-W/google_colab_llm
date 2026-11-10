@@ -664,6 +664,7 @@ class RuntimeEngineModelLayout(unittest.TestCase):
         root = os.path.join(os.path.dirname(__file__), "..", "..")
         plan = recommend.notebook_plan()
         self.assertIn(("g4", "basalt", "basalt-flash-next-nvfp4-dq6k"), plan)
+        self.assertIn(("g4", "ninfer", "ninfer-qwen3.8-flash-next"), plan)      # the tested NInfer model
         self.assertIn(("l4", "comfyui", "minimax-h3-l4-comfy"), plan)
         self.assertEqual({rt for rt, _, _ in plan}, {"l4", "a100", "g4"})       # only the three GPU runtimes
         self.assertNotIn(("a100", "maya", "deepseek-maya-xs"), plan)          # 282 GB: A100 disks are 236 GB
@@ -816,7 +817,7 @@ class HyperQwenAndNInfer(unittest.TestCase):
             return recommend.for_engine(eng, gpu[0], arch=gpu[1])["prefetch"]
         self.assertEqual(rec("hyperqwen", self.A100), ["hyperqwen-qwen3.8-27b-batch"])
         self.assertEqual(rec("hyperqwen", self.G4), ["hyperqwen-qwen3.8-27b-dflash2"])
-        self.assertEqual(rec("ninfer", self.G4), ["ninfer-qwen3.8-27b-nvfp4"])
+        self.assertEqual(rec("ninfer", self.G4), ["ninfer-qwen3.8-flash-next", "ninfer-qwen3.8-27b-nvfp4"])
         self.assertEqual(rec("ninfer", self.A100), [])
 
     def test_hyperqwen_disk_counts_the_prepared_copy(self):
@@ -1005,7 +1006,7 @@ class PrepareOnCpu(unittest.TestCase):
 
     def test_pick_uses_the_target_not_this_runtime(self):
         from notebook_code import prepare
-        self.assertEqual(prepare.pick("ninfer", "g4")["id"], "ninfer-qwen3.8-27b-nvfp4")
+        self.assertEqual(prepare.pick("ninfer", "g4")["id"], "ninfer-qwen3.8-flash-next")
         self.assertEqual(prepare.pick("hyperqwen", "a100")["id"], "hyperqwen-qwen3.8-27b-batch")
         with self.assertRaises(ValueError):
             prepare.pick("ninfer", "a100")                                           # no NInfer model on sm_80

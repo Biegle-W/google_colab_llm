@@ -10,7 +10,7 @@ installs only that engine and serves only that model through one authenticated O
 |---|---|
 | [`notebooks/l4/`](notebooks/l4/) | L4 (24 GB): one folder per engine, one notebook per model |
 | [`notebooks/a100/`](notebooks/a100/) | A100 80 GB (High-RAM) |
-| [`notebooks/g4/`](notebooks/g4/) | G4 (96 GB), including the G4-only engines (NInfer, Basalt, Strata NVFP4) |
+| [`notebooks/g4/`](notebooks/g4/) | G4 (RTX PRO 6000 Blackwell, 96 GB), including the G4-only engines (NInfer, Basalt, Strata NVFP4) |
 | [`notebooks/cpu/prepare_cpu.ipynb`](notebooks/cpu/prepare_cpu.ipynb) | **Save GPU time:** on a cheap CPU runtime, download a model to Drive and build its engine for the GPU you will use |
 | [`notebooks/other/unsloth/`](notebooks/other/unsloth/) | Official Unsloth Studio |
 

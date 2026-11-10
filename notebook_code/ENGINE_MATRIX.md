@@ -1,7 +1,7 @@
 # Colab engine matrix for the target models
 
 Research synthesis for Google AI Pro / Colab Pro single-GPU runtimes (L4 ≈ 24 GB,
-A100 ≈ 40/80 GB, G4 ≈ 96 GB). Sources: **official** Strata / Project Maya / Sparsa /
+A100 ≈ 40/80 GB, G4 = RTX PRO 6000 Blackwell, 96 GB). Sources: **official** Strata / Project Maya / Sparsa /
 TensorFold / Unsloth / vLLM / SGLang / ComfyUI docs, plus Colab forum reports
 (Qiita Strata+L4, note.com Strata+A100) and the workstation
 `linux-llm-nvidia-public` maintained profiles.
