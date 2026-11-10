@@ -53,7 +53,7 @@ _ENGINE_PREFETCH = {
     },
     "maya": {
         "t4": [],
-        "l4": ["glm-maya-xs", "glm-maya-s24"],
+        "l4": [],                                  # GLM Maya needs 81+ GB VRAM+RAM; the L4 has 80
         "a100_40": ["glm-maya-s24", "glm-maya-s", "glm-maya-xs"],
         "a100_80": ["glm-maya-s", "glm-maya-s24"],   # DeepSeek Maya-XS (282 GB) exceeds most A100 disks (236 GB)
         "g4": ["glm-maya-s", "glm-maya-s24"],   # DeepSeek Maya (282+ GB) exceeds the G4's 225 GB disk
@@ -302,11 +302,14 @@ ENGINE_META = {
 }
 INDEX_NOTEBOOK = "notebooks/llm_hub_colab.ipynb"
 
-# The three GPU runtimes the notebooks target: folder name -> recommendation band, label.
+# The three GPU runtimes the notebooks target: folder name -> recommendation band, label, and the hardware the
+# hub measured on each (GB, as the hub reports them), which every planned model must fit.
 RUNTIMES = {
-    "l4": {"band": "l4", "label": "L4 (24 GB)"},
-    "a100": {"band": "a100_80", "label": "A100 80 GB (High-RAM)"},
-    "g4": {"band": "g4", "label": "G4 (RTX PRO 6000 Blackwell, 96 GB)"},
+    "l4": {"band": "l4", "label": "L4 (24 GB)", "vram_gb": 24.2, "ram_gb": 55.5, "disk_gb": 252, "arch": 89},
+    "a100": {"band": "a100_80", "label": "A100 80 GB (High-RAM)", "vram_gb": 85.0, "ram_gb": 167, "disk_gb": 252,
+             "arch": 80},
+    "g4": {"band": "g4", "label": "G4 (RTX PRO 6000 Blackwell, 96 GB)", "vram_gb": 102.6, "ram_gb": 185.5,
+           "disk_gb": 222, "arch": 120},
 }
 
 

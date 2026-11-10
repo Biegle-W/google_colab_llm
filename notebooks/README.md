@@ -13,7 +13,6 @@ OpenAI-compatible API), and keeps the weights and engine builds on Google Drive.
 | **SGLang** (`sglang/`) | [`qwen3.8-27b-w4a16-sglang`](l4/sglang/qwen3.8-27b-w4a16-sglang.ipynb) |
 | **Diffusers** (`diffusers/`) | [`qwen-image-2.1-nf4`](l4/diffusers/qwen-image-2.1-nf4.ipynb), [`sdxl-turbo`](l4/diffusers/sdxl-turbo.ipynb), [`sdxl-base`](l4/diffusers/sdxl-base.ipynb) |
 | **Strata** (`strata/`) | [`flash-next-gyro-s`](l4/strata/flash-next-gyro-s.ipynb), [`flash-next-strata-q2`](l4/strata/flash-next-strata-q2.ipynb), [`flash-next-swift-iq2-xs`](l4/strata/flash-next-swift-iq2-xs.ipynb), [`qwen36-strata-q4`](l4/strata/qwen36-strata-q4.ipynb) |
-| **Maya** (`maya/`) | [`glm-maya-xs`](l4/maya/glm-maya-xs.ipynb), [`glm-maya-s24`](l4/maya/glm-maya-s24.ipynb) |
 | **TensorFold** (`tensorfold/`) | [`qwen3.8-27b-exl3-2bpw`](l4/tensorfold/qwen3.8-27b-exl3-2bpw.ipynb) |
 | **ComfyUI** (`comfyui/`) | [`qwen-image-2.1-turbo-comfy`](l4/comfyui/qwen-image-2.1-turbo-comfy.ipynb), [`flux3-klein-comfy`](l4/comfyui/flux3-klein-comfy.ipynb), [`minimax-h3-l4-comfy`](l4/comfyui/minimax-h3-l4-comfy.ipynb) |
 

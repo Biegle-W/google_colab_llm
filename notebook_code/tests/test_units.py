@@ -125,7 +125,8 @@ class Catalog(unittest.TestCase):
         self.assertEqual(strata["engines"], ["strata"])
         self.assertIn("flash-next-strata-iq3-xxs", strata["prefetch"])
         self.assertIn("flash-next-gyro-m", strata["prefetch"])
-        maya = recommend.for_engine("maya", 24.2)
+        self.assertEqual(recommend.for_engine("maya", 24.2)["prefetch"], [])   # GLM Maya needs 81+ GB VRAM+RAM
+        maya = recommend.for_engine("maya", 42.9)
         self.assertIn("glm-maya-s24", maya["prefetch"])
         tf = recommend.for_engine("tensorfold", 24.2)
         self.assertEqual(tf["prefetch"], ["qwen3.8-27b-exl3-2bpw"])
@@ -658,7 +659,40 @@ class SelfContainedNotebooks(unittest.TestCase):
             shutil.rmtree(tmp, ignore_errors=True)
 
 
+class DetachingEngines(unittest.TestCase):
+    class Proc:
+        def __init__(self, code, args=("strata", "launch")):
+            self.code, self.args, self.pid = code, list(args), 0
+
+        def poll(self):
+            return self.code
+
+    def test_strata_launcher_exiting_cleanly_is_not_a_failure(self):
+        e = backends.Engine({"backend": "strata"}, 1024, self.Proc(0), 1, "/tmp/x")
+        self.assertTrue(e.alive)                                   # server runs on after `strata launch` exits
+        self.assertFalse(backends.Engine({"backend": "strata"}, 1024, self.Proc(1), 1, "/tmp/x").alive)
+        self.assertFalse(backends.Engine({"backend": "llama"}, 1024, self.Proc(0), 1, "/tmp/x").alive)
+
+    def test_strata_stop_runs_launch_stop(self):
+        calls = []
+        orig = backends.subprocess.run
+        backends.subprocess.run = lambda args, **kw: calls.append(args)
+        try:
+            backends.Engine({"backend": "strata"}, 1024, self.Proc(0, ("/bin/strata", "launch")), 1, "/tmp/x").stop()
+        finally:
+            backends.subprocess.run = orig
+        self.assertEqual(calls, [["/bin/strata", "launch", "--stop"]])
+
+
 class RuntimeEngineModelLayout(unittest.TestCase):
+    def test_every_planned_model_fits_its_runtime(self):
+        from notebook_code import recommend
+        by = catalog.by_id(catalog.load())
+        for rt, eng, mid in recommend.notebook_plan():
+            r = recommend.RUNTIMES[rt]
+            why = catalog.why_not(by[mid], r["vram_gb"], r["ram_gb"], r["disk_gb"], r["arch"])
+            self.assertIsNone(why, f"{rt}/{eng}/{mid}: {why}")
+
     def test_one_notebook_per_runtime_engine_model(self):
         from notebook_code import make_engine_notebooks as m, recommend
         root = os.path.join(os.path.dirname(__file__), "..", "..")

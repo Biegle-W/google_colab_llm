@@ -32,6 +32,9 @@ CHAT_BACKENDS = ("llama", "vllm", "sglang", "strata", "maya", "tensorfold", "spa
 IMAGE_BACKENDS = ("diffusers", "comfyui")
 # Engines that advertise their own model names; readiness = OpenAI /v1/models answers.
 ALIAS_READY_BACKENDS = ("strata", "maya", "sparsa", "strata_nvfp4")
+# `strata launch` starts the server in the background, prints "Strata is serving." and exits 0, so its own
+# process ending cleanly is not the engine stopping; `strata launch --stop` stops the server.
+DETACHING_BACKENDS = ("strata",)
 opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
@@ -392,10 +395,24 @@ class Engine:
         self.entry, self.ctx, self.proc, self.port, self.log_path = entry, ctx, proc, port, log_path
 
     @property
+    def detaching(self):
+        return self.entry.get("backend") in DETACHING_BACKENDS
+
+    @property
     def alive(self):
-        return self.proc.poll() is None
+        code = self.proc.poll()
+        # A detaching launcher that exited cleanly left the server running; readiness and the timeout decide.
+        return code is None or (code == 0 and self.detaching)
 
     def stop(self, grace=30):
+        if self.detaching:
+            args = getattr(self.proc, "args", None)
+            if isinstance(args, (list, tuple)) and args:
+                try:
+                    subprocess.run([str(args[0]), "launch", "--stop"], stdin=subprocess.DEVNULL,
+                                   capture_output=True, timeout=120)
+                except (OSError, subprocess.SubprocessError):
+                    pass
         if self.proc.poll() is None:
             try:
                 os.killpg(self.proc.pid, signal.SIGTERM)
