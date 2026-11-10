@@ -659,6 +659,26 @@ class SelfContainedNotebooks(unittest.TestCase):
             shutil.rmtree(tmp, ignore_errors=True)
 
 
+class HfTokenFromDrive(unittest.TestCase):
+    def test_env_first_then_drive_file(self):
+        from notebook_code import keyfile
+        d = tempfile.mkdtemp()
+        old = os.environ.pop("HF_TEST_TOKEN", None)
+        try:
+            self.assertIsNone(keyfile.hf_token(d, "HF_TEST_TOKEN"))
+            os.makedirs(os.path.join(d, "settings"))
+            open(os.path.join(d, "settings", "hf_token.txt"), "w").write("hf_fromdrive\n")
+            self.assertEqual(keyfile.hf_token(d, "HF_TEST_TOKEN"), "hf_fromdrive")
+            self.assertEqual(os.environ["HF_TEST_TOKEN"], "hf_fromdrive")       # engines inherit it
+            os.environ["HF_TEST_TOKEN"] = "hf_secret"
+            self.assertEqual(keyfile.hf_token(d, "HF_TEST_TOKEN"), "hf_secret")  # a Colab secret wins
+        finally:
+            os.environ.pop("HF_TEST_TOKEN", None)
+            if old is not None:
+                os.environ["HF_TEST_TOKEN"] = old
+            shutil.rmtree(d)
+
+
 class DetachingEngines(unittest.TestCase):
     class Proc:
         def __init__(self, code, args=("strata", "launch")):

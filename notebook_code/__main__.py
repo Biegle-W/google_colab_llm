@@ -81,13 +81,13 @@ def run_prepare(a):
             ids = [m for m in a.models.split(",") if m]
         from .drive_upload import upload_paced_copier
         result = prepare.prepare_many(ids, drive_dir=a.drive_dir, staging=a.staging_dir,
-                                      token=os.environ.get(a.hf_token_env), budget_gb=a.budget_gb,
+                                      token=keyfile.hf_token(a.drive_dir, a.hf_token_env), budget_gb=a.budget_gb,
                                       workers=a.workers, copier=None if a.no_pace else upload_paced_copier())
         return 1 if result["errors"] else 0
     if not a.engine:
         raise SystemExit("prepare needs --engine (one model) or --models (batch)")
     result = prepare.prepare(a.target, a.engine, a.model, drive_dir=a.drive_dir, staging=a.staging_dir,
-                             token=os.environ.get(a.hf_token_env), do_engine=not a.no_engine,
+                             token=keyfile.hf_token(a.drive_dir, a.hf_token_env), do_engine=not a.no_engine,
                              do_download=not a.no_download, refresh=a.refresh,
                              force_compile=a.force_compile)
     return 1 if result["errors"] else 0
@@ -117,7 +117,7 @@ def main(argv=None):
         for line in gpu.format_host():
             print(line)
     key = keyfile.load_or_create(a.key_file or os.path.join(a.drive_dir, "access", "api_key"))
-    store = ModelStore(a.drive_dir, a.local_dir, token=os.environ.get(a.hf_token_env))
+    store = ModelStore(a.drive_dir, a.local_dir, token=keyfile.hf_token(a.drive_dir, a.hf_token_env))
     overrides = dict(x.split("=", 1) for x in a.ctx)
     builds = os.path.join(a.drive_dir, "engines")
     bins = {

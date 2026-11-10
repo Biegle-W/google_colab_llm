@@ -40,7 +40,7 @@ Use a Pro runtime with an **L4, A100 80 GB, or G4** GPU. For the A100, pick **Hi
 The Studio notebook is from [unslothai/unsloth](https://github.com/unslothai/unsloth); Unsloth Studio is licensed under AGPL-3.0.
 llama.cpp is from [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) (MIT).
 TensorFold is from [ashhart/TensorFold](https://github.com/ashhart/TensorFold); Sparsa from [LyJonathan/Sparsa](https://github.com/LyJonathan/Sparsa); HyperQwen from [syv-ai/HyperQwen](https://github.com/syv-ai/HyperQwen); NInfer from [Neroued/ninfer](https://github.com/Neroued/ninfer); Basalt from [jesdga95/basalt](https://github.com/jesdga95/basalt); the Strata NVFP4 fork from [sergqwer/strata-nvfp4](https://github.com/sergqwer/strata-nvfp4); ComfyUI from [Comfy-Org/ComfyUI](https://github.com/Comfy-Org/ComfyUI).
-Diffusers / Comfy models keep their upstream licenses (Stability AI, Black Forest Labs, etc.); accept gated licenses on Hugging Face and set Colab secret `HF_TOKEN` when needed.
+Diffusers / Comfy models keep their upstream licenses (Stability AI, Black Forest Labs, etc.); accept gated licenses on Hugging Face and set Colab secret `HF_TOKEN` when needed. Runtimes driven from the command line cannot read Colab Secrets; for those, put the token in a one-line file on your private Drive, `MyDrive/colab_model_server/settings/hf_token.txt` (a Colab secret still wins when present).
 
 ## Model and build storage
 Notebooks mount Google Drive and keep **all durable state** under `MyDrive/colab_model_server` so later sessions restore instead of re-downloading:
