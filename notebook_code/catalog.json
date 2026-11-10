@@ -552,6 +552,7 @@
     "tool_parser": "qwen3_coder",
     "reasoning_parser": "qwen3",
     "language_model_only": true,
+    "gpu_util": 0.95,
     "notes": "Same AutoRound INT4 family selected as HyperQwen on the NVIDIA workstation; stock vLLM on Colab."
   },
   {
@@ -583,6 +584,11 @@
     ],
     "tool_parser": "qwen3_coder",
     "reasoning_parser": "qwen3",
+    "mem_fraction": 0.93,
+    "extra_args": [
+      "--max-running-requests",
+      "2"
+    ],
     "notes": "SGLang path matching the maintained qwen27b-sglang profile class on the NVIDIA host."
   },
   {

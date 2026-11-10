@@ -80,7 +80,9 @@ def llama_command(entry, model_path, ctx, llama_bin, port=None):
     if not entry.get("thinking", False):
         args += ["--reasoning", "off", "--chat-template-kwargs", json.dumps({"enable_thinking": False})]
     if on_network_fs(model_path):
-        args += ["--no-mmap"]         # read the GGUF from Drive in one sequential pass, not by page faults
+        # Read the GGUF from Drive in one sequential pass, not by page faults. llama.cpp replaced
+        # --no-mmap with --load-mode (none = plain reads, no memory map).
+        args += ["--load-mode", "none"]
     return args + list(entry.get("extra_args", []))
 
 

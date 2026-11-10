@@ -1306,8 +1306,10 @@ class ReadFromDrive(unittest.TestCase):
         backends.on_network_fs = lambda p, mounts=None: str(p).startswith("/content/drive")
         try:
             e = self.entry()
-            self.assertIn("--no-mmap", backends.llama_command(e, "/content/drive/m/model.gguf", 1024, "llama"))
-            self.assertNotIn("--no-mmap", backends.llama_command(e, "/content/models/m/model.gguf", 1024, "llama"))
+            args = backends.llama_command(e, "/content/drive/m/model.gguf", 1024, "llama")
+            self.assertEqual(args[args.index("--load-mode") + 1], "none")
+            self.assertNotIn("--no-mmap", args)
+            self.assertNotIn("--load-mode", backends.llama_command(e, "/content/models/m/model.gguf", 1024, "llama"))
             v = backends.vllm_command(dict(e, backend="vllm"), "/content/drive/m", 1024)
             self.assertEqual(v[v.index("--safetensors-load-strategy") + 1], "eager")
         finally:
