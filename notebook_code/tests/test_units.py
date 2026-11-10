@@ -670,6 +670,10 @@ class HfTokenFromDrive(unittest.TestCase):
             open(os.path.join(d, "settings", "hf_token.txt"), "w").write("hf_fromdrive\n")
             self.assertEqual(keyfile.hf_token(d, "HF_TEST_TOKEN"), "hf_fromdrive")
             self.assertEqual(os.environ["HF_TEST_TOKEN"], "hf_fromdrive")       # engines inherit it
+            del os.environ["HF_TEST_TOKEN"]
+            os.makedirs(os.path.join(d, "access"))
+            open(os.path.join(d, "access", "hf_token.txt"), "w").write("hf_access\n")
+            self.assertEqual(keyfile.hf_token(d, "HF_TEST_TOKEN"), "hf_access")  # access/ (with the other keys) first
             os.environ["HF_TEST_TOKEN"] = "hf_secret"
             self.assertEqual(keyfile.hf_token(d, "HF_TEST_TOKEN"), "hf_secret")  # a Colab secret wins
         finally:

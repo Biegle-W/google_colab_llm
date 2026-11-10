@@ -3,7 +3,7 @@
 - ``api_key`` — hub Bearer token (auto-created once), mirrored as ``api_key.txt`` so phone apps (the Google
   Drive app on iOS previews only files with a known extension) can show it
 - ``tailscale_authkey`` — Tailscale auth key (prompted once, then reused from Drive)
-- ``settings/hf_token`` — optional Hugging Face token, for runs that cannot read Colab Secrets (a runtime driven
+- ``hf_token`` — optional Hugging Face token, for runs that cannot read Colab Secrets (a runtime driven
   from the command line): gated models, and higher download rate limits
 """
 import os
@@ -106,14 +106,15 @@ HF_TOKEN_FILES = ("hf_token", "hf_token.txt")
 
 
 def hf_token(drive_dir, env="HF_TOKEN"):
-    """The Hugging Face token: the environment (a Colab secret) first, else settings/hf_token on Drive.
+    """The Hugging Face token: the environment (a Colab secret) first, else access/hf_token(.txt) on Drive, next to
+    the other keys (settings/ also works).
 
     A token read from Drive is also put into the environment, so engines that download for themselves get it."""
     token = (os.environ.get(env) or "").strip()
     if token:
         return token
-    for name in HF_TOKEN_FILES:
-        path = os.path.join(str(drive_dir), "settings", name)
+    for path in (os.path.join(str(drive_dir), folder, name) for folder in ("access", "settings")
+                 for name in HF_TOKEN_FILES):
         try:
             token = open(path, encoding="utf-8-sig").read().strip()
         except OSError:
