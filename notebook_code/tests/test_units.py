@@ -713,6 +713,17 @@ class DetachingEngines(unittest.TestCase):
         self.assertEqual(calls, [["/bin/strata", "launch", "--stop"]])
 
 
+class Flux3Workflow(unittest.TestCase):
+    def test_api_workflow_matches_the_workstation_ui_workflow(self):
+        # ComfyUI 0.43 has no CLIPLoader type "flux" for Flux3's Qwen3-VL encoder; Flux3 uses Flux2's latent.
+        d = os.path.join(os.path.dirname(__file__), "..", "workflows")
+        api = json.load(open(os.path.join(d, "flux3-klein.api.json")))
+        kinds = {n["class_type"]: n["inputs"] for n in api.values()}
+        self.assertEqual(kinds["CLIPLoader"]["type"], "flux3")
+        self.assertIn("EmptyFlux2LatentImage", kinds)
+        self.assertEqual(kinds["KSampler"]["sampler_name"], "er_sde")
+
+
 class StrataStartChecks(unittest.TestCase):
     """`strata launch` checks the loaded model before it exits; its server can answer before that check is done."""
     class Proc:
