@@ -305,7 +305,7 @@ INDEX_NOTEBOOK = "notebooks/llm_hub_colab.ipynb"
 # The three GPU runtimes the notebooks target: folder name -> recommendation band, label, and the hardware the
 # hub measured on each (GB, as the hub reports them), which every planned model must fit.
 RUNTIMES = {
-    "l4": {"band": "l4", "label": "L4 (24 GB)", "vram_gb": 24.2, "ram_gb": 55.5, "disk_gb": 252, "arch": 89},
+    "l4": {"band": "l4", "label": "L4 (RTX 4070 Ti class, 24 GB)", "vram_gb": 24.2, "ram_gb": 55.5, "disk_gb": 252, "arch": 89},
     "a100": {"band": "a100_80", "label": "A100 80 GB (High-RAM)", "vram_gb": 85.0, "ram_gb": 167, "disk_gb": 252,
              "arch": 80},
     "g4": {"band": "g4", "label": "G4 (RTX PRO 6000 Blackwell, 96 GB)", "vram_gb": 102.6, "ram_gb": 185.5,

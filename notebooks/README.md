@@ -4,7 +4,7 @@
 type it names, and Run all. It installs only that engine, serves only that model (one authenticated
 OpenAI-compatible API), and keeps the weights and engine builds on Google Drive.
 
-### L4 (24 GB) — `l4/`
+### L4 (RTX 4070 Ti class, 24 GB) — `l4/`
 
 | Engine | Model notebook |
 |---|---|

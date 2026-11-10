@@ -1,14 +1,14 @@
 # Google Colab LLM + diffusion notebooks
 
-Notebooks for running **LLM and text-to-image** tooling on Colab GPUs (including **Google AI Pro / Colab Pro** L4, A100, and G4 runtimes). Models download once to **Google Drive**, then restore into later sessions. Set Runtime → Change runtime type to the hardware named for the notebook, then Run all.
+Notebooks for running **LLM and text-to-image** tooling on Colab GPUs (including **Google AI Pro / Colab Pro** L4 (RTX 4070 Ti class), A100, and G4 (RTX PRO 6000) runtimes). Models download once to **Google Drive**, then restore into later sessions. Set Runtime → Change runtime type to the hardware named for the notebook, then Run all.
 
 Notebooks are sorted **runtime → engine → model**: `notebooks/<runtime>/<engine>/<model>.ipynb`, for the
-three GPU runtimes **L4**, **A100 80 GB** and **G4**. Open the one for your runtime and model and Run all: it
+three GPU runtimes **L4** (RTX 4070 Ti class), **A100 80 GB** and **G4** (RTX PRO 6000 Blackwell). Open the one for your runtime and model and Run all: it
 installs only that engine and serves only that model through one authenticated OpenAI-compatible API.
 
 | Folder | What's in it |
 |---|---|
-| [`notebooks/l4/`](notebooks/l4/) | L4 (24 GB): one folder per engine, one notebook per model |
+| [`notebooks/l4/`](notebooks/l4/) | L4 (RTX 4070 Ti class, 24 GB): one folder per engine, one notebook per model |
 | [`notebooks/a100/`](notebooks/a100/) | A100 80 GB (High-RAM) |
 | [`notebooks/g4/`](notebooks/g4/) | G4 (RTX PRO 6000 Blackwell, 96 GB), including the G4-only engines (NInfer, Basalt, Strata NVFP4) |
 | [`notebooks/cpu/prepare_cpu.ipynb`](notebooks/cpu/prepare_cpu.ipynb) | **Save GPU time:** on a cheap CPU runtime, download a model to Drive and build its engine for the GPU you will use |
@@ -23,7 +23,7 @@ The full list of notebooks is in [`notebooks/README.md`](notebooks/README.md) (a
 
 Downloading a model and building an engine need no GPU, so do them on a **CPU** runtime with
 [`notebooks/cpu/prepare_cpu.ipynb`](notebooks/cpu/prepare_cpu.ipynb): pick the GPU you will use
-(L4, A100 or G4), the engine and the model. It downloads the model straight to Drive one file at a time
+(L4 = RTX 4070 Ti class, A100 or G4 = RTX PRO 6000), the engine and the model. It downloads the model straight to Drive one file at a time
 (resumable; Drive accepts about 750 GB of uploads per day) while it builds or caches the engine for that GPU:
 wheels, HyperQwen's venv, llama.cpp / NInfer compiled for the GPU's architecture. The GPU notebook then only
 copies them from Drive and loads the model. Without a browser:
@@ -31,7 +31,7 @@ copies them from Drive and loads the model. Without a browser:
 
 ## Google AI Pro / Colab Pro
 
-Use a Pro runtime with an **L4, A100 80 GB, or G4** GPU. For the A100, pick **High-RAM** in Change runtime type: that gives the 80 GB GPU these notebooks are sized for.
+Use a Pro runtime with an **L4** (RTX 4070 Ti class), **A100 80 GB**, or **G4** (RTX PRO 6000 Blackwell) GPU. The L4 uses the same Ada chip as an RTX 4070 Ti with 24 GB, at about 300 GB/s and 72 W, so it is much slower than a 4090. For the A100, pick **High-RAM** in Change runtime type: that gives the 80 GB GPU these notebooks are sized for.
 
 ## Code
 `notebook_code/` is the Python package behind the hub notebooks (hub server, Drive model store, catalog, backends, tests). Each notebook carries it packed in a cell, so nothing is fetched from GitHub. Regenerate every notebook with `python3 -m notebook_code.make_engine_notebooks`.

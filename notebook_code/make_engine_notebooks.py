@@ -282,7 +282,7 @@ def build_notebook(engine: str, runtime: str | None = None, model: str | None = 
             "- Engine matrix: `notebook_code/ENGINE_MATRIX.md`",
             "",
             (f"Runtime → Change runtime type → **{rt['label']}**, then Runtime → Run all."
-             if model else "Runtime → Change runtime type → **L4, A100 or G4**, then run the cells in order."),
+             if model else "Runtime → Change runtime type → **L4 (RTX 4070 Ti class), A100 or G4 (RTX PRO 6000)**, then run the cells in order."),
         ]),
         _md([
             "## 1. Mount Drive and create the workspace",
@@ -1015,7 +1015,7 @@ def build_index() -> dict:
             "",
             "# Colab notebooks: runtime → engine → model",
             "",
-            "`notebooks/<runtime>/<engine>/<model>.ipynb`. Pick the runtime you have (L4, A100 80 GB, G4), then "
+            "`notebooks/<runtime>/<engine>/<model>.ipynb`. Pick the runtime you have (L4 = RTX 4070 Ti class, A100 80 GB, G4 = RTX PRO 6000), then "
             "the engine, then the model. Each notebook installs only its engine, serves only its model through "
             "one authenticated OpenAI-compatible API, and keeps weights and builds on "
             "`MyDrive/colab_model_server/`.",
