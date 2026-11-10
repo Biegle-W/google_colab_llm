@@ -590,6 +590,7 @@
       "2",
       "--cuda-graph-max-bs-decode",
       "2",
+      "--disable-prefill-cuda-graph",
       "--chunked-prefill-size",
       "2048"
     ],
