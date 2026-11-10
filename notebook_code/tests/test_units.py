@@ -713,6 +713,21 @@ class DetachingEngines(unittest.TestCase):
         self.assertEqual(calls, [["/bin/strata", "launch", "--stop"]])
 
 
+class SglangNinja(unittest.TestCase):
+    def test_venv_bin_is_on_path_for_start_up_kernel_builds(self):
+        env = backends.env_for({"backend": "sglang"}, {"sglang": "/content/sglang/venv/bin/python"})
+        self.assertTrue(env["PATH"].startswith("/content/sglang/venv/bin" + os.pathsep))
+
+    def test_restored_venv_gets_ninja(self):
+        from notebook_code import install
+        root = tempfile.mkdtemp()
+        os.makedirs(os.path.join(root, "venv", "bin"))
+        open(os.path.join(root, "venv", "bin", "python"), "w").close()
+        cmds = []
+        install.ensure_sglang(root, run=lambda c: cmds.append(c) or "", log=lambda *a: None, root=root)
+        self.assertTrue(any("pip install" in c and c.rstrip().endswith("ninja") for c in cmds), cmds)
+
+
 class SharedWeights(unittest.TestCase):
     KEYS = ("repo", "files", "exclude", "extra_downloads", "revision")
 

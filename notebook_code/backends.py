@@ -354,6 +354,9 @@ def env_for(entry, bins=None):
         env["STRATA_UPDATE_CHECK"] = "0"
         pkg_parent = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         env["PYTHONPATH"] = pkg_parent + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
+    if entry["backend"] == "sglang" and (bins or {}).get("sglang"):
+        # The venv's bin/ holds ninja, which SGLang's start-up kernel builds call by name.
+        env["PATH"] = os.path.dirname(str(bins["sglang"])) + os.pathsep + env.get("PATH", "")
     if entry["backend"] in ("vllm", "sglang"):
         env.setdefault("VLLM_ENGINE_READY_TIMEOUT_S", str(READY_TIMEOUT))
         env["HF_HUB_OFFLINE"] = "1"                      # serve the local copy; never re-download

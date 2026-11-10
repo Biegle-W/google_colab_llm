@@ -213,18 +213,24 @@ def ensure_sglang(builds_dir, refresh=False, run=sh, log=print, install_now=True
     if not install_now and os.path.isfile(tar) and not refresh:
         log("SGLang build already on Drive:", tar)
         return tar
-    if os.path.isfile(python) and not refresh:
+    uv = f"UV_PYTHON_INSTALL_DIR={root}/.python UV_CACHE_DIR=/content/.uv-cache {sys.executable} -m uv"
+
+    def with_ninja():
+        # SGLang compiles some kernels at start-up for GPUs it ships none for (the A100's sm_80) and calls ninja.
+        if not os.path.isfile(os.path.join(root, "venv", "bin", "ninja")):
+            run(f"cd {root} && {uv} pip install --python venv/bin/python ninja")
         return python
+    if os.path.isfile(python) and not refresh:
+        return with_ninja()
     if os.path.isfile(tar) and not refresh:
         log("Restoring SGLang (its venv) from Drive:", tar)
         run(f"rm -rf {root} && mkdir -p {os.path.dirname(root)} && tar -xf {tar} -C {os.path.dirname(root)}")
-        return python
+        return with_ninja()
     log("Building SGLang's venv (Python 3.12, several GB, one time)...")
     run(f"rm -rf {root} && mkdir -p {root}")
     for cmd in _uv_venv_commands(root, "venv", python_version=SGLANG_PYTHON):
         run(cmd)
-    uv = f"UV_PYTHON_INSTALL_DIR={root}/.python UV_CACHE_DIR=/content/.uv-cache {sys.executable} -m uv"
-    run(f"cd {root} && {uv} pip install --python venv/bin/python '{SGLANG_SPEC}'")
+    run(f"cd {root} && {uv} pip install --python venv/bin/python '{SGLANG_SPEC}' ninja")
     version = run(f"{python} -c 'import sglang; print(sglang.__version__)'").strip().splitlines()[-1]
     log("SGLang", version)
     os.makedirs(builds_dir, exist_ok=True)
