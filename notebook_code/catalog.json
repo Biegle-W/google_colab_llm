@@ -1470,7 +1470,7 @@
     "id": "qwen36-strata-q4",
     "name": "Qwen3.6-35B-A3B UD-Q4_K_XL (Strata qwen36)",
     "backend": "strata",
-    "repo": "unsloth/Qwen3.6-35B-A3B-GGUF",
+    "repo": "unsloth/Qwen3.6-35B-A3B-MTP-GGUF",
     "files": [
       "*UD-Q4_K_XL*",
       "Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf"
@@ -1500,7 +1500,7 @@
     "id": "qwen36-strata-q6",
     "name": "Qwen3.6-35B-A3B UD-Q6_K_XL (Strata qwen36)",
     "backend": "strata",
-    "repo": "unsloth/Qwen3.6-35B-A3B-GGUF",
+    "repo": "unsloth/Qwen3.6-35B-A3B-MTP-GGUF",
     "files": [
       "*UD-Q6_K_XL*",
       "Qwen3.6-35B-A3B-UD-Q6_K_XL.gguf"

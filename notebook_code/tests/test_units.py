@@ -673,6 +673,11 @@ class DetachingEngines(unittest.TestCase):
         self.assertFalse(backends.Engine({"backend": "strata"}, 1024, self.Proc(1), 1, "/tmp/x").alive)
         self.assertFalse(backends.Engine({"backend": "llama"}, 1024, self.Proc(0), 1, "/tmp/x").alive)
 
+    def test_strata_qwen36_uses_the_mtp_gguf(self):
+        by = catalog.by_id(catalog.load())
+        for mid in ("qwen36-strata-q4", "qwen36-strata-q6"):       # strata-q36 needs qwen35moe.nextn_predict_layers
+            self.assertEqual(by[mid]["repo"], "unsloth/Qwen3.6-35B-A3B-MTP-GGUF")
+
     def test_strata_stop_runs_launch_stop(self):
         calls = []
         orig = backends.subprocess.run
