@@ -584,10 +584,14 @@
     ],
     "tool_parser": "qwen3_coder",
     "reasoning_parser": "qwen3",
-    "mem_fraction": 0.93,
+    "mem_fraction": 0.92,
     "extra_args": [
       "--max-running-requests",
-      "2"
+      "2",
+      "--cuda-graph-max-bs",
+      "2",
+      "--chunked-prefill-size",
+      "2048"
     ],
     "notes": "SGLang path matching the maintained qwen27b-sglang profile class on the NVIDIA host."
   },
