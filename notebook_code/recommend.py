@@ -55,7 +55,7 @@ _ENGINE_PREFETCH = {
         "t4": [],
         "l4": ["glm-maya-xs", "glm-maya-s24"],
         "a100_40": ["glm-maya-s24", "glm-maya-s", "glm-maya-xs"],
-        "a100_80": ["glm-maya-s", "glm-maya-s24", "deepseek-maya-xs"],
+        "a100_80": ["glm-maya-s", "glm-maya-s24"],   # DeepSeek Maya-XS (282 GB) exceeds most A100 disks (236 GB)
         "g4": ["glm-maya-s", "glm-maya-s24", "deepseek-maya-xs", "deepseek-maya-s"],
     },
     "tensorfold": {
@@ -233,88 +233,92 @@ _ENGINE_NOTES = {
                             "engine with the fork's setup (cached on Drive)."]},
 }
 
-# Hub notebooks live under notebooks/<engine>/…
 ENGINE_META = {
     "llama": {
         "title": "llama.cpp",
-        "notebook": "notebooks/llama/llama_gpu.ipynb",
         "kind": "chat",
         "summary": "GGUF: Qwen3.8-27B, Bolt IQ2, Sage, Ornith, Flash-Next / GLM / DeepSeek fallbacks",
     },
     "vllm": {
         "title": "vLLM",
-        "notebook": "notebooks/vllm/vllm_gpu.ipynb",
         "kind": "chat",
         "summary": "Safetensors chat: Qwen3.8-27B W4A16/FP8/BF16, Sage, Bolt W4A16, …",
     },
     "sglang": {
         "title": "SGLang",
-        "notebook": "notebooks/sglang/sglang_gpu.ipynb",
         "kind": "chat",
         "summary": "SGLang chat: Qwen3.8-27B W4A16 AutoRound",
     },
     "diffusers": {
         "title": "Diffusers",
-        "notebook": "notebooks/diffusers/diffusers_gpu.ipynb",
         "kind": "image",
         "summary": "Text-to-image: Qwen-Image-2.1, FLUX, SDXL (+ MiniMax-H3 prefetch)",
     },
     "strata": {
         "title": "Strata",
-        "notebook": "notebooks/strata/strata_gpu.ipynb",
         "kind": "chat",
         "summary": "Flash-Next (ISTA/Gyro/Swift) + Qwen3.6 + DeepSeek (strata-dsv41)",
     },
     "maya": {
         "title": "Maya",
-        "notebook": "notebooks/maya/maya_gpu.ipynb",
         "kind": "chat",
         "summary": "GLM-5.3-Flash (Maya-S24/S/XS) + DeepSeek-V4.1-Flash-1017 (maya-ds4)",
     },
     "tensorfold": {
         "title": "TensorFold",
-        "notebook": "notebooks/tensorfold/tensorfold_gpu.ipynb",
         "kind": "chat",
         "summary": "Qwen3.8-27B Mia EXL3 2.0bpw + DFlash2 (workstation qwen27b-tensorfold)",
     },
     "comfyui": {
         "title": "ComfyUI",
-        "notebook": "notebooks/comfyui/comfyui_gpu.ipynb",
         "kind": "image",
         "summary": "Qwen-Image-2.1 Turbo, FLUX.3 Klein, Wan 2.2 / MiniMax-H3 video prefetch",
     },
     "sparsa": {
         "title": "Sparsa",
-        "notebook": "notebooks/sparsa/sparsa_gpu.ipynb",
         "kind": "chat",
         "summary": "MiniMax-M3.1-Flash (IQ2_XS-D3 / IQ2_KT) via Sparsa strata-minimax",
     },
     "hyperqwen": {
         "title": "HyperQwen",
-        "notebook": "notebooks/hyperqwen/hyperqwen_gpu.ipynb",
         "kind": "chat",
         "summary": "Qwen3.8-27B W4A16 on patched vLLM 0.32: MTP / DFlash2 single-user or batch",
     },
     "ninfer": {
         "title": "NInfer",
-        "notebook": "notebooks/ninfer/ninfer_gpu.ipynb",
         "kind": "chat",
         "summary": "Native C++/CUDA (G4 only): Qwen3.8-27B NVFP4/int, Qwen3.6-35B-A3B, Flash-Next",
     },
     "basalt": {
         "title": "Basalt",
-        "notebook": "notebooks/basalt/basalt_gpu.ipynb",
         "kind": "chat",
         "summary": "Strata fork for Blackwell (G4 only): Qwen3.8-Flash-Next NVFP4-DQ6_K",
     },
     "strata_nvfp4": {
         "title": "Strata NVFP4",
-        "notebook": "notebooks/strata_nvfp4/strata_nvfp4_gpu.ipynb",
         "kind": "chat",
         "summary": "sergqwer/strata-nvfp4 (G4 only): Qwen3.8-Flash-Next NVFP4 GPTQ",
     },
 }
 INDEX_NOTEBOOK = "notebooks/llm_hub_colab.ipynb"
+
+# The three GPU runtimes the notebooks target: folder name -> recommendation band, label.
+RUNTIMES = {
+    "l4": {"band": "l4", "label": "L4 (24 GB)"},
+    "a100": {"band": "a100_80", "label": "A100 80 GB (High-RAM)"},
+    "g4": {"band": "g4", "label": "G4 (96 GB)"},
+}
+
+
+def model_notebook(runtime, engine, model_id):
+    """notebooks/<runtime>/<engine>/<model>.ipynb"""
+    return f"notebooks/{runtime}/{engine}/{model_id}.ipynb"
+
+
+def notebook_plan():
+    """(runtime, engine, model id) for every notebook: the recommended models of each engine per runtime."""
+    return [(rt, eng, mid) for rt, r in RUNTIMES.items() for eng in ENGINES
+            for mid in _ENGINE_PREFETCH[eng][r["band"]]]
 
 
 def band(vram_gb):

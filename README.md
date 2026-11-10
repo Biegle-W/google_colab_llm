@@ -2,33 +2,27 @@
 
 Notebooks for running **LLM and text-to-image** tooling on Colab GPUs (including **Google AI Pro / Colab Pro** L4, A100, and G4 runtimes). Models download once to **Google Drive**, then restore into later sessions. Set Runtime → Change runtime type to the hardware named for the notebook, then Run all.
 
-Notebooks are grouped by engine under [`notebooks/`](notebooks/).
+Notebooks are sorted **runtime → engine → model**: `notebooks/<runtime>/<engine>/<model>.ipynb`, for the
+three GPU runtimes **L4**, **A100 80 GB** and **G4**. Open the one for your runtime and model and Run all: it
+installs only that engine and serves only that model through one authenticated OpenAI-compatible API.
 
-| Notebook | What it does |
+| Folder | What's in it |
 |---|---|
-| [`notebooks/llm_hub_colab.ipynb`](notebooks/llm_hub_colab.ipynb) | **Index:** links to the GPU notebook of each engine |
-| [`notebooks/strata/`](notebooks/strata/) | **Strata** — Flash-Next (ISTA/Gyro/Swift) + Qwen3.6 + DeepSeek |
-| [`notebooks/maya/`](notebooks/maya/) | **Maya** — GLM-5.3-Flash + DeepSeek-V4.1 (maya-ds4) |
-| [`notebooks/tensorfold/`](notebooks/tensorfold/) | **TensorFold** — Qwen3.8-27B EXL3 2.0bpw + DFlash2 |
-| [`notebooks/sparsa/`](notebooks/sparsa/) | **Sparsa** — MiniMax-M3.1-Flash (IQ2_XS-D3 / IQ2_KT) |
-| [`notebooks/hyperqwen/`](notebooks/hyperqwen/) | **HyperQwen** — Qwen3.8-27B W4A16 on patched vLLM (MTP / DFlash2 / batch); A100 batch only, G4 all |
-| [`notebooks/ninfer/`](notebooks/ninfer/) | **NInfer** — native C++/CUDA Qwen3.8-27B, Qwen3.6-35B-A3B, Flash-Next; **G4 only** |
-| [`notebooks/basalt/`](notebooks/basalt/) | **Basalt** — Strata fork for Blackwell, Qwen3.8-Flash-Next NVFP4-DQ6_K; **G4 only** |
-| [`notebooks/strata_nvfp4/`](notebooks/strata_nvfp4/) | **Strata NVFP4 fork** — Qwen3.8-Flash-Next NVFP4 GPTQ; **G4 only** |
-| [`notebooks/comfyui/`](notebooks/comfyui/) | **ComfyUI** — Qwen-Image-2.1 Turbo, FLUX.3 Klein, video prefetch |
-| [`notebooks/llama/`](notebooks/llama/) | **llama.cpp** — `llama_gpu.ipynb` (L4/A100/G4) + `llama_cpp_t4.ipynb` (T4) |
-| [`notebooks/vllm/`](notebooks/vllm/) | **vLLM** — `vllm_gpu.ipynb` (L4/A100/G4) + `vllm_tpu.ipynb` (TPU) |
-| [`notebooks/sglang/`](notebooks/sglang/) | **SGLang** — Qwen3.8-27B W4A16 AutoRound |
-| [`notebooks/diffusers/`](notebooks/diffusers/) | **Diffusers** — Qwen-Image-2.1, FLUX, SDXL |
-| [`notebooks/prepare/prepare_cpu.ipynb`](notebooks/prepare/prepare_cpu.ipynb) | **Save GPU time:** on a cheap CPU runtime, download a model to Drive and build its engine for the GPU you will use |
-| [`notebooks/unsloth/`](notebooks/unsloth/) | Official Unsloth Studio |
+| [`notebooks/l4/`](notebooks/l4/) | L4 (24 GB): one folder per engine, one notebook per model |
+| [`notebooks/a100/`](notebooks/a100/) | A100 80 GB (High-RAM) |
+| [`notebooks/g4/`](notebooks/g4/) | G4 (96 GB), including the G4-only engines (NInfer, Basalt, Strata NVFP4) |
+| [`notebooks/cpu/prepare_cpu.ipynb`](notebooks/cpu/prepare_cpu.ipynb) | **Save GPU time:** on a cheap CPU runtime, download a model to Drive and build its engine for the GPU you will use |
+| [`notebooks/other/unsloth/`](notebooks/other/unsloth/) | Official Unsloth Studio |
 
-Engine picks and workstation notes: [`notebook_code/ENGINE_MATRIX.md`](notebook_code/ENGINE_MATRIX.md). Each `<engine>_gpu.ipynb` runs the hub, installs **only its engine** and lists **only that engine’s catalog models**. Settings are `settings/settings_<engine>.json`; weights/builds still share Drive.
+The full list of notebooks is in [`notebooks/README.md`](notebooks/README.md) (and the
+[`llm_hub_colab.ipynb`](notebooks/llm_hub_colab.ipynb) index). Engine picks and workstation notes:
+[`notebook_code/ENGINE_MATRIX.md`](notebook_code/ENGINE_MATRIX.md). Settings are
+`settings/settings_<engine>.json`; weights and builds share Drive.
 
 ## Prepare on a CPU runtime, serve on a GPU runtime
 
 Downloading a model and building an engine need no GPU, so do them on a **CPU** runtime with
-[`notebooks/prepare/prepare_cpu.ipynb`](notebooks/prepare/prepare_cpu.ipynb): pick the GPU you will use
+[`notebooks/cpu/prepare_cpu.ipynb`](notebooks/cpu/prepare_cpu.ipynb): pick the GPU you will use
 (L4, A100 or G4), the engine and the model. It downloads the model straight to Drive one file at a time
 (resumable; Drive accepts about 750 GB of uploads per day) while it builds or caches the engine for that GPU:
 wheels, HyperQwen's venv, llama.cpp / NInfer compiled for the GPU's architecture. The GPU notebook then only
@@ -37,10 +31,10 @@ copies them from Drive and loads the model. Without a browser:
 
 ## Google AI Pro / Colab Pro
 
-Use a Pro runtime with an **L4, A100, or G4** GPU for the GPU notebooks. That unlocks the larger catalog LLMs and FLUX / SDXL / ComfyUI image models. A free T4 is fine for `notebooks/llama/llama_cpp_t4.ipynb` and Diffusers NF4 / `sd15` / ComfyUI Turbo, but most catalog LLMs will not fit.
+Use a Pro runtime with an **L4, A100 80 GB, or G4** GPU. For the A100, pick **High-RAM** in Change runtime type: that gives the 80 GB GPU these notebooks are sized for.
 
 ## Code
-`notebook_code/` is the Python package behind the hub notebooks (hub server, Drive model store, catalog, backends, tests). Each notebook fetches it from this repository each run. Regenerate engine notebooks with `python3 -m notebook_code.make_engine_notebooks`.
+`notebook_code/` is the Python package behind the hub notebooks (hub server, Drive model store, catalog, backends, tests). Each notebook carries it packed in a cell, so nothing is fetched from GitHub. Regenerate every notebook with `python3 -m notebook_code.make_engine_notebooks`.
 
 ## Credit and license
 The Studio notebook is from [unslothai/unsloth](https://github.com/unslothai/unsloth); Unsloth Studio is licensed under AGPL-3.0.

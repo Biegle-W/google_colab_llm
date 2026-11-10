@@ -1,29 +1,62 @@
-# Colab notebooks by engine
+# Colab notebooks: runtime → engine → model
 
-Each engine has one GPU notebook (L4, A100 or G4). It runs the hub: one authenticated OpenAI-compatible
-endpoint for the model you pick, with model files kept on Google Drive. The T4 and TPU have their own
-single-server notebooks, because no hub model fits a T4 and the hub does not run on TPUs.
+`<runtime>/<engine>/<model>.ipynb`. Open the notebook for your runtime and model in Colab, set the runtime
+type it names, and Run all. It installs only that engine, serves only that model (one authenticated
+OpenAI-compatible API), and keeps the weights and engine builds on Google Drive.
 
-| Folder | GPU notebook | Other |
-|---|---|---|
-| _(root)_ | [`llm_hub_colab.ipynb`](llm_hub_colab.ipynb) index | — |
-| [`llama/`](llama/) | [`llama_gpu.ipynb`](llama/llama_gpu.ipynb) | [`llama_cpp_t4.ipynb`](llama/llama_cpp_t4.ipynb) (T4) |
-| [`vllm/`](vllm/) | [`vllm_gpu.ipynb`](vllm/vllm_gpu.ipynb) | [`vllm_tpu.ipynb`](vllm/vllm_tpu.ipynb) (TPU) |
-| [`sglang/`](sglang/) | [`sglang_gpu.ipynb`](sglang/sglang_gpu.ipynb) | — |
-| [`diffusers/`](diffusers/) | [`diffusers_gpu.ipynb`](diffusers/diffusers_gpu.ipynb) | — |
-| [`strata/`](strata/) | [`strata_gpu.ipynb`](strata/strata_gpu.ipynb) | — |
-| [`maya/`](maya/) | [`maya_gpu.ipynb`](maya/maya_gpu.ipynb) | — |
-| [`tensorfold/`](tensorfold/) | [`tensorfold_gpu.ipynb`](tensorfold/tensorfold_gpu.ipynb) | — |
-| [`comfyui/`](comfyui/) | [`comfyui_gpu.ipynb`](comfyui/comfyui_gpu.ipynb) | — |
-| [`sparsa/`](sparsa/) | [`sparsa_gpu.ipynb`](sparsa/sparsa_gpu.ipynb) | — |
-| [`hyperqwen/`](hyperqwen/) | [`hyperqwen_gpu.ipynb`](hyperqwen/hyperqwen_gpu.ipynb) | A100: batch entry only; L4 too small |
-| [`ninfer/`](ninfer/) | [`ninfer_gpu.ipynb`](ninfer/ninfer_gpu.ipynb) | G4 (sm_120) only |
-| [`basalt/`](basalt/) | [`basalt_gpu.ipynb`](basalt/basalt_gpu.ipynb) | G4 (sm_120) only |
-| [`strata_nvfp4/`](strata_nvfp4/) | [`strata_nvfp4_gpu.ipynb`](strata_nvfp4/strata_nvfp4_gpu.ipynb) | G4 (sm_120) only |
-| [`prepare/`](prepare/) | — | [`prepare_cpu.ipynb`](prepare/prepare_cpu.ipynb): CPU runtime downloads + builds for a GPU runtime |
-| [`unsloth/`](unsloth/) | — | `Unsloth_Studio_Colab.ipynb` |
+### L4 (24 GB) — `l4/`
 
-Regenerate the GPU notebooks from the repo root:
+| Engine | Model notebook |
+|---|---|
+| **llama.cpp** (`llama/`) | [`qwen3.8-27b-q4`](l4/llama/qwen3.8-27b-q4.ipynb), [`nemotron-3.5-bolt-74b-iq2`](l4/llama/nemotron-3.5-bolt-74b-iq2.ipynb) |
+| **vLLM** (`vllm/`) | [`qwen3.8-27b-w4a16`](l4/vllm/qwen3.8-27b-w4a16.ipynb), [`qwen3-14b-fp8`](l4/vllm/qwen3-14b-fp8.ipynb) |
+| **SGLang** (`sglang/`) | [`qwen3.8-27b-w4a16-sglang`](l4/sglang/qwen3.8-27b-w4a16-sglang.ipynb) |
+| **Diffusers** (`diffusers/`) | [`qwen-image-2.1-nf4`](l4/diffusers/qwen-image-2.1-nf4.ipynb), [`sdxl-turbo`](l4/diffusers/sdxl-turbo.ipynb), [`sdxl-base`](l4/diffusers/sdxl-base.ipynb) |
+| **Strata** (`strata/`) | [`flash-next-gyro-s`](l4/strata/flash-next-gyro-s.ipynb), [`flash-next-strata-q2`](l4/strata/flash-next-strata-q2.ipynb), [`flash-next-swift-iq2-xs`](l4/strata/flash-next-swift-iq2-xs.ipynb), [`qwen36-strata-q4`](l4/strata/qwen36-strata-q4.ipynb) |
+| **Maya** (`maya/`) | [`glm-maya-xs`](l4/maya/glm-maya-xs.ipynb), [`glm-maya-s24`](l4/maya/glm-maya-s24.ipynb) |
+| **TensorFold** (`tensorfold/`) | [`qwen3.8-27b-exl3-2bpw`](l4/tensorfold/qwen3.8-27b-exl3-2bpw.ipynb) |
+| **ComfyUI** (`comfyui/`) | [`qwen-image-2.1-turbo-comfy`](l4/comfyui/qwen-image-2.1-turbo-comfy.ipynb), [`flux3-klein-comfy`](l4/comfyui/flux3-klein-comfy.ipynb), [`minimax-h3-l4-comfy`](l4/comfyui/minimax-h3-l4-comfy.ipynb) |
+
+### A100 80 GB (High-RAM) — `a100/`
+
+| Engine | Model notebook |
+|---|---|
+| **llama.cpp** (`llama/`) | [`qwen3.8-27b-q8`](a100/llama/qwen3.8-27b-q8.ipynb), [`nemotron-3.5-bolt-74b-iq2`](a100/llama/nemotron-3.5-bolt-74b-iq2.ipynb), [`sage-a1.5-q4`](a100/llama/sage-a1.5-q4.ipynb), [`flash-next-q3`](a100/llama/flash-next-q3.ipynb) |
+| **vLLM** (`vllm/`) | [`qwen3.8-27b-fp8`](a100/vllm/qwen3.8-27b-fp8.ipynb), [`sage-a1.5-fp8`](a100/vllm/sage-a1.5-fp8.ipynb), [`nemotron-3.5-bolt-74b-w4a16`](a100/vllm/nemotron-3.5-bolt-74b-w4a16.ipynb), [`qwen3.8-27b-bf16-vllm`](a100/vllm/qwen3.8-27b-bf16-vllm.ipynb) |
+| **SGLang** (`sglang/`) | [`qwen3.8-27b-w4a16-sglang`](a100/sglang/qwen3.8-27b-w4a16-sglang.ipynb) |
+| **Diffusers** (`diffusers/`) | [`qwen-image-2.1`](a100/diffusers/qwen-image-2.1.ipynb), [`flux-schnell`](a100/diffusers/flux-schnell.ipynb) |
+| **Strata** (`strata/`) | [`flash-next-strata-iq3-s`](a100/strata/flash-next-strata-iq3-s.ipynb), [`flash-next-strata-iq3-xxs`](a100/strata/flash-next-strata-iq3-xxs.ipynb), [`flash-next-gyro-m`](a100/strata/flash-next-gyro-m.ipynb), [`qwen36-strata-q6`](a100/strata/qwen36-strata-q6.ipynb) |
+| **Maya** (`maya/`) | [`glm-maya-s`](a100/maya/glm-maya-s.ipynb), [`glm-maya-s24`](a100/maya/glm-maya-s24.ipynb) |
+| **TensorFold** (`tensorfold/`) | [`qwen3.8-27b-exl3-2bpw`](a100/tensorfold/qwen3.8-27b-exl3-2bpw.ipynb) |
+| **ComfyUI** (`comfyui/`) | [`qwen-image-2.1-turbo-bf16-comfy`](a100/comfyui/qwen-image-2.1-turbo-bf16-comfy.ipynb), [`qwen-image-2.1-bf16-comfy`](a100/comfyui/qwen-image-2.1-bf16-comfy.ipynb), [`flux3-klein-comfy`](a100/comfyui/flux3-klein-comfy.ipynb), [`wan22-5b-comfy`](a100/comfyui/wan22-5b-comfy.ipynb), [`minimax-h3-comfy`](a100/comfyui/minimax-h3-comfy.ipynb) |
+| **Sparsa** (`sparsa/`) | [`minimax-m3.1-flash-iq2-kt`](a100/sparsa/minimax-m3.1-flash-iq2-kt.ipynb) |
+| **HyperQwen** (`hyperqwen/`) | [`hyperqwen-qwen3.8-27b-batch`](a100/hyperqwen/hyperqwen-qwen3.8-27b-batch.ipynb) |
+
+### G4 (96 GB) — `g4/`
+
+| Engine | Model notebook |
+|---|---|
+| **llama.cpp** (`llama/`) | [`nemotron-3.5-bolt-74b-iq2`](g4/llama/nemotron-3.5-bolt-74b-iq2.ipynb), [`flash-next-q3`](g4/llama/flash-next-q3.ipynb), [`ornith-1.5-122b-q4`](g4/llama/ornith-1.5-122b-q4.ipynb), [`sage-a1.5-q4`](g4/llama/sage-a1.5-q4.ipynb), [`qwen3.8-27b-bf16`](g4/llama/qwen3.8-27b-bf16.ipynb), [`glm-5.3-flash-iq1s`](g4/llama/glm-5.3-flash-iq1s.ipynb) |
+| **vLLM** (`vllm/`) | [`qwen3.8-27b-fp8`](g4/vllm/qwen3.8-27b-fp8.ipynb), [`sage-a1.5-fp8`](g4/vllm/sage-a1.5-fp8.ipynb), [`nemotron-3.5-bolt-74b-w4a16`](g4/vllm/nemotron-3.5-bolt-74b-w4a16.ipynb), [`qwen3.8-27b-bf16-vllm`](g4/vllm/qwen3.8-27b-bf16-vllm.ipynb) |
+| **SGLang** (`sglang/`) | [`qwen3.8-27b-w4a16-sglang`](g4/sglang/qwen3.8-27b-w4a16-sglang.ipynb) |
+| **Diffusers** (`diffusers/`) | [`qwen-image-2.1`](g4/diffusers/qwen-image-2.1.ipynb), [`flux-schnell`](g4/diffusers/flux-schnell.ipynb) |
+| **Strata** (`strata/`) | [`flash-next-strata-iq3-s`](g4/strata/flash-next-strata-iq3-s.ipynb), [`flash-next-strata-iq3-xxs`](g4/strata/flash-next-strata-iq3-xxs.ipynb), [`qwen36-strata-q6`](g4/strata/qwen36-strata-q6.ipynb), [`deepseek-strata-ist-2.00`](g4/strata/deepseek-strata-ist-2.00.ipynb) |
+| **Maya** (`maya/`) | [`glm-maya-s`](g4/maya/glm-maya-s.ipynb), [`glm-maya-s24`](g4/maya/glm-maya-s24.ipynb), [`deepseek-maya-xs`](g4/maya/deepseek-maya-xs.ipynb), [`deepseek-maya-s`](g4/maya/deepseek-maya-s.ipynb) |
+| **TensorFold** (`tensorfold/`) | [`qwen3.8-27b-exl3-2bpw`](g4/tensorfold/qwen3.8-27b-exl3-2bpw.ipynb) |
+| **ComfyUI** (`comfyui/`) | [`qwen-image-2.1-turbo-bf16-comfy`](g4/comfyui/qwen-image-2.1-turbo-bf16-comfy.ipynb), [`qwen-image-2.1-bf16-comfy`](g4/comfyui/qwen-image-2.1-bf16-comfy.ipynb), [`flux3-klein-comfy`](g4/comfyui/flux3-klein-comfy.ipynb), [`wan22-5b-comfy`](g4/comfyui/wan22-5b-comfy.ipynb), [`minimax-h3-g4-comfy`](g4/comfyui/minimax-h3-g4-comfy.ipynb) |
+| **Sparsa** (`sparsa/`) | [`minimax-m3.1-flash-iq2-xs-d3`](g4/sparsa/minimax-m3.1-flash-iq2-xs-d3.ipynb), [`minimax-m3.1-flash-iq2-kt`](g4/sparsa/minimax-m3.1-flash-iq2-kt.ipynb) |
+| **HyperQwen** (`hyperqwen/`) | [`hyperqwen-qwen3.8-27b-dflash2`](g4/hyperqwen/hyperqwen-qwen3.8-27b-dflash2.ipynb) |
+| **NInfer** (`ninfer/`) | [`ninfer-qwen3.8-27b-nvfp4`](g4/ninfer/ninfer-qwen3.8-27b-nvfp4.ipynb) |
+| **Basalt** (`basalt/`) | [`basalt-flash-next-nvfp4-dq6k`](g4/basalt/basalt-flash-next-nvfp4-dq6k.ipynb) |
+| **Strata NVFP4** (`strata_nvfp4/`) | [`strata-nvfp4-flash-next-gptq`](g4/strata_nvfp4/strata-nvfp4-flash-next-gptq.ipynb) |
+
+## Other
+
+- [`cpu/prepare_cpu.ipynb`](cpu/prepare_cpu.ipynb): on a cheap CPU runtime, download a model to Drive and build
+  its engine for the GPU you will use, so the GPU notebook only restores them.
+- [`other/unsloth/`](other/unsloth/): official Unsloth Studio.
+
+Regenerate every notebook from the repo root (the hub code is packed into each one):
 
 ```bash
 python3 -m notebook_code.make_engine_notebooks

@@ -1,3 +1,4 @@
+import glob
 import json
 import os
 import shutil
@@ -623,8 +624,8 @@ class SelfContainedNotebooks(unittest.TestCase):
         from notebook_code import make_engine_notebooks as m
         root = os.path.join(os.path.dirname(__file__), "..", "..")
         want = m.package_files()
-        paths = [os.path.join(root, m.ENGINE_META[e]["notebook"]) for e in m.ENGINES]
-        paths += [os.path.join(root, m.PREPARE_NOTEBOOK)] + [os.path.join(root, p) for p in m.STANDALONE_NOTEBOOKS]
+        paths = [os.path.join(root, m.model_notebook(rt, e, mid)) for rt, e, mid in m.notebook_plan()]
+        paths += [os.path.join(root, m.PREPARE_NOTEBOOK)]
         for path in paths:
             nb = json.load(open(path))
             payload = [c for c in nb["cells"] if m.PAYLOAD_TAG in c.get("metadata", {}).get("tags", [])]
@@ -655,6 +656,25 @@ class SelfContainedNotebooks(unittest.TestCase):
             self.assertFalse(os.path.isdir(os.path.join(tmp, "notebook_code", "tests")))
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
+
+
+class RuntimeEngineModelLayout(unittest.TestCase):
+    def test_one_notebook_per_runtime_engine_model(self):
+        from notebook_code import make_engine_notebooks as m, recommend
+        root = os.path.join(os.path.dirname(__file__), "..", "..")
+        plan = recommend.notebook_plan()
+        self.assertIn(("g4", "basalt", "basalt-flash-next-nvfp4-dq6k"), plan)
+        self.assertIn(("l4", "comfyui", "minimax-h3-l4-comfy"), plan)
+        self.assertEqual({rt for rt, _, _ in plan}, {"l4", "a100", "g4"})       # only the three GPU runtimes
+        self.assertNotIn(("a100", "maya", "deepseek-maya-xs"), plan)          # 282 GB: A100 disks are 236 GB
+        on_disk = {os.path.relpath(p, root) for rt in recommend.RUNTIMES
+                   for p in glob.glob(os.path.join(root, "notebooks", rt, "*", "*.ipynb"))}
+        self.assertEqual(on_disk, {recommend.model_notebook(*x) for x in plan})
+        nb = m.build_notebook("comfyui", "a100", "minimax-h3-comfy")
+        text = "".join("".join(c["source"]) for c in nb["cells"])
+        self.assertIn('MODEL = "minimax-h3-comfy"', text)
+        self.assertIn("A100 80 GB", text)
+        self.assertIn("notebooks/a100/comfyui/minimax-h3-comfy.ipynb", text)     # its Colab badge
 
 
 class SingleModelSelection(unittest.TestCase):
@@ -1981,7 +2001,7 @@ class TunnelPrompt(unittest.TestCase):
     def test_engine_notebooks_have_no_tunnel_form_field(self):
         import glob as _glob
         root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        for nb in _glob.glob(os.path.join(root, "notebooks", "*", "*.ipynb")):
+        for nb in _glob.glob(os.path.join(root, "notebooks", "**", "*.ipynb"), recursive=True):
             text = open(nb, encoding="utf-8").read()
             self.assertNotIn('TUNNEL = \\"tailscale\\"  # @param', text, nb)
             self.assertNotIn('TUNNEL      = \\"tailscale\\"  # @param', text, nb)

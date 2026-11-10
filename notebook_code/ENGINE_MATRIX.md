@@ -6,9 +6,9 @@ TensorFold / Unsloth / vLLM / SGLang / ComfyUI docs, plus Colab forum reports
 (Qiita Strata+L4, note.com Strata+A100) and the workstation
 `linux-llm-nvidia-public` maintained profiles.
 
-**Colab layout:** one notebook per engine under `notebooks/<engine>/` (index:
-`notebooks/llm_hub_colab.ipynb`). Each installs only that engine and lists only its catalog
-models. Settings: `settings/settings_<engine>.json`.
+**Colab layout:** one notebook per runtime, engine and model under
+`notebooks/<runtime>/<engine>/<model>.ipynb` (index: `notebooks/README.md`). Each installs only that
+engine and serves only that model. Settings: `settings/settings_<engine>.json`.
 
 ## Recommended engine by model (researched)
 

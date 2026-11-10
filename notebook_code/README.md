@@ -4,28 +4,12 @@ One authenticated, OpenAI-compatible endpoint in front of **one** inference engi
 (Google AI Pro / Colab Pro L4, A100, or G4), so a harness on your own computer can use Colab's GPUs for
 **chat** or **text-to-image**. Model files live on Google Drive and are downloaded only once.
 
-**One notebook per engine** under [`notebooks/<engine>/`](../notebooks/) (each installs only that
-engine and advertises only its catalog models):
-
-| Notebook | Engine |
-|---|---|
-| [`notebooks/strata/`](../notebooks/strata/) | **Strata** (Flash-Next ISTA/Gyro/Swift, Qwen3.6, DeepSeek) |
-| [`notebooks/maya/`](../notebooks/maya/) | **Maya** (GLM-5.3-Flash, DeepSeek) |
-| [`notebooks/tensorfold/`](../notebooks/tensorfold/) | **TensorFold** (Qwen3.8-27B EXL3 + DFlash2) |
-| [`notebooks/sparsa/`](../notebooks/sparsa/) | **Sparsa** (MiniMax-M3.1-Flash) |
-| [`notebooks/hyperqwen/`](../notebooks/hyperqwen/) | **HyperQwen** (Qwen3.8-27B W4A16, patched vLLM 0.32) |
-| [`notebooks/ninfer/`](../notebooks/ninfer/) | **NInfer** (native C++/CUDA, G4 only) |
-| [`notebooks/basalt/`](../notebooks/basalt/) | **Basalt** (Strata fork for Blackwell, G4 only) |
-| [`notebooks/strata_nvfp4/`](../notebooks/strata_nvfp4/) | **Strata NVFP4 fork** (G4 only) |
-| [`notebooks/comfyui/`](../notebooks/comfyui/) | **ComfyUI** (Qwen-Image Turbo, FLUX.3 Klein, video prefetch) |
-| [`notebooks/llama/`](../notebooks/llama/) | llama.cpp (Bolt IQ2, Sage, Ornith, MoE fallbacks) |
-| [`notebooks/vllm/`](../notebooks/vllm/) | vLLM |
-| [`notebooks/sglang/`](../notebooks/sglang/) | SGLang |
-| [`notebooks/diffusers/`](../notebooks/diffusers/) | Diffusers |
-
-[`notebooks/llm_hub_colab.ipynb`](../notebooks/llm_hub_colab.ipynb) is an index. Target models and
-per-GPU picks are in [`ENGINE_MATRIX.md`](ENGINE_MATRIX.md). Defaults come from
-`recommend.for_engine(engine, vram_gb)`. Regenerate with `python3 -m notebook_code.make_engine_notebooks`.
+**One notebook per runtime, engine and model:** `notebooks/<runtime>/<engine>/<model>.ipynb` for the L4,
+A100 80 GB and G4 runtimes (each installs only its engine and serves only its model). The list is
+[`notebooks/README.md`](../notebooks/README.md); [`notebooks/llm_hub_colab.ipynb`](../notebooks/llm_hub_colab.ipynb)
+is the same index as a notebook. Which models get a notebook: `recommend.notebook_plan()` (each engine's
+recommended models per runtime). Per-GPU picks and research are in [`ENGINE_MATRIX.md`](ENGINE_MATRIX.md).
+Regenerate with `python3 -m notebook_code.make_engine_notebooks`.
 
 ## How it works
 
@@ -62,7 +46,7 @@ every session:  VRAM+RAM models: engine reads Drive directly
 | ComfyUI OpenAI images wrapper + stock API workflows | `comfyui_server.py`, `workflows/` |
 | Model list, what fits which GPU, context / max edge | `catalog.json`, `catalog.py` |
 | Per-engine × GPU recommendations | `recommend.py`, `ENGINE_MATRIX.md` |
-| Generate the `<engine>_gpu.ipynb` notebooks | `make_engine_notebooks.py` |
+| Generate the `<runtime>/<engine>/<model>.ipynb` notebooks | `make_engine_notebooks.py` |
 | Drive layout: per-engine settings, HF cache, logs, outputs | `workspace.py` |
 | GPU detection (including Blackwell/CUDA handling) | `gpu.py` |
 | Engine builds and wheels cached on Drive | `install.py` |

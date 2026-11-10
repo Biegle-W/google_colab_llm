@@ -1,4 +1,4 @@
-"""Generate one Colab hub notebook per engine.
+"""Generate the Colab notebooks: notebooks/<runtime>/<engine>/<model>.ipynb, one per recommended model.
 
 Run from the repo root:
   python3 -m notebook_code.make_engine_notebooks
@@ -9,10 +9,10 @@ import json
 from pathlib import Path
 
 from . import catalog
-from .recommend import ENGINE_META, ENGINES, INDEX_NOTEBOOK
+from .recommend import ENGINE_META, ENGINES, INDEX_NOTEBOOK, RUNTIMES, model_notebook, notebook_plan
 
 REPO = "https://github.com/Biegle-W/google_colab_llm"
-PREPARE_NOTEBOOK = "notebooks/prepare/prepare_cpu.ipynb"
+PREPARE_NOTEBOOK = "notebooks/cpu/prepare_cpu.ipynb"
 BRANCH = "main"
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -104,12 +104,7 @@ def _badge(notebook):
     )
 
 
-SIBLING_NOTEBOOKS = (
-    "`notebooks/llama/`, `notebooks/vllm/`, `notebooks/sglang/`, `notebooks/diffusers/`, "
-    "`notebooks/strata/`, `notebooks/maya/`, `notebooks/tensorfold/`, `notebooks/comfyui/`, "
-    "`notebooks/sparsa/`, `notebooks/hyperqwen/`, `notebooks/ninfer/`, `notebooks/basalt/`, "
-    "`notebooks/strata_nvfp4/` — see `notebooks/llm_hub_colab.ipynb`"
-)
+SIBLING_NOTEBOOKS = "other runtimes, engines and models: `notebooks/README.md`"
 
 
 def _model_table(engine):
@@ -259,9 +254,12 @@ def _model_choices(engine):
     return ["recommended"] + [e["id"] for e in catalog.for_engines(catalog.load(), [engine])]
 
 
-def build_notebook(engine: str) -> dict:
+def build_notebook(engine: str, runtime: str | None = None, model: str | None = None) -> dict:
+    """With runtime + model: that model's notebook (notebooks/<runtime>/<engine>/<model>.ipynb). Without: an
+    engine notebook with a MODEL dropdown (not written to the repo)."""
     meta = ENGINE_META[engine]
-    notebook = meta["notebook"]
+    notebook = model_notebook(runtime, engine, model) if model else INDEX_NOTEBOOK
+    rt = RUNTIMES[runtime] if runtime else None
     title = meta["title"]
     is_image = engine in ("diffusers", "comfyui")
     kind_label = "image" if is_image else "chat"
@@ -270,19 +268,21 @@ def build_notebook(engine: str) -> dict:
         _md([
             _badge(notebook),
             "",
-            f"# Colab {title} hub",
+            f"# {model} · {title} · {rt['label']}" if model else f"# Colab {title} hub",
             "",
             f"One authenticated OpenAI-compatible API for **{title}** models on a "
             f"**Google AI Pro / Colab Pro** GPU.",
             f"**This notebook installs only `{engine}`** and advertises only that engine's catalog ids.",
             "",
-            f"- Supported models: {meta['summary']}",
+            (f"- Model: **{catalog.by_id(catalog.load())[model]['name']}** (`{model}`)" if model
+             else f"- Supported models: {meta['summary']}"),
             f"- Sibling notebooks: {SIBLING_NOTEBOOKS}",
             "- Drive root: `MyDrive/colab_model_server/` (shared weights/builds; settings file is "
             f"`settings/settings_{engine}.json`)",
             "- Engine matrix: `notebook_code/ENGINE_MATRIX.md`",
             "",
-            "Runtime → Change runtime type → **L4, A100 or G4**, then run the cells in order.",
+            (f"Runtime → Change runtime type → **{rt['label']}**, then Runtime → Run all."
+             if model else "Runtime → Change runtime type → **L4, A100 or G4**, then run the cells in order."),
         ]),
         _md([
             "## 1. Mount Drive and create the workspace",
@@ -339,14 +339,17 @@ def build_notebook(engine: str) -> dict:
             "    mark = \" *\" if e[\"id\"] in PLAN[\"prefetch\"] else \"\"",
             "    print(f\"{e['id']:36s} {kind:5s} {e['size_gb']:6.1f}G  {ctx:>14s}{mark}\" + "
             "(\"\" if fit else f\"   (does not fit: {reason})\"))",
-            "print(\"\\n* = recommended for this GPU + engine. Pick ONE model in the next cell.\")",
+            ("print(\"\\n* = recommended for this GPU + engine.\")" if model else
+             "print(\"\\n* = recommended for this GPU + engine. Pick ONE model in the next cell.\")"),
         ]),
         _md([
             f"## 3. Config (saved on Drive under `settings/settings_{engine}.json`)",
             "",
-            "**Pick one model** in the `MODEL` dropdown: it is the only model this session downloads and "
-            "serves. `recommended` uses the first recommended model that fits this GPU. Other settings "
-            "come from Drive; edit and re-run to persist.",
+            (f"This notebook serves **`{model}`**: the only model this session downloads and serves. "
+             "Other settings come from Drive; edit and re-run to persist." if model else
+             "**Pick one model** in the `MODEL` dropdown: it is the only model this session downloads and "
+             "serves. `recommended` uses the first recommended model that fits this GPU. Other settings "
+             "come from Drive; edit and re-run to persist."),
         ]),
         _code([
             "from notebook_code import catalog, gpu, recommend",
@@ -365,7 +368,11 @@ def build_notebook(engine: str) -> dict:
             "saved = WS.load_settings()",
             "",
             "# The ONE model this session downloads to Drive and serves. Nothing else is fetched.",
-            f"MODEL = \"recommended\"  # @param {json.dumps(_model_choices(engine))}",
+            (f"MODEL = \"{model}\"  # this notebook's model (notebooks/<runtime>/<engine>/<model>.ipynb)" if model
+             else f"MODEL = \"recommended\"  # @param {json.dumps(_model_choices(engine))}"),
+            *([f"if PLAN[\"band\"] != \"{rt['band']}\":",
+               f"    print(\"Note: this notebook is meant for the {rt['label']} runtime; this one is\", G[\"name\"])"]
+              if model else []),
             "SERVE_ONLY_SELECTED = True  # @param {type:\"boolean\"}",
             "fitting = [e[\"id\"] for e in ENTRIES if catalog.fits(e, VRAM, RAM_GB, DISK_GB, ARCH)]",
             "if MODEL == \"recommended\":",
@@ -465,7 +472,7 @@ def build_notebook(engine: str) -> dict:
         _md([
             "## 5. Download the models to Google Drive (skipped for anything already saved)",
             "",
-            "To spend less GPU time, run `notebooks/prepare/prepare_cpu.ipynb` on a CPU runtime first: it "
+            f"To spend less GPU time, run `{PREPARE_NOTEBOOK}` on a CPU runtime first: it "
             "downloads the model and builds this engine on Drive, and this cell and cell 4 then just restore them.",
         ]),
         _code([
@@ -895,7 +902,7 @@ def build_prepare_notebook() -> dict:
             "need the GPU), release downloads (Strata, Maya, TensorFold, ComfyUI, Sparsa).",
             "- Both run at the same time: the download uses the network, the build uses the CPU.",
             "",
-            "Then open `notebooks/<engine>/<engine>_gpu.ipynb` on the GPU runtime and pick the same model: it "
+            "Then open `notebooks/<runtime>/<engine>/<model>.ipynb` for the same model on the GPU runtime: it "
             "restores both from Drive.",
             "",
             "Can also be run without a browser: "
@@ -977,7 +984,7 @@ def build_prepare_notebook() -> dict:
             "## 5. Next",
             "",
             "Disconnect this runtime (Runtime → Disconnect and delete runtime) so it stops using compute units. "
-            "Then switch to the GPU runtime, open `notebooks/<engine>/<engine>_gpu.ipynb` and pick the same model.",
+            "Then switch to the GPU runtime and open `notebooks/<runtime>/<engine>/<model>.ipynb` for the same model.",
         ]),
     ]
     return {
@@ -988,38 +995,35 @@ def build_prepare_notebook() -> dict:
     }
 
 
+def tree_rows(prefix=""):
+    """Markdown tables of every notebook, by runtime then engine. prefix: path from the reader to notebooks/."""
+    out = []
+    for rt, r in RUNTIMES.items():
+        out += ["", f"### {r['label']} — `{rt}/`", "", "| Engine | Model notebook |", "|---|---|"]
+        for eng in ENGINES:
+            models = [m for (x, e, m) in notebook_plan() if x == rt and e == eng]
+            if models:
+                links = ", ".join(f"[`{m}`]({prefix}{rt}/{eng}/{m}.ipynb)" for m in models)
+                out.append(f"| **{ENGINE_META[eng]['title']}** (`{eng}/`) | {links} |")
+    return out
+
+
 def build_index() -> dict:
-    rows = [
-        "| Notebook | Engine | Models |",
-        "|---|---|---|",
-    ]
-    for eng in ENGINES:
-        m = ENGINE_META[eng]
-        # Index lives at notebooks/llm_hub_colab.ipynb → link relative to that folder.
-        rel = m["notebook"][len("notebooks/"):] if m["notebook"].startswith("notebooks/") else m["notebook"]
-        rows.append(f"| [`{m['notebook']}`]({rel}) | **{m['title']}** | {m['summary']} |")
     cells = [
         _md([
             _badge(INDEX_NOTEBOOK),
             "",
-            "# Colab GPU notebooks (one per engine)",
+            "# Colab notebooks: runtime → engine → model",
             "",
-            "Notebooks are grouped under `notebooks/<engine>/`. Each `<engine>_gpu.ipynb` runs the hub on an "
-            "L4, A100 or G4: it installs **only that engine**, lists **only its supported models**, and saves "
-            "settings under `settings/settings_<engine>.json`. Weights and builds still share "
-            "`MyDrive/colab_model_server/`. For a T4 use `llama/llama_cpp_t4.ipynb`; for a TPU, `vllm/vllm_tpu.ipynb`.",
+            "`notebooks/<runtime>/<engine>/<model>.ipynb`. Pick the runtime you have (L4, A100 80 GB, G4), then "
+            "the engine, then the model. Each notebook installs only its engine, serves only its model through "
+            "one authenticated OpenAI-compatible API, and keeps weights and builds on "
+            "`MyDrive/colab_model_server/`.",
+            *tree_rows(),
             "",
-            *rows,
-            "",
-            f"**Save GPU time:** run [`{PREPARE_NOTEBOOK}`](prepare/prepare_cpu.ipynb) on a cheap CPU runtime "
+            f"**Save GPU time:** run [`{PREPARE_NOTEBOOK}`](cpu/prepare_cpu.ipynb) on a cheap CPU runtime "
             "first. It downloads the model to Drive and builds the engine for your GPU, so the GPU notebook "
-            "only restores them.",
-            "",
-            "Older single-model notebooks live in the same engine folders "
-            "(`notebooks/llama/llama_cpp_*.ipynb`, `notebooks/vllm/vllm_*.ipynb`, …). "
-            "See also `notebook_code/ENGINE_MATRIX.md`.",
-            "",
-            "Runtime → Change runtime type → **L4, A100 or G4**.",
+            "only restores them. See also `notebook_code/ENGINE_MATRIX.md`.",
         ]),
     ]
     return {
@@ -1034,55 +1038,50 @@ def build_index() -> dict:
     }
 
 
-STANDALONE_NOTEBOOKS = ("notebooks/llama/llama_cpp_t4.ipynb", "notebooks/vllm/vllm_tpu.ipynb")
-_CLONE_LINES = (
-    'HUB_DIR = "/content/notebook_code"\n',
-    'if not os.path.isdir(f"{HUB_DIR}/notebook_code"):\n',
-    '    subprocess.run(f"rm -rf {HUB_DIR} && git clone -q --depth 1 https://github.com/Biegle-W/google_colab_llm {HUB_DIR}",\n',
-    '                   shell=True, check=True)\n',
-)
+README_HEAD = """# Colab notebooks: runtime → engine → model
 
+`<runtime>/<engine>/<model>.ipynb`. Open the notebook for your runtime and model in Colab, set the runtime
+type it names, and Run all. It installs only that engine, serves only that model (one authenticated
+OpenAI-compatible API), and keeps the weights and engine builds on Google Drive.
+"""
 
-def embed_in_standalone(nb):
-    """Put the packed hub code into a hand-written notebook that uses its tunnel helpers (T4, TPU): the
-    payload cell goes right before the first cell that imports notebook_code, and its GitHub clone goes."""
-    cells = [c for c in nb["cells"] if PAYLOAD_TAG not in c.get("metadata", {}).get("tags", [])]
-    for i, c in enumerate(cells):
-        if c["cell_type"] == "code" and any("from notebook_code import" in l for l in c["source"]):
-            c["source"] = [l for l in c["source"] if l not in _CLONE_LINES]
-            c["source"] = [l.replace("# Uses the hub package's tunnel helpers (standard library only; nothing to install).",
-                                     "# Uses the hub's tunnel helpers, unpacked by the hub code cell above.")
-                           for l in c["source"]]
-            cells.insert(i, payload_cell())
-            break
-    else:
-        raise ValueError("no cell imports notebook_code")
-    nb["cells"] = cells
-    return nb
+README_TAIL = """
+## Other
+
+- [`cpu/prepare_cpu.ipynb`](cpu/prepare_cpu.ipynb): on a cheap CPU runtime, download a model to Drive and build
+  its engine for the GPU you will use, so the GPU notebook only restores them.
+- [`other/unsloth/`](other/unsloth/): official Unsloth Studio.
+
+Regenerate every notebook from the repo root (the hub code is packed into each one):
+
+```bash
+python3 -m notebook_code.make_engine_notebooks
+```
+"""
 
 
 def write_all(root: Path | None = None):
     root = Path(root or ROOT)
     written = []
-    for eng in ENGINES:
-        path = root / ENGINE_META[eng]["notebook"]
+    for rt, eng, model in notebook_plan():
+        path = root / model_notebook(rt, eng, model)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(build_notebook(eng), indent=1) + "\n")
+        path.write_text(json.dumps(build_notebook(eng, rt, model), indent=1) + "\n")
         written.append(path)
+    # A model dropped from a runtime's list loses its notebook.
+    for rt in RUNTIMES:
+        for old in (root / "notebooks" / rt).glob("*/*.ipynb"):
+            if old not in written:
+                old.unlink()
     prep = root / PREPARE_NOTEBOOK
     prep.parent.mkdir(parents=True, exist_ok=True)
     prep.write_text(json.dumps(build_prepare_notebook(), indent=1) + "\n")
     written.append(prep)
-    for rel in STANDALONE_NOTEBOOKS:
-        path = root / rel
-        if path.is_file():
-            nb = embed_in_standalone(json.loads(path.read_text()))
-            path.write_text(json.dumps(nb, indent=1, ensure_ascii=False) + "\n")
-            written.append(path)
     index = root / INDEX_NOTEBOOK
     index.parent.mkdir(parents=True, exist_ok=True)
     index.write_text(json.dumps(build_index(), indent=1) + "\n")
     written.append(index)
+    (root / "notebooks" / "README.md").write_text(README_HEAD + "\n".join(tree_rows()) + "\n" + README_TAIL)
     return written
 
 
