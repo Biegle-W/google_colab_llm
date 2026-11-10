@@ -142,6 +142,12 @@ def model_disk_gb(local_dir):
     return round((shutil.disk_usage(root).free + cached) / 1e9, 1)
 
 
+def weights_dir(entry):
+    """Folder name of a model's weights on Drive and local disk. Entries that run the same files on different
+    engines (vLLM / SGLang / HyperQwen on one AutoRound checkpoint) name one shared folder with `weights_dir`."""
+    return entry.get("weights_dir") or entry["id"]
+
+
 class ModelStore:
     def __init__(self, drive_dir, local_dir, token=None, downloader=hf_download, min_free_gb=8, log=print):
         self.drive_root = Path(drive_dir) / "models"
@@ -154,8 +160,8 @@ class ModelStore:
         self._copying = set()       # local dirs being copied to Drive: never evict these
 
     # ---- locations -------------------------------------------------------------------------
-    def drive_path(self, entry): return self.drive_root / entry["id"]
-    def local_path(self, entry): return self.local_root / entry["id"]
+    def drive_path(self, entry): return self.drive_root / weights_dir(entry)
+    def local_path(self, entry): return self.local_root / weights_dir(entry)
 
     def model_path(self, entry, base=None):
         """What the engine is pointed at: a GGUF file for llama.cpp, a model directory otherwise."""
@@ -207,7 +213,7 @@ class ModelStore:
     # ---- main entry points -----------------------------------------------------------------
     def _lock(self, entry):
         self.local_root.mkdir(parents=True, exist_ok=True)      # /content is wiped when the runtime restarts
-        f = open(self.local_root / f".{entry['id']}.lock", "w")
+        f = open(self.local_root / f".{weights_dir(entry)}.lock", "w")
         fcntl.flock(f, fcntl.LOCK_EX)
         return f
 
@@ -299,7 +305,7 @@ class ModelStore:
         self._copy_tree(entry, local, drive, "saving to Drive")
 
     def _drive_copy_async(self, entry):
-        self._copying.add(entry["id"])
+        self._copying.add(weights_dir(entry))
 
         def run():
             try:
@@ -308,7 +314,7 @@ class ModelStore:
             except Exception as e:                      # keep serving from local disk; Drive copy retried next time
                 self.log(f"[store] {entry['id']}: saving to Drive failed: {e}")
             finally:
-                self._copying.discard(entry["id"])
+                self._copying.discard(weights_dir(entry))
         t = threading.Thread(target=run, name=f"drive-copy-{entry['id']}", daemon=True)
         t.start()
         self._threads.append(t)
@@ -349,7 +355,7 @@ class ModelStore:
         self.log(f"[store] {entry['id']}: {len(jobs)} files, {total / 1e9:.1f} GB, straight to {drive}")
         if (drive / MARKER).exists():
             (drive / MARKER).unlink()                     # incomplete: rebuild the file list at the end
-        staging = Path(staging or self.local_root / ".staging" / entry["id"])
+        staging = Path(staging or self.local_root / ".staging" / weights_dir(entry))
         staging.mkdir(parents=True, exist_ok=True)
         # At most two files are local at once (one copying to Drive, the next downloading). Files not yet on
         # Drive need that room, less whatever an interrupted run already left in staging (it is reused).
@@ -450,7 +456,7 @@ class ModelStore:
             if is_complete(self.local_path(entry)):              # downloaded locally by an older version
                 self.save_to_drive(entry)
             else:
-                self.download_to_drive(entry, staging=self.local_root / ".staging" / entry["id"])
+                self.download_to_drive(entry, staging=self.local_root / ".staging" / weights_dir(entry))
         if not catalog.streams_from_disk(entry):
             if entry.get("warm_read", entry["backend"] in WARM_READ_BACKENDS):
                 self.warm_read(entry, drive)
@@ -551,4 +557,4 @@ class ModelStore:
         """Make sure the model is saved on Drive (downloading it if needed) without keeping the hub waiting on it."""
         if is_complete(self.drive_path(entry)) or entry.get("engine_download"):
             return
-        self.download_to_drive(entry, staging=self.local_root / ".staging" / entry["id"])
+        self.download_to_drive(entry, staging=self.local_root / ".staging" / weights_dir(entry))

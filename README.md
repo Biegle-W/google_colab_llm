@@ -2,15 +2,15 @@
 
 Notebooks for running **LLM and text-to-image** tooling on Colab GPUs (including **Google AI Pro / Colab Pro** L4 (RTX 4070 Ti class), A100, and G4 (RTX PRO 6000) runtimes). Models download once to **Google Drive**, then restore into later sessions. Set Runtime → Change runtime type to the hardware named for the notebook, then Run all.
 
-Notebooks are sorted **runtime → engine → model**: `notebooks/<runtime>/<engine>/<model>.ipynb`, for the
+Notebooks are sorted **runtime → engine → model**: `notebooks/<runtime>/<engine>/<model>.ipynb` (`l4-rtx4070ti/`, `a100/`, `g4-rtx-pro6000/`), for the
 three GPU runtimes **L4** (RTX 4070 Ti class), **A100 80 GB** and **G4** (RTX PRO 6000 Blackwell). Open the one for your runtime and model and Run all: it
 installs only that engine and serves only that model through one authenticated OpenAI-compatible API.
 
 | Folder | What's in it |
 |---|---|
-| [`notebooks/l4/`](notebooks/l4/) | L4 (RTX 4070 Ti class, 24 GB): one folder per engine, one notebook per model |
+| [`notebooks/l4-rtx4070ti/`](notebooks/l4-rtx4070ti/) | L4 (RTX 4070 Ti class, 24 GB): one folder per engine, one notebook per model |
 | [`notebooks/a100/`](notebooks/a100/) | A100 80 GB (High-RAM) |
-| [`notebooks/g4/`](notebooks/g4/) | G4 (RTX PRO 6000 Blackwell, 96 GB), including the G4-only engines (NInfer, Basalt, Strata NVFP4) |
+| [`notebooks/g4-rtx-pro6000/`](notebooks/g4-rtx-pro6000/) | G4 (RTX PRO 6000 Blackwell, 96 GB), including the G4-only engines (NInfer, Basalt, Strata NVFP4) |
 | [`notebooks/cpu/prepare_cpu.ipynb`](notebooks/cpu/prepare_cpu.ipynb) | **Save GPU time:** on a cheap CPU runtime, download a model to Drive and build its engine for the GPU you will use |
 | [`notebooks/other/unsloth/`](notebooks/other/unsloth/) | Official Unsloth Studio |
 

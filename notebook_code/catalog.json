@@ -564,6 +564,7 @@
       "*"
     ],
     "size_gb": 19.5,
+    "weights_dir": "qwen3.8-27b-w4a16",
     "contexts": [
       [
         22,
@@ -676,6 +677,7 @@
       "*/*.safetensors"
     ],
     "size_gb": 33.13,
+    "weights_dir": "qwen-image-2.1-nf4",
     "contexts": [
       [
         18,
@@ -1704,6 +1706,7 @@
     ],
     "served_name": "qwen3.8-27b",
     "size_gb": 19.47,
+    "weights_dir": "qwen3.8-27b-w4a16",
     "contexts": [
       [
         25,

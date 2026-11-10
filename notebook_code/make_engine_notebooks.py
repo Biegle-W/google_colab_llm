@@ -999,11 +999,11 @@ def tree_rows(prefix=""):
     """Markdown tables of every notebook, by runtime then engine. prefix: path from the reader to notebooks/."""
     out = []
     for rt, r in RUNTIMES.items():
-        out += ["", f"### {r['label']} — `{rt}/`", "", "| Engine | Model notebook |", "|---|---|"]
+        out += ["", f"### {r['label']} — `{r['folder']}/`", "", "| Engine | Model notebook |", "|---|---|"]
         for eng in ENGINES:
             models = [m for (x, e, m) in notebook_plan() if x == rt and e == eng]
             if models:
-                links = ", ".join(f"[`{m}`]({prefix}{rt}/{eng}/{m}.ipynb)" for m in models)
+                links = ", ".join(f"[`{m}`]({prefix}{r['folder']}/{eng}/{m}.ipynb)" for m in models)
                 out.append(f"| **{ENGINE_META[eng]['title']}** (`{eng}/`) | {links} |")
     return out
 
@@ -1070,7 +1070,7 @@ def write_all(root: Path | None = None):
         written.append(path)
     # A model dropped from a runtime's list loses its notebook.
     for rt in RUNTIMES:
-        for old in (root / "notebooks" / rt).glob("*/*.ipynb"):
+        for old in (root / "notebooks" / RUNTIMES[rt]["folder"]).glob("*/*.ipynb"):
             if old not in written:
                 old.unlink()
     prep = root / PREPARE_NOTEBOOK

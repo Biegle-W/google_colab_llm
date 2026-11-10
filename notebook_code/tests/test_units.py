@@ -713,6 +713,28 @@ class DetachingEngines(unittest.TestCase):
         self.assertEqual(calls, [["/bin/strata", "launch", "--stop"]])
 
 
+class SharedWeights(unittest.TestCase):
+    KEYS = ("repo", "files", "exclude", "extra_downloads", "revision")
+
+    def test_entries_sharing_a_folder_download_the_same_files(self):
+        by = catalog.by_id(catalog.load())
+        shared = [e for e in by.values() if e.get("weights_dir")]
+        self.assertTrue({"qwen3.8-27b-w4a16-sglang", "hyperqwen-qwen3.8-27b-batch", "qwen-image-2.1"}
+                        <= {e["id"] for e in shared})
+        for e in shared:
+            owner = by[e["weights_dir"]]
+            self.assertFalse(owner.get("weights_dir"), owner["id"])
+            for k in self.KEYS:
+                self.assertEqual(e.get(k), owner.get(k), f"{e['id']} {k}")
+
+    def test_store_uses_the_shared_folder(self):
+        from notebook_code.store import ModelStore
+        s = ModelStore("/d", "/l", downloader=lambda *a, **k: None, log=lambda *_: None)
+        by = catalog.by_id(catalog.load())
+        self.assertEqual(s.drive_path(by["qwen3.8-27b-w4a16-sglang"]), s.drive_path(by["qwen3.8-27b-w4a16"]))
+        self.assertEqual(str(s.local_path(by["qwen-image-2.1"])), "/l/qwen-image-2.1-nf4")
+
+
 class Flux3Workflow(unittest.TestCase):
     def test_api_workflow_matches_the_workstation_ui_workflow(self):
         # ComfyUI 0.43 has no CLIPLoader type "flux" for Flux3's Qwen3-VL encoder; Flux3 uses Flux2's latent.
@@ -786,7 +808,7 @@ class RuntimeEngineModelLayout(unittest.TestCase):
         self.assertEqual({rt for rt, _, _ in plan}, {"l4", "a100", "g4"})       # only the three GPU runtimes
         self.assertNotIn(("a100", "maya", "deepseek-maya-xs"), plan)          # 282 GB: A100 disks are 236 GB
         on_disk = {os.path.relpath(p, root) for rt in recommend.RUNTIMES
-                   for p in glob.glob(os.path.join(root, "notebooks", rt, "*", "*.ipynb"))}
+                   for p in glob.glob(os.path.join(root, "notebooks", recommend.RUNTIMES[rt]["folder"], "*", "*.ipynb"))}
         self.assertEqual(on_disk, {recommend.model_notebook(*x) for x in plan})
         nb = m.build_notebook("comfyui", "a100", "minimax-h3-comfy")
         text = "".join("".join(c["source"]) for c in nb["cells"])
