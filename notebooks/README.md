@@ -40,8 +40,8 @@ OpenAI-compatible API), and keeps the weights and engine builds on Google Drive.
 | **vLLM** (`vllm/`) | [`qwen3.8-27b-fp8`](g4/vllm/qwen3.8-27b-fp8.ipynb), [`sage-a1.5-fp8`](g4/vllm/sage-a1.5-fp8.ipynb), [`nemotron-3.5-bolt-74b-w4a16`](g4/vllm/nemotron-3.5-bolt-74b-w4a16.ipynb), [`qwen3.8-27b-bf16-vllm`](g4/vllm/qwen3.8-27b-bf16-vllm.ipynb) |
 | **SGLang** (`sglang/`) | [`qwen3.8-27b-w4a16-sglang`](g4/sglang/qwen3.8-27b-w4a16-sglang.ipynb) |
 | **Diffusers** (`diffusers/`) | [`qwen-image-2.1`](g4/diffusers/qwen-image-2.1.ipynb), [`flux-schnell`](g4/diffusers/flux-schnell.ipynb) |
-| **Strata** (`strata/`) | [`flash-next-strata-iq3-s`](g4/strata/flash-next-strata-iq3-s.ipynb), [`flash-next-strata-iq3-xxs`](g4/strata/flash-next-strata-iq3-xxs.ipynb), [`qwen36-strata-q6`](g4/strata/qwen36-strata-q6.ipynb), [`deepseek-strata-ist-2.00`](g4/strata/deepseek-strata-ist-2.00.ipynb) |
-| **Maya** (`maya/`) | [`glm-maya-s`](g4/maya/glm-maya-s.ipynb), [`glm-maya-s24`](g4/maya/glm-maya-s24.ipynb), [`deepseek-maya-xs`](g4/maya/deepseek-maya-xs.ipynb), [`deepseek-maya-s`](g4/maya/deepseek-maya-s.ipynb) |
+| **Strata** (`strata/`) | [`flash-next-strata-iq3-s`](g4/strata/flash-next-strata-iq3-s.ipynb), [`flash-next-strata-iq3-xxs`](g4/strata/flash-next-strata-iq3-xxs.ipynb), [`qwen36-strata-q6`](g4/strata/qwen36-strata-q6.ipynb) |
+| **Maya** (`maya/`) | [`glm-maya-s`](g4/maya/glm-maya-s.ipynb), [`glm-maya-s24`](g4/maya/glm-maya-s24.ipynb) |
 | **TensorFold** (`tensorfold/`) | [`qwen3.8-27b-exl3-2bpw`](g4/tensorfold/qwen3.8-27b-exl3-2bpw.ipynb) |
 | **ComfyUI** (`comfyui/`) | [`qwen-image-2.1-turbo-bf16-comfy`](g4/comfyui/qwen-image-2.1-turbo-bf16-comfy.ipynb), [`qwen-image-2.1-bf16-comfy`](g4/comfyui/qwen-image-2.1-bf16-comfy.ipynb), [`flux3-klein-comfy`](g4/comfyui/flux3-klein-comfy.ipynb), [`wan22-5b-comfy`](g4/comfyui/wan22-5b-comfy.ipynb), [`minimax-h3-g4-comfy`](g4/comfyui/minimax-h3-g4-comfy.ipynb) |
 | **Sparsa** (`sparsa/`) | [`minimax-m3.1-flash-iq2-xs-d3`](g4/sparsa/minimax-m3.1-flash-iq2-xs-d3.ipynb), [`minimax-m3.1-flash-iq2-kt`](g4/sparsa/minimax-m3.1-flash-iq2-kt.ipynb) |

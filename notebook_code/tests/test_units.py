@@ -96,7 +96,7 @@ class Catalog(unittest.TestCase):
         g4 = recommend.for_gpu(102.6)
         self.assertIn("flash-next-strata-iq3-s", g4["prefetch"])
         self.assertIn("glm-maya-s", g4["prefetch"])
-        self.assertIn("deepseek-maya-xs", g4["prefetch"])
+        self.assertNotIn("deepseek-maya-xs", g4["prefetch"])      # 282 GB; the G4 disk is 225 GB
         self.assertIn("nemotron-3.5-bolt-74b-iq2", g4["prefetch"])
         self.assertIn("qwen3.8-27b-exl3-2bpw", g4["prefetch"])
         self.assertIn("minimax-m3.1-flash-iq2-xs-d3", g4["prefetch"])

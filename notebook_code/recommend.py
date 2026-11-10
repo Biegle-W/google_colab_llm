@@ -48,15 +48,15 @@ _ENGINE_PREFETCH = {
                     "qwen36-strata-q4", "flash-next-strata-q2"],
         "a100_80": ["flash-next-strata-iq3-s", "flash-next-strata-iq3-xxs", "flash-next-gyro-m",
                     "qwen36-strata-q6"],
-        "g4": ["flash-next-strata-iq3-s", "flash-next-strata-iq3-xxs", "qwen36-strata-q6",
-               "deepseek-strata-ist-2.00"],
+        "g4": ["flash-next-strata-iq3-s", "flash-next-strata-iq3-xxs", "qwen36-strata-q6"],
+        # DeepSeek (249-347 GB) is left out: it needs a local copy and the G4 disk is 225 GB.
     },
     "maya": {
         "t4": [],
         "l4": ["glm-maya-xs", "glm-maya-s24"],
         "a100_40": ["glm-maya-s24", "glm-maya-s", "glm-maya-xs"],
         "a100_80": ["glm-maya-s", "glm-maya-s24"],   # DeepSeek Maya-XS (282 GB) exceeds most A100 disks (236 GB)
-        "g4": ["glm-maya-s", "glm-maya-s24", "deepseek-maya-xs", "deepseek-maya-s"],
+        "g4": ["glm-maya-s", "glm-maya-s24"],   # DeepSeek Maya (282+ GB) exceeds the G4's 225 GB disk
     },
     "tensorfold": {
         "t4": [],
