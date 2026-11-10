@@ -866,7 +866,8 @@
     "strata_family": "qwen",
     "strata_model": "q2_0",
     "vision": "off",
-    "notes": "Official Strata path for Flash-Next (docs/MODELS.md). Community Colab L4/A100 reports use Strata. Q2_0 is the smallest ISTA pack (~37.6 GB resident experts)."
+    "disk_stream": true,
+    "notes": "Official Strata path for Flash-Next (docs/MODELS.md). Community Colab L4/A100 reports use Strata. Q2_0 is the smallest ISTA pack (~37.6 GB resident experts). Copied to local disk each start: Strata reads the per-layer embedding table in random 4 KB pieces, which the Drive mount serves at a few rows per second (1 tok/s and failed start-up checks on the L4)."
   },
   {
     "id": "flash-next-strata-iq3-xxs",
@@ -895,7 +896,8 @@
     "strata_family": "qwen",
     "strata_model": "iq3_xxs",
     "vision": "off",
-    "notes": "Strata primary quality/size pick for Colab A100/G4-class host RAM. Forum Colab L4 writeups also run IQ3_XXS / Orca packs via Strata."
+    "disk_stream": true,
+    "notes": "Strata primary quality/size pick for Colab A100/G4-class host RAM. Forum Colab L4 writeups also run IQ3_XXS / Orca packs via Strata. Copied to local disk each start: Strata reads the per-layer embedding table in random 4 KB pieces, which the Drive mount serves at a few rows per second (1 tok/s and failed start-up checks on the L4)."
   },
   {
     "id": "flash-next-strata-iq3-s",
@@ -1379,7 +1381,8 @@
     "strata_family": "gyro",
     "strata_model": "Gyro-S",
     "vision": "off",
-    "notes": "Smallest Strata Flash-Next option (~27.6 GB VRAM+RAM). Official: strata launch --family gyro --model Gyro-S."
+    "disk_stream": true,
+    "notes": "Smallest Strata Flash-Next option (~27.6 GB VRAM+RAM). Official: strata launch --family gyro --model Gyro-S. Copied to local disk each start: Strata reads the per-layer embedding table in random 4 KB pieces, which the Drive mount serves at a few rows per second (1 tok/s and failed start-up checks on the L4)."
   },
   {
     "id": "flash-next-gyro-m",
@@ -1408,7 +1411,8 @@
     "strata_family": "gyro",
     "strata_model": "Gyro-M",
     "vision": "off",
-    "notes": "Gyro-M ~IQ3_XXS quality with less GPU memory; slower decode than ISTA Q2_0."
+    "disk_stream": true,
+    "notes": "Gyro-M ~IQ3_XXS quality with less GPU memory; slower decode than ISTA Q2_0. Copied to local disk each start: Strata reads the per-layer embedding table in random 4 KB pieces, which the Drive mount serves at a few rows per second (1 tok/s and failed start-up checks on the L4)."
   },
   {
     "id": "flash-next-swift-iq2-xs",
@@ -1438,7 +1442,8 @@
     "strata_family": "swift",
     "strata_model": "IQ2_XS",
     "vision": "off",
-    "notes": "UkisAI Swift 1.5 fine-tune (shorter thinking). strata launch --family swift --model IQ2_XS."
+    "disk_stream": true,
+    "notes": "UkisAI Swift 1.5 fine-tune (shorter thinking). strata launch --family swift --model IQ2_XS. Copied to local disk each start: Strata reads the per-layer embedding table in random 4 KB pieces, which the Drive mount serves at a few rows per second (1 tok/s and failed start-up checks on the L4)."
   },
   {
     "id": "flash-next-swift-iq3-xxs",
@@ -1468,7 +1473,8 @@
     "strata_family": "swift",
     "strata_model": "IQ3_XXS",
     "vision": "off",
-    "notes": "Swift 1.5 mid quality. Prefer ISTA packs when you want the original Flash-Next."
+    "disk_stream": true,
+    "notes": "Swift 1.5 mid quality. Prefer ISTA packs when you want the original Flash-Next. Copied to local disk each start: Strata reads the per-layer embedding table in random 4 KB pieces, which the Drive mount serves at a few rows per second (1 tok/s and failed start-up checks on the L4)."
   },
   {
     "id": "qwen36-strata-q4",

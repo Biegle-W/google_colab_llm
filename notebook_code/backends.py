@@ -399,6 +399,12 @@ class Engine:
         return self.entry.get("backend") in DETACHING_BACKENDS
 
     @property
+    def settled(self):
+        """False while a detaching launcher is still running its own start-up checks. Strata's server can answer
+        before those checks finish, and a failed check stops it again, so it is not ready until the launcher exits."""
+        return not self.detaching or self.proc.poll() is not None
+
+    @property
     def alive(self):
         code = self.proc.poll()
         # A detaching launcher that exited cleanly left the server running; readiness and the timeout decide.

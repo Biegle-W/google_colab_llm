@@ -191,18 +191,30 @@ class Hub:
         # 3. Start the new engine and wait until it answers.
         self._set_phase("starting the engine")
         engine = self._launch(entry, path, ctx, self.bins, self.log_dir)
+        # Strata's launcher asks to be run again when its post-load check fails; do that once.
+        retries = 1 if engine.detaching else 0
         timeout = self.ready_timeout + backends.start_copy_seconds(entry)
         deadline = self.now() + timeout
         while True:
             if self.stopping:
                 engine.stop()
                 raise HubError(503, "The hub is shutting down.", "hub_stopping")
-            if self._serving(engine.port, catalog.served_name(entry), backend=entry.get("backend")):
+            if engine.settled and engine.alive and self._serving(engine.port, catalog.served_name(entry),
+                                                                 backend=entry.get("backend")):
                 break
             if not engine.alive:
                 tail = backends.log_tail(engine.log_path, 15).strip().splitlines()
-                raise HubError(503, f"{entry['backend']} could not start {model_id}: "
-                                    f"{tail[-1] if tail else 'see ' + engine.log_path}", "backend_start_failed")
+                reason = tail[-1] if tail else "see " + engine.log_path
+                if retries > 0:
+                    retries -= 1
+                    self.log(f"[hub] {entry['backend']} did not start {model_id} ({reason[:200]}); starting it again")
+                    engine.stop()
+                    self._wait_gpu_free()
+                    engine = self._launch(entry, path, ctx, self.bins, self.log_dir)
+                    deadline = self.now() + timeout
+                    continue
+                raise HubError(503, f"{entry['backend']} could not start {model_id}: {reason}",
+                               "backend_start_failed")
             if self.now() >= deadline:
                 engine.stop()
                 raise HubError(504, f"{model_id} did not become ready in {timeout // 60} minutes.",

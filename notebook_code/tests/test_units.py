@@ -713,6 +713,49 @@ class DetachingEngines(unittest.TestCase):
         self.assertEqual(calls, [["/bin/strata", "launch", "--stop"]])
 
 
+class StrataStartChecks(unittest.TestCase):
+    """`strata launch` checks the loaded model before it exits; its server can answer before that check is done."""
+    class Proc:
+        def __init__(self, codes):
+            self.codes, self.args, self.pid = list(codes), ["strata", "launch"], 0
+
+        def poll(self):
+            return self.codes.pop(0) if len(self.codes) > 1 else self.codes[0]
+
+    class Store:
+        def resolve(self, entry, protect=()):
+            return "/models/x"
+
+    def test_not_ready_until_the_launcher_exits_and_one_retry_on_a_failed_check(self):
+        from notebook_code import hub as hubmod
+        e = {"id": "s", "name": "S", "backend": "strata", "repo": "o/s", "files": ["*"], "size_gb": 1,
+             "contexts": [[10, 4096]]}
+        procs = [self.Proc([None, None, 1]), self.Proc([None, None, 0])]   # first launch's check fails
+        launched, logs = [], []
+
+        def launch(entry, path, ctx, bins, log_dir):
+            launched.append(backends.Engine(entry, ctx, procs[len(launched)], 1, "/nonexistent.log"))
+            return launched[-1]
+        orig = backends.subprocess.run
+        backends.subprocess.run = lambda *a, **k: None
+        try:
+            h = hubmod.Hub([e], 24, self.Store(), {}, "/tmp", launch=launch, serving=lambda *a, **k: True,
+                           gpu_used=lambda: None, sleep=lambda s: None, log=logs.append, ready_timeout=600)
+            h._load("s")
+        finally:
+            backends.subprocess.run = orig
+            h.shutdown()
+        self.assertEqual(len(launched), 2)
+        self.assertIs(h.engine, launched[1])
+        self.assertTrue(any("starting it again" in m for m in logs))
+
+    def test_flash_next_strata_builds_copy_to_local_disk(self):
+        # Their per-layer embedding table is read in random 4 KB pieces, too slow over the Drive mount.
+        for e in catalog.load():
+            if e.get("backend") == "strata" and "Flash-Next" in e["repo"]:
+                self.assertTrue(e.get("disk_stream"), e["id"])
+
+
 class RuntimeEngineModelLayout(unittest.TestCase):
     def test_every_planned_model_fits_its_runtime(self):
         from notebook_code import recommend
