@@ -19,72 +19,74 @@ The full list of notebooks is in [`notebooks/README.md`](notebooks/README.md) (a
 [`notebook_code/ENGINE_MATRIX.md`](notebook_code/ENGINE_MATRIX.md). Settings are
 `settings/settings_<engine>.json`; weights and builds share Drive.
 
+<!-- RESULTS:START -->
+
 ## Tested on Colab
 
-Measured with the notebooks' hub on real Colab runtimes (November 2026), one request at a time, sorted by
-runtime, then engine.
+Measured with the notebooks' hub on real Colab runtimes, one request at a time; the numbers live in
+[`results/results.csv`](results/results.csv) and the images and videos in
+[`results/samples/`](results/samples/). Sorted by runtime, then engine.
 
-- **Prefill:** prompt tokens per second. The runs so far used a ~50-token prompt, which gives no meaningful
-  prefill speed (and it cannot be taken out of the first-reply time, which is mostly model loading). The test
-  runs now send a ~4K-token prompt; these cells fill in as each notebook is retested.
+- **Prefill:** prompt tokens per second for a ~3.5K-token prompt (fresh, no prefix-cache reuse).
+- **Time to first token:** for that prompt, on a loaded model.
 - **Decode:** a 512-token reply at temperature 0.
-- **Time to first reply:** a cold start: the hub starts the engine, loads the model from Drive (already
-  downloaded there) and answers a ~50-token prompt with up to 300 tokens.
+- **Cold start:** the hub starting the engine, loading the model from Drive and answering a short prompt.
+- *next run*: measured from the next test run on (earlier runs used a prompt too short for prefill).
 
 ### L4 (RTX 4070 Ti class, 24 GB)
 
-| Engine | Model notebook | Prefill | Decode | Time to first reply |
-|---|---|---|---|---|
-| llama.cpp | `nemotron-3.5-bolt-74b-iq2` | next run | 38 tok/s | 8 min |
-| llama.cpp | `qwen3.8-27b-q4` | next run | 15 tok/s | 5 min |
-| SGLang | `qwen3.8-27b-w4a16-sglang` | next run | 16 tok/s | 4.5 min |
-| Strata | `flash-next-gyro-s` | next run | 68 tok/s | 24 min |
-| Strata | `flash-next-strata-q2` | next run | 46 tok/s | 23 min |
-| Strata | `flash-next-swift-iq2-xs` | next run | 55 tok/s | 20.5 min |
-| Strata | `qwen36-strata-q4` | next run | 55 tok/s | 7 min |
-| TensorFold | `qwen3.8-27b-exl3-2bpw` | next run | 83 tok/s | 7.5 min |
-| vLLM | `qwen3-14b-fp8` | next run | 17 tok/s | 7 min |
-| vLLM | `qwen3.8-27b-w4a16` | next run | 16 tok/s | 15 min |
+| Engine | Model notebook | Prefill | Time to first token | Decode | Cold start |
+|---|---|---|---|---|---|
+| llama.cpp | `nemotron-3.5-bolt-74b-iq2` | next run | next run | 38 tok/s | 7.8 min |
+| llama.cpp | `qwen3.8-27b-q4` | next run | next run | 15 tok/s | 5 min |
+| SGLang | `qwen3.8-27b-w4a16-sglang` | next run | next run | 16 tok/s | 4.5 min |
+| Strata | `flash-next-gyro-s` | next run | next run | 68 tok/s | 24.3 min |
+| Strata | `flash-next-strata-q2` | next run | next run | 46 tok/s | 23.1 min |
+| Strata | `flash-next-swift-iq2-xs` | next run | next run | 55 tok/s | 20.5 min |
+| Strata | `qwen36-strata-q4` | next run | next run | 55 tok/s | 7.3 min |
+| TensorFold | `qwen3.8-27b-exl3-2bpw` | next run | next run | 83 tok/s | 7.5 min |
+| vLLM | `qwen3-14b-fp8` | next run | next run | 17 tok/s | 7.3 min |
+| vLLM | `qwen3.8-27b-w4a16` | next run | next run | 16 tok/s | 14.8 min |
 
-| Engine | Model notebook | Speed (after the first) | Time to first result |
-|---|---|---|---|
-| ComfyUI | `flux3-klein-comfy` | 8 s per 1024² image | 3.5 min |
-| ComfyUI | `minimax-h3-l4-comfy` | 124 s per 5 s video clip | not recorded |
-| ComfyUI | `qwen-image-2.1-turbo-comfy` | 8 s per image | not recorded |
-| Diffusers | `qwen-image-2.1-nf4` | 37 s per image | 13 min |
-| Diffusers | `sdxl-base` | 17 s per image | 6 min |
-| Diffusers | `sdxl-turbo` | 3 s per image | 7.5 min |
+| Engine | Model notebook | Per image / 5 s clip (after the first) | Cold start | Sample |
+|---|---|---|---|---|
+| ComfyUI | `flux3-klein-comfy` | 8 s per image | 3.5 min | next run |
+| ComfyUI | `minimax-h3-l4-comfy` | 124 s per clip | not recorded | [l4_minimax-h3-l4-comfy.mp4](results/samples/l4_minimax-h3-l4-comfy.mp4) |
+| ComfyUI | `qwen-image-2.1-turbo-comfy` | 8 s per image | not recorded | <a href="results/samples/l4_qwen-image-2.1-turbo-comfy.jpg"><img src="results/samples/l4_qwen-image-2.1-turbo-comfy.jpg" width="160"></a> |
+| Diffusers | `qwen-image-2.1-nf4` | 37 s per image | 12.7 min | next run |
+| Diffusers | `sdxl-base` | 17 s per image | 6.1 min | next run |
+| Diffusers | `sdxl-turbo` | 3 s per image | 7.4 min | next run |
 
 ### A100 80 GB (High-RAM)
 
-| Engine | Model notebook | Prefill | Decode | Time to first reply |
-|---|---|---|---|---|
-| HyperQwen | `hyperqwen-qwen3.8-27b-batch` | 3,709 tok/s | 66 tok/s | 10 min |
-| llama.cpp | `nemotron-3.5-bolt-74b-iq2` | next run | 79 tok/s | 7.5 min |
-| SGLang | `qwen3.8-27b-w4a16-sglang` | 2,018 tok/s | 74 tok/s | 17.5 min |
-| Strata | `flash-next-strata-iq3-s` | next run | 167 tok/s | 30 min |
-| TensorFold | `qwen3.8-27b-exl3-2bpw` | next run | 144 tok/s | 6 min |
+| Engine | Model notebook | Prefill | Time to first token | Decode | Cold start |
+|---|---|---|---|---|---|
+| HyperQwen | `hyperqwen-qwen3.8-27b-batch` | 3,709 tok/s | 0.96 s | 66 tok/s | 9.8 min |
+| llama.cpp | `nemotron-3.5-bolt-74b-iq2` | next run | next run | 79 tok/s | 7.4 min |
+| SGLang | `qwen3.8-27b-w4a16-sglang` | 2,018 tok/s | 1.76 s | 74 tok/s | 17.6 min |
+| Strata | `flash-next-strata-iq3-s` | next run | next run | 167 tok/s | 29.6 min |
+| TensorFold | `qwen3.8-27b-exl3-2bpw` | next run | next run | 144 tok/s | 5.9 min |
 
-| Engine | Model notebook | Speed (after the first) | Time to first result |
-|---|---|---|---|
-| ComfyUI | `flux3-klein-comfy` | 3 s per image | 3.5 min |
-| ComfyUI | `minimax-h3-comfy` | 35 s per 5 s video clip | not recorded |
-| ComfyUI | `qwen-image-2.1-bf16-comfy` | 9 s per image | not recorded |
-| ComfyUI | `qwen-image-2.1-turbo-bf16-comfy` | 4 s per image | not recorded |
+| Engine | Model notebook | Per image / 5 s clip (after the first) | Cold start | Sample |
+|---|---|---|---|---|
+| ComfyUI | `flux3-klein-comfy` | 3 s per image | 3.7 min | next run |
+| ComfyUI | `minimax-h3-comfy` | 35 s per clip | not recorded | [a100_minimax-h3-comfy.mp4](results/samples/a100_minimax-h3-comfy.mp4) |
+| ComfyUI | `qwen-image-2.1-bf16-comfy` | 9 s per image | not recorded | <a href="results/samples/a100_qwen-image-2.1-bf16-comfy.jpg"><img src="results/samples/a100_qwen-image-2.1-bf16-comfy.jpg" width="160"></a> |
+| ComfyUI | `qwen-image-2.1-turbo-bf16-comfy` | 4 s per image | not recorded | <a href="results/samples/a100_qwen-image-2.1-turbo-bf16-comfy.jpg"><img src="results/samples/a100_qwen-image-2.1-turbo-bf16-comfy.jpg" width="160"></a> |
 
 ### G4 (RTX PRO 6000 Blackwell, 96 GB)
 
-| Engine | Model notebook | Prefill | Decode | Time to first reply |
-|---|---|---|---|---|
-| Basalt | `basalt-flash-next-nvfp4-dq6k` | next run | 273 tok/s | not recorded |
-| HyperQwen | `hyperqwen-qwen3.8-27b-dflash2` | next run | ~315 tok/s | 5 min (39 s warm) |
-| Maya | `glm-maya-s` | next run | 77 tok/s | 25 min |
-| NInfer | `ninfer-qwen3.8-27b-nvfp4` | next run | ~187 tok/s | 67 s |
-| NInfer | `ninfer-qwen3.8-flash-next` | next run | 66 tok/s | not recorded |
-| SGLang | `qwen3.8-27b-w4a16-sglang` | next run | 77 tok/s | not recorded |
-| Strata NVFP4 | `strata-nvfp4-flash-next-gptq` | next run | 187 tok/s | 17 min |
+| Engine | Model notebook | Prefill | Time to first token | Decode | Cold start |
+|---|---|---|---|---|---|
+| Basalt | `basalt-flash-next-nvfp4-dq6k` | next run | next run | 273 tok/s | not recorded |
+| HyperQwen | `hyperqwen-qwen3.8-27b-dflash2` | next run | next run | 315 tok/s | 5.1 min |
+| Maya | `glm-maya-s` | next run | next run | 77 tok/s | 25 min |
+| NInfer | `ninfer-qwen3.8-27b-nvfp4` | next run | next run | 187 tok/s | 67 s |
+| NInfer | `ninfer-qwen3.8-flash-next` | next run | next run | 66 tok/s | not recorded |
+| SGLang | `qwen3.8-27b-w4a16-sglang` | next run | next run | 77 tok/s | not recorded |
+| Strata NVFP4 | `strata-nvfp4-flash-next-gptq` | next run | next run | 187 tok/s | 17 min |
 
-The remaining A100 and G4 notebooks are still being tested.
+<!-- RESULTS:END -->
 
 ## Prepare on a CPU runtime, serve on a GPU runtime
 

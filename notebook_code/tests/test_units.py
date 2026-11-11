@@ -713,6 +713,20 @@ class DetachingEngines(unittest.TestCase):
         self.assertEqual(calls, [["/bin/strata", "launch", "--stop"]])
 
 
+class ResultsRecord(unittest.TestCase):
+    def test_readme_tables_match_results_csv(self):
+        from notebook_code import results_table as rt
+        text = open(rt.README).read()
+        a, b = text.index(rt.START), text.index(rt.END) + len(rt.END)
+        self.assertEqual(text[a:b], rt.render(rt.load()), "run python -m notebook_code.results_table")
+
+    def test_every_listed_sample_is_in_the_repo(self):
+        from notebook_code import results_table as rt
+        for r in rt.load():
+            if r["sample"]:
+                self.assertTrue(os.path.isfile(os.path.join(rt.ROOT, "results", r["sample"])), r["sample"])
+
+
 class NoDriveFallback(unittest.TestCase):
     def test_notebooks_can_run_without_drive(self):
         from notebook_code import make_engine_notebooks as m

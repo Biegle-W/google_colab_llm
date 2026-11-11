@@ -1,0 +1,83 @@
+"""Render results/results.csv (measured on Colab) as the README's "Tested on Colab" tables.
+
+python -m notebook_code.results_table   rewrites the section between the RESULTS markers in README.md.
+"""
+import csv
+import os
+
+ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+CSV = os.path.join(ROOT, "results", "results.csv")
+README = os.path.join(ROOT, "README.md")
+START, END = "<!-- RESULTS:START -->", "<!-- RESULTS:END -->"
+RUNTIMES = (("l4", "L4 (RTX 4070 Ti class, 24 GB)"), ("a100", "A100 80 GB (High-RAM)"),
+            ("g4", "G4 (RTX PRO 6000 Blackwell, 96 GB)"))
+
+
+def load(path=CSV):
+    with open(path, newline="") as f:
+        return list(csv.DictReader(f))
+
+
+def _num(v, unit, fmt="{:,.0f}"):
+    return (fmt.format(float(v)) + unit) if v not in ("", None) else "next run"
+
+
+def _time(v):
+    if v in ("", None):
+        return "not recorded"
+    s = float(v)
+    return f"{s:.0f} s" if s < 90 else f"{s / 60:.1f} min".replace(".0 min", " min")
+
+
+def render(rows):
+    out = [START, "", "## Tested on Colab", "",
+           "Measured with the notebooks' hub on real Colab runtimes, one request at a time; the numbers live in",
+           "[`results/results.csv`](results/results.csv) and the images and videos in",
+           "[`results/samples/`](results/samples/). Sorted by runtime, then engine.", "",
+           "- **Prefill:** prompt tokens per second for a ~3.5K-token prompt (fresh, no prefix-cache reuse).",
+           "- **Time to first token:** for that prompt, on a loaded model.",
+           "- **Decode:** a 512-token reply at temperature 0.",
+           "- **Cold start:** the hub starting the engine, loading the model from Drive and answering a short prompt.",
+           "- *next run*: measured from the next test run on (earlier runs used a prompt too short for prefill).", ""]
+    for rt, title in RUNTIMES:
+        mine = sorted((r for r in rows if r["runtime"] == rt), key=lambda r: (r["engine"].lower(), r["model"]))
+        chat = [r for r in mine if r["kind"] == "chat"]
+        media = [r for r in mine if r["kind"] != "chat"]
+        if not mine:
+            continue
+        out += [f"### {title}", ""]
+        if chat:
+            out += ["| Engine | Model notebook | Prefill | Time to first token | Decode | Cold start |",
+                    "|---|---|---|---|---|---|"]
+            out += [f"| {r['engine']} | `{r['model']}` | {_num(r['prefill_tok_s'], ' tok/s')} | "
+                    f"{_num(r['ttft_s'], ' s', '{:.2f}')} | {_num(r['decode_tok_s'], ' tok/s')} | "
+                    f"{_time(r['cold_start_s'])} |" for r in chat]
+            out += [""]
+        if media:
+            out += ["| Engine | Model notebook | Per image / 5 s clip (after the first) | Cold start | Sample |",
+                    "|---|---|---|---|---|"]
+            for r in media:
+                per = f"{float(r['per_item_s']):.0f} s per {'clip' if r['kind'] == 'video' else 'image'}"
+                if not r["sample"]:
+                    sample = "next run"
+                elif r["sample"].endswith((".jpg", ".png", ".webp")):
+                    sample = f'<a href="results/{r["sample"]}"><img src="results/{r["sample"]}" width="160"></a>'
+                else:
+                    sample = f"[{os.path.basename(r['sample'])}](results/{r['sample']})"
+                out.append(f"| {r['engine']} | `{r['model']}` | {per} | {_time(r['cold_start_s'])} | {sample} |")
+            out += [""]
+    out += [END]
+    return "\n".join(out)
+
+
+def update_readme(path=README, rows=None):
+    text = open(path).read()
+    a, b = text.index(START), text.index(END) + len(END)
+    new = text[:a] + render(rows if rows is not None else load()) + text[b:]
+    open(path, "w").write(new)
+    return new
+
+
+if __name__ == "__main__":
+    update_readme()
+    print("README.md results updated from", os.path.relpath(CSV, ROOT))
