@@ -731,16 +731,22 @@ class SglangNinja(unittest.TestCase):
 class SharedWeights(unittest.TestCase):
     KEYS = ("repo", "files", "exclude", "extra_downloads", "revision")
 
-    def test_entries_sharing_a_folder_download_the_same_files(self):
+    def test_entries_sharing_a_folder_come_from_one_repo(self):
         by = catalog.by_id(catalog.load())
-        shared = [e for e in by.values() if e.get("weights_dir")]
-        self.assertTrue({"qwen3.8-27b-w4a16-sglang", "hyperqwen-qwen3.8-27b-batch", "qwen-image-2.1"}
-                        <= {e["id"] for e in shared})
-        for e in shared:
-            owner = by[e["weights_dir"]]
-            self.assertFalse(owner.get("weights_dir"), owner["id"])
-            for k in self.KEYS:
-                self.assertEqual(e.get(k), owner.get(k), f"{e['id']} {k}")
+        groups = {}
+        for e in by.values():
+            if e.get("weights_dir"):
+                groups.setdefault(e["weights_dir"], []).append(e)
+        self.assertEqual(sorted(groups), ["comfy-minimax-h3", "comfy-qwen-image-2.1", "qwen-image-2.1-nf4",
+                                          "qwen3.8-27b-w4a16"])
+        for folder, es in groups.items():
+            if folder in by:                           # another model's folder: the very same files
+                owner = by[folder]
+                self.assertFalse(owner.get("weights_dir"), owner["id"])
+                for e in es:
+                    for k in self.KEYS:
+                        self.assertEqual(e.get(k), owner.get(k), f"{e['id']} {k}")
+            self.assertEqual(len({e["repo"] for e in es}), 1, folder)
 
     def test_store_uses_the_shared_folder(self):
         from notebook_code.store import ModelStore
@@ -748,6 +754,35 @@ class SharedWeights(unittest.TestCase):
         by = catalog.by_id(catalog.load())
         self.assertEqual(s.drive_path(by["qwen3.8-27b-w4a16-sglang"]), s.drive_path(by["qwen3.8-27b-w4a16"]))
         self.assertEqual(str(s.local_path(by["qwen-image-2.1"])), "/l/qwen-image-2.1-nf4")
+        self.assertEqual(str(s.drive_path(by["minimax-h3-l4-comfy"])), "/d/models/comfy-minimax-h3")
+
+    def test_each_model_in_a_shared_folder_is_complete_on_its_own(self):
+        from notebook_code import store as st
+        root = Path(tempfile.mkdtemp())
+        a = {"id": "a", "weights_dir": "grp", "repo": "o/r", "files": ["x", "shared"], "size_gb": 0}
+        b = {"id": "b", "weights_dir": "grp", "repo": "o/r", "files": ["y", "shared"], "size_gb": 0}
+        (root / "x").write_bytes(b"1"); (root / "shared").write_bytes(b"22")
+        st.write_marker(root, "o/r", st.marker_for(a), only={"x", "shared"})
+        self.assertTrue(st.is_complete(root, st.marker_for(a)))
+        self.assertFalse(st.is_complete(root, st.marker_for(b)))     # b's own file is not there yet
+        self.assertTrue(st.any_complete(root))
+        self.assertEqual(st.marker_for({"id": "solo", "repo": "o/r"}), st.MARKER)
+
+    def test_saving_one_model_keeps_the_others_in_the_shared_folder(self):
+        from notebook_code import store as st
+        tmp = Path(tempfile.mkdtemp())
+        s = st.ModelStore(tmp / "drive", tmp / "local", downloader=lambda *a, **k: None, log=lambda *_: None)
+        a = {"id": "a", "weights_dir": "grp", "repo": "o/r", "files": ["x"], "size_gb": 0, "backend": "comfyui"}
+        b = {"id": "b", "weights_dir": "grp", "repo": "o/r", "files": ["y"], "size_gb": 0, "backend": "comfyui"}
+        drive, local = s.drive_path(a), s.local_path(b)
+        drive.mkdir(parents=True); local.mkdir(parents=True)
+        (drive / "x").write_bytes(b"1")
+        st.write_marker(drive, "o/r", st.marker_for(a), only={"x"})
+        (local / "y").write_bytes(b"2")
+        st.write_marker(local, "o/r", st.marker_for(b), only={"y"})
+        s.save_to_drive(b)
+        self.assertTrue(st.is_complete(drive, st.marker_for(a)))
+        self.assertTrue(st.is_complete(drive, st.marker_for(b)))
 
 
 class Flux3Workflow(unittest.TestCase):

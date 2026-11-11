@@ -1140,6 +1140,7 @@
       "vae/qwen_image_2.1_vae_bf16.safetensors"
     ],
     "size_gb": 17.3,
+    "weights_dir": "comfy-qwen-image-2.1",
     "contexts": [
       [
         18,
@@ -1168,6 +1169,7 @@
       "vae/qwen_image_2.1_vae_bf16.safetensors"
     ],
     "size_gb": 32.4,
+    "weights_dir": "comfy-qwen-image-2.1",
     "contexts": [
       [
         36,
@@ -1195,6 +1197,7 @@
       "vae/qwen_image_2.1_vae_bf16.safetensors"
     ],
     "size_gb": 32.4,
+    "weights_dir": "comfy-qwen-image-2.1",
     "contexts": [
       [
         36,
@@ -1288,6 +1291,7 @@
       "loras/minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors"
     ],
     "size_gb": 69.0,
+    "weights_dir": "comfy-minimax-h3",
     "contexts": [
       [
         70,
@@ -1314,6 +1318,7 @@
       "loras/minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors"
     ],
     "size_gb": 53.5,
+    "weights_dir": "comfy-minimax-h3",
     "contexts": [
       [
         22,
@@ -1341,6 +1346,7 @@
       "loras/minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors"
     ],
     "size_gb": 57.5,
+    "weights_dir": "comfy-minimax-h3",
     "contexts": [
       [
         60,

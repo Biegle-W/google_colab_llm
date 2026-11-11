@@ -103,21 +103,28 @@ def _files(root):
     return out
 
 
-def is_complete(root):
+def is_complete(root, marker=MARKER):
     root = Path(root)
     try:
-        listed = json.loads((root / MARKER).read_text())["files"]
+        listed = json.loads((root / marker).read_text())["files"]
     except (OSError, ValueError, KeyError):
         return False
     return bool(listed) and all((root / rel).is_file() and (root / rel).stat().st_size == size
                                 for rel, size in listed.items())
 
 
-def write_marker(root, repo):
+def write_marker(root, repo, marker=MARKER, only=None):
     files = _files(root)
+    if only is not None:                                   # a shared folder: list just this model's files
+        files = {rel: n for rel, n in files.items() if rel in only}
     if not files:
         raise StoreError(f"nothing was downloaded into {root}")
-    (Path(root) / MARKER).write_text(json.dumps({"repo": repo, "files": files}))
+    (Path(root) / marker).write_text(json.dumps({"repo": repo, "files": files}))
+
+
+def any_complete(root):
+    """A model folder holding at least one complete model (shared folders carry one marker per model)."""
+    return any(is_complete(root, m.name) for m in Path(root).glob(".complete*.json"))
 
 
 def copy_file_atomic(src, dst, on_bytes=None):
@@ -137,7 +144,7 @@ def model_disk_gb(local_dir):
     (they stay on Drive) when it needs room."""
     root = Path(local_dir)
     root.mkdir(parents=True, exist_ok=True)
-    cached = sum(p.stat().st_size for d in root.iterdir() if d.is_dir() and is_complete(d)
+    cached = sum(p.stat().st_size for d in root.iterdir() if d.is_dir() and any_complete(d)
                  for p in d.rglob("*") if p.is_file())
     return round((shutil.disk_usage(root).free + cached) / 1e9, 1)
 
@@ -146,6 +153,12 @@ def weights_dir(entry):
     """Folder name of a model's weights on Drive and local disk. Entries that run the same files on different
     engines (vLLM / SGLang / HyperQwen on one AutoRound checkpoint) name one shared folder with `weights_dir`."""
     return entry.get("weights_dir") or entry["id"]
+
+
+def marker_for(entry):
+    """Completeness marker of one model. In a folder shared by several models each has its own, listing only
+    its files: one model's files being complete says nothing about another's."""
+    return MARKER if weights_dir(entry) == entry["id"] else f".complete.{entry['id']}.json"
 
 
 class ModelStore:
@@ -172,7 +185,7 @@ class ModelStore:
         return base
 
     def state(self, entry):
-        return {"on_drive": is_complete(self.drive_path(entry)), "local": is_complete(self.local_path(entry)),
+        return {"on_drive": is_complete(self.drive_path(entry), marker_for(entry)), "local": is_complete(self.local_path(entry), marker_for(entry)),
                 **self.progress.get(entry["id"], {})}
 
     # ---- progress --------------------------------------------------------------------------
@@ -186,7 +199,7 @@ class ModelStore:
 
     # ---- disk space ------------------------------------------------------------------------
     def local_models(self):
-        return [d for d in self.local_root.iterdir() if d.is_dir() and is_complete(d)]
+        return [d for d in self.local_root.iterdir() if d.is_dir() and any_complete(d)]
 
     def free_gb(self):
         return shutil.disk_usage(self.local_root).free / 1e9
@@ -224,27 +237,32 @@ class ModelStore:
             local, drive = self.local_path(entry), self.drive_path(entry)
             # Strata/Maya DeepSeek packs often download through the engine itself (signed feeds /
             # setup.sh), not a plain HF snapshot. Skip HF when flagged; the engine uses data-dir.
-            if entry.get("engine_download") and not is_complete(drive) and not is_complete(local):
+            if entry.get("engine_download") and not is_complete(drive, marker_for(entry)) and not is_complete(local, marker_for(entry)):
                 local.mkdir(parents=True, exist_ok=True)
                 self._set(entry, "engine_managed")
                 self.touch(entry)
                 self.log(f"[store] {entry['id']}: files come from {entry['backend']} on first start "
                          f"(engine_download); Drive path {drive}")
                 return self.model_path(entry)
-            if is_complete(local):
+            if is_complete(local, marker_for(entry)):
                 self.touch(entry)
                 return self.model_path(entry)
-            if entry.get("backend") == "maya" and is_complete(drive):
+            if entry.get("backend") == "maya" and is_complete(drive, marker_for(entry)):
                 # Maya's own --import-model --copy makes the one local copy; a hub copy first would
                 # need the disk twice over (DeepSeek Maya-XS: 2 x 282 GB on a 340 GB A100 disk).
                 self._set(entry, "ready", entry["size_gb"] * 1e9)
                 self.log(f"[store] {entry['id']}: Maya imports straight from Drive ({drive})")
                 return self.model_path(entry, drive)
-            if (local / MARKER).exists():
-                shutil.rmtree(local)               # marked complete once, but files are missing or changed
+            if (local / marker_for(entry)).exists():
+                # Marked complete once, but files are missing or changed. A shared folder also holds other
+                # models' files: drop only this model's marker (the download re-checks its files by size).
+                if weights_dir(entry) == entry["id"]:
+                    shutil.rmtree(local)
+                else:
+                    (local / marker_for(entry)).unlink()
             # Otherwise keep partial downloads: Hugging Face resumes them.
             self.evict_for(entry, protect)
-            if is_complete(drive):
+            if is_complete(drive, marker_for(entry)):
                 self._copy_tree(entry, drive, local, "copying from Drive")
             else:
                 self._download(entry, local)
@@ -257,12 +275,12 @@ class ModelStore:
             lock.close()
 
     def _copy_tree(self, entry, src, dst, phase):
-        marker = json.loads((Path(src) / MARKER).read_text())
+        marker = json.loads((Path(src) / marker_for(entry)).read_text())
         self._set(entry, phase)
         self.log(f"[store] {entry['id']}: {phase} ({entry['size_gb']:.1f} GB)")
         for rel in marker["files"]:
             copy_file_atomic(Path(src) / rel, Path(dst) / rel, lambda n: self._add(entry, n))
-        shutil.copyfile(Path(src) / MARKER, Path(dst) / MARKER)       # marker last
+        shutil.copyfile(Path(src) / marker_for(entry), Path(dst) / marker_for(entry))       # marker last
         self._set(entry, "ready", entry["size_gb"] * 1e9)
 
     def _download(self, entry, local):
@@ -290,7 +308,7 @@ class ModelStore:
                 self.downloader(extra["repo"], extra.get("files") or ["*"], dest, self.token)
         finally:
             stop.set()
-        write_marker(local, entry["repo"])
+        write_marker(local, entry["repo"], marker_for(entry))
         if entry.get("model_file") and not (local / entry["model_file"]).is_file():
             raise StoreError(f"{entry['model_file']} was not found in {entry['repo']}")
         self._set(entry, "ready", entry["size_gb"] * 1e9)
@@ -298,10 +316,10 @@ class ModelStore:
     def save_to_drive(self, entry):
         """Copy a complete local model to Drive (no-op when Drive already has it)."""
         local, drive = self.local_path(entry), self.drive_path(entry)
-        if is_complete(drive) or not is_complete(local):
+        if is_complete(drive, marker_for(entry)) or not is_complete(local, marker_for(entry)):
             return
-        if drive.exists():
-            shutil.rmtree(drive)
+        if drive.exists() and weights_dir(entry) == entry["id"]:
+            shutil.rmtree(drive)                           # never a shared folder: other models live there too
         self._copy_tree(entry, local, drive, "saving to Drive")
 
     def _drive_copy_async(self, entry):
@@ -329,7 +347,7 @@ class ModelStore:
         For preparing models on a small CPU runtime. Files already on Drive with the right size are skipped,
         so an interrupted run (or Drive's daily upload limit) resumes where it stopped."""
         drive = self.drive_path(entry)
-        if is_complete(drive):
+        if is_complete(drive, marker_for(entry)):
             self.log(f"[store] {entry['id']}: already on Drive")
             return drive
         if entry.get("engine_download"):
@@ -353,8 +371,8 @@ class ModelStore:
         total = sum(size or 0 for *_, size, _ in jobs)
         self.progress[entry["id"]] = {"phase": "downloading to Drive", "done_bytes": 0, "total_bytes": total}
         self.log(f"[store] {entry['id']}: {len(jobs)} files, {total / 1e9:.1f} GB, straight to {drive}")
-        if (drive / MARKER).exists():
-            (drive / MARKER).unlink()                     # incomplete: rebuild the file list at the end
+        if (drive / marker_for(entry)).exists():
+            (drive / marker_for(entry)).unlink()                     # incomplete: rebuild the file list at the end
         staging = Path(staging or self.local_root / ".staging" / weights_dir(entry))
         staging.mkdir(parents=True, exist_ok=True)
         # At most two files are local at once (one copying to Drive, the next downloading). Files not yet on
@@ -418,7 +436,7 @@ class ModelStore:
         if wrong:
             raise StoreError(f"{entry['id']}: files on Drive do not match the source: {', '.join(wrong[:3])}")
         files = {rel: (n if n is not None else (drive / rel).stat().st_size) for rel, n in expected.items()}
-        (drive / MARKER).write_text(json.dumps({"repo": entry["repo"], "files": files}))
+        (drive / marker_for(entry)).write_text(json.dumps({"repo": entry["repo"], "files": files}))
         if entry.get("model_file") and not (drive / entry["model_file"]).is_file():
             raise StoreError(f"{entry['model_file']} was not found in {entry['repo']}")
         self.progress[entry["id"]]["phase"] = "on Drive"
@@ -452,8 +470,8 @@ class ModelStore:
         if entry.get("engine_download"):
             return self.ensure_local(entry, protect=protect)     # the engine fetches these itself
         drive = self.drive_path(entry)
-        if not is_complete(drive):
-            if is_complete(self.local_path(entry)):              # downloaded locally by an older version
+        if not is_complete(drive, marker_for(entry)):
+            if is_complete(self.local_path(entry), marker_for(entry)):              # downloaded locally by an older version
                 self.save_to_drive(entry)
             else:
                 self.download_to_drive(entry, staging=self.local_root / ".staging" / weights_dir(entry))
@@ -472,7 +490,10 @@ class ModelStore:
         runs at the mount's full speed and leaves the data in the Drive client's local cache and the page cache,
         where the engine's own reads then find it. Files are read in parallel slices."""
         import concurrent.futures
-        files = [p for p in Path(drive).rglob("*") if p.is_file() and p.name != MARKER]
+        try:                                               # this model's files only (a folder can be shared)
+            files = [Path(drive) / rel for rel in json.loads((Path(drive) / marker_for(entry)).read_text())["files"]]
+        except (OSError, ValueError, KeyError):
+            files = [p for p in Path(drive).rglob("*") if p.is_file() and not p.name.startswith(".complete")]
         total = sum(p.stat().st_size for p in files)
         self.progress[entry["id"]] = {"phase": "reading from Drive (warming the cache)", "done_bytes": 0,
                                       "total_bytes": total}
@@ -504,10 +525,10 @@ class ModelStore:
         lock = self._lock(entry)
         try:
             local = self.local_path(entry)
-            if is_complete(local):
+            if is_complete(local, marker_for(entry)):
                 self.touch(entry)
                 return self.model_path(entry)
-            marker = json.loads((drive / MARKER).read_text())
+            marker = json.loads((drive / marker_for(entry)).read_text())
             patterns = entry.get("stream_files") or ["*"]
             streamed = {rel: n for rel, n in marker["files"].items()
                         if any(fnmatch.fnmatchcase(rel, p) for p in patterns)}
@@ -528,7 +549,7 @@ class ModelStore:
                     if dst.exists():
                         dst.unlink()
                     dst.symlink_to(drive / rel)                 # read from Drive like any other model
-            shutil.copyfile(drive / MARKER, local / MARKER)     # marker last
+            shutil.copyfile(drive / marker_for(entry), local / marker_for(entry))     # marker last
             self._set(entry, "ready", entry["size_gb"] * 1e9)
             self.touch(entry)
             return self.model_path(entry)
@@ -555,6 +576,6 @@ class ModelStore:
 
     def prefetch(self, entry, protect=()):
         """Make sure the model is saved on Drive (downloading it if needed) without keeping the hub waiting on it."""
-        if is_complete(self.drive_path(entry)) or entry.get("engine_download"):
+        if is_complete(self.drive_path(entry), marker_for(entry)) or entry.get("engine_download"):
             return
         self.download_to_drive(entry, staging=self.local_root / ".staging" / weights_dir(entry))
