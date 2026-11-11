@@ -713,6 +713,32 @@ class DetachingEngines(unittest.TestCase):
         self.assertEqual(calls, [["/bin/strata", "launch", "--stop"]])
 
 
+class NoDriveFallback(unittest.TestCase):
+    def test_notebooks_can_run_without_drive(self):
+        from notebook_code import make_engine_notebooks as m
+        text = "".join("".join(c["source"]) for c in m.build_notebook("vllm", "a100", "qwen3.8-27b-fp8")["cells"])
+        self.assertIn('USE_DRIVE = True  # @param {type:"boolean"}', text)
+        self.assertIn("DRIVE_DIR = str(local_drive_dir())", text)
+
+    def test_local_folder_is_read_in_place(self):
+        from notebook_code import store as st, workspace
+        self.assertEqual(workspace.local_drive_dir().name, "colab_model_server")
+        tmp = Path(tempfile.mkdtemp())
+        s = st.ModelStore(tmp / "drive", tmp / "local", downloader=lambda *a, **k: None, log=lambda *_: None)
+        e = {"id": "m", "repo": "o/m", "files": ["*"], "size_gb": 0.0, "backend": "strata", "disk_stream": True,
+             "contexts": [[1, 1024]]}
+        d = s.drive_path(e)
+        d.mkdir(parents=True)
+        (d / "w.gguf").write_bytes(b"x")
+        st.write_marker(d, "o/m")
+        os.environ["COLAB_LLM_NO_DRIVE"] = "1"
+        try:
+            self.assertEqual(Path(s.resolve(e)), d)                # no staging copy, no warm read
+        finally:
+            os.environ.pop("COLAB_LLM_NO_DRIVE", None)
+        self.assertFalse((tmp / "local" / "m").exists())
+
+
 class SglangNinja(unittest.TestCase):
     def test_venv_bin_is_on_path_for_start_up_kernel_builds(self):
         env = backends.env_for({"backend": "sglang"}, {"sglang": "/content/sglang/venv/bin/python"})

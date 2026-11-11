@@ -85,6 +85,14 @@ def pick_local_models(candidates=LOCAL_DISK_CANDIDATES, free_bytes=None):
         if free > best_free:
             best, best_free = root, free
     return Path(best) / "models" if best else Path(DEFAULT_LOCAL_MODELS)
+
+
+def local_drive_dir():
+    """Stand-in for the Drive folder when Google Drive is not available: the largest local disk. Models
+    download straight to this runtime and are gone when it stops."""
+    return pick_local_models().parent / "colab_model_server"
+
+
 SETTINGS_NAME = "settings.json"
 DEFAULT_SETTINGS = {
     "prefetch": [],

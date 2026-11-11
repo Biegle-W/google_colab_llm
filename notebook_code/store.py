@@ -475,6 +475,11 @@ class ModelStore:
                 self.save_to_drive(entry)
             else:
                 self.download_to_drive(entry, staging=self.local_root / ".staging" / weights_dir(entry))
+        if os.environ.get("COLAB_LLM_NO_DRIVE") == "1":
+            # No Drive (the notebook fell back to a local folder): the files are already on this runtime's
+            # disk, so the engine reads them in place; no cache warm-up and no second local copy.
+            self._set(entry, "on local disk", entry["size_gb"] * 1e9)
+            return self.model_path(entry, base=drive)
         if not catalog.streams_from_disk(entry):
             if entry.get("warm_read", entry["backend"] in WARM_READ_BACKENDS):
                 self.warm_read(entry, drive)

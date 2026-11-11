@@ -26,7 +26,9 @@ Downloading a model and building an engine need no GPU, so do them on a **CPU** 
 (L4 = RTX 4070 Ti class, A100 or G4 = RTX PRO 6000), the engine and the model. It downloads the model straight to Drive one file at a time
 (resumable; Drive accepts about 750 GB of uploads per day) while it builds or caches the engine for that GPU:
 wheels, HyperQwen's venv, llama.cpp / NInfer compiled for the GPU's architecture. The GPU notebook then only
-copies them from Drive and loads the model. Without a browser:
+copies them from Drive and loads the model. If Drive is not available (the mount fails, or you untick
+`USE_DRIVE` in the first cell), a GPU notebook downloads the model straight to its own disk instead; nothing is
+kept after the runtime stops. Without a browser:
 `python -m notebook_code prepare --target g4 --engine ninfer --model recommended`.
 
 ## Google AI Pro / Colab Pro
