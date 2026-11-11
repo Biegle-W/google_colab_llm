@@ -1776,7 +1776,7 @@ class PrepareMany(unittest.TestCase):
         by = catalog.by_id(catalog.load())
         self.assertTrue(all(catalog.kind_for(by[m]) == "chat" for m in g4))
         self.assertTrue(all(catalog.kind_for(by[m]) != "chat" for m in prepare.recommended_models("g4", "image")))
-        self.assertNotIn("deepseek-strata-ist-2.00", prepare.recommended_models("a100", "all"))
+        self.assertIn("deepseek-strata-ist-2.00", prepare.recommended_models("a100", "all"))   # Drive-prepared now
 
 
 class PrepareManyResume(unittest.TestCase):
