@@ -71,7 +71,7 @@ def render(rows):
                 out.append(f"| {r['engine']} | `{r['model']}` | {per} | {_time(r['cold_start_s'])} | {sample} |")
             out += [""]
     if dropped:
-        out += ["Tested and then dropped for a faster quant of the same model (kept in the CSV): " + ", ".join(
+        out += ["Tested, then removed from the notebooks (a faster engine or quant, or released before June 2026; kept in the CSV): " + ", ".join(
             f"{r['runtime'].upper()} {r['engine']} `{r['model']}` ({_num(r['decode_tok_s'], ' tok/s')})"
             for r in dropped) + ".", ""]
     out += [END]

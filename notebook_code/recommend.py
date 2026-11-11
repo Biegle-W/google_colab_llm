@@ -19,7 +19,7 @@ _ENGINE_PREFETCH = {
     },
     "vllm": {
         "t4": [],
-        "l4": ["qwen3-14b-fp8"],  # best engine per model, by the Colab tests
+        "l4": [],  # Qwen3-14B (2025) is older than June 2026; Qwen3.8-27B runs on TensorFold / SGLang
         "a100_40": ["qwen3.8-27b-fp8", "qwen3.8-27b-w4a16", "qwen3.6-35b-a3b-fp8"],
         "a100_80": [],  # best engine per model, by the Colab tests
         "g4": [],  # best engine per model, by the Colab tests
@@ -40,12 +40,12 @@ _ENGINE_PREFETCH = {
     },
     "strata": {
         "t4": [],
-        "l4": ["flash-next-gyro-s", "qwen36-strata-q4"],  # one quant per model, kept by the Colab test results (results/results.csv)
+        "l4": ["flash-next-gyro-s"],  # one quant per model, kept by the Colab test results (results/results.csv)
         # (Gyro-S 68 tok/s beat Flash-Next Q2 46 and Swift IQ2_XS 55 on the L4)
         "a100_40": ["flash-next-strata-iq3-xxs", "flash-next-gyro-m", "flash-next-swift-iq3-xxs",
                     "qwen36-strata-q4", "flash-next-strata-q2"],
-        "a100_80": ["flash-next-strata-iq3-s", "qwen36-strata-q6"],  # one quant per model, kept by the Colab test results (results/results.csv)
-        "g4": ["qwen36-strata-q6"],  # Flash-Next: Basalt is faster
+        "a100_80": ["flash-next-strata-iq3-s"],  # one quant per model, kept by the Colab test results (results/results.csv)
+        "g4": [],  # Flash-Next: Basalt is faster; Qwen3.6 (April 2026) is older than June 2026
         # DeepSeek (249-347 GB) is left out: it needs a local copy and the G4 disk is 225 GB.
     },
     "maya": {

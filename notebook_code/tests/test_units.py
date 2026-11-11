@@ -116,7 +116,7 @@ class Catalog(unittest.TestCase):
         self.assertIn("ornith-1.5-122b-q4", llama["prefetch"])
         vllm = recommend.for_engine("vllm", 24.2)
         self.assertEqual(vllm["engines"], ["vllm"])
-        self.assertEqual(vllm["prefetch"], ["qwen3-14b-fp8"])   # Qwen3.8-27B runs faster on TensorFold / SGLang
+        self.assertEqual(vllm["prefetch"], [])   # Qwen3-14B is from 2025; Qwen3.8-27B runs faster on TensorFold / SGLang
         sgl = recommend.for_engine("sglang", 42.9)
         self.assertEqual(sgl["prefetch"], ["qwen3.8-27b-w4a16-sglang"])
         img = recommend.for_engine("diffusers", 16.1)
@@ -711,6 +711,16 @@ class DetachingEngines(unittest.TestCase):
         finally:
             backends.subprocess.run = orig
         self.assertEqual(calls, [["/bin/strata", "launch", "--stop"]])
+
+
+class OnlyRecentModels(unittest.TestCase):
+    def test_no_language_model_released_before_june_2026(self):
+        from notebook_code import recommend
+        by = catalog.by_id(catalog.load())
+        for rt, eng, mid in recommend.notebook_plan():
+            e = by[mid]
+            if catalog.kind_for(e) == "chat":
+                self.assertGreaterEqual(e.get("released", ""), "2026-06-01", f"{rt}/{eng}/{mid}")
 
 
 class ResultsRecord(unittest.TestCase):
