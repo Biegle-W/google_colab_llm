@@ -723,6 +723,16 @@ class OnlyRecentModels(unittest.TestCase):
                 self.assertGreaterEqual(e.get("released", ""), "2026-06-01", f"{rt}/{eng}/{mid}")
 
 
+class DeepSeekOnA100(unittest.TestCase):
+    def test_deepseek_runs_on_the_a100_scratch_disk(self):
+        from notebook_code import recommend
+        self.assertIn(("a100", "strata", "deepseek-strata-ist-2.00"), recommend.notebook_plan())
+        e = catalog.by_id(catalog.load())["deepseek-strata-ist-2.00"]
+        self.assertGreaterEqual(e["released"], "2026-06-01")
+        g4 = recommend.RUNTIMES["g4"]
+        self.assertIn("local disk", catalog.why_not(e, g4["vram_gb"], g4["ram_gb"], g4["disk_gb"], g4["arch"]))
+
+
 class ResultsRecord(unittest.TestCase):
     def test_readme_tables_match_results_csv(self):
         from notebook_code import results_table as rt

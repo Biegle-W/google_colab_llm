@@ -44,7 +44,7 @@ _ENGINE_PREFETCH = {
         # (Gyro-S 68 tok/s beat Flash-Next Q2 46 and Swift IQ2_XS 55 on the L4)
         "a100_40": ["flash-next-strata-iq3-xxs", "flash-next-gyro-m", "flash-next-swift-iq3-xxs",
                     "qwen36-strata-q4", "flash-next-strata-q2"],
-        "a100_80": ["flash-next-strata-iq3-s"],  # one quant per model, kept by the Colab test results (results/results.csv)
+        "a100_80": ["flash-next-strata-iq3-s", "deepseek-strata-ist-2.00"],  # DeepSeek: 249 GB, on the 351 GB NVMe  # one quant per model, kept by the Colab test results (results/results.csv)
         "g4": [],  # Flash-Next: Basalt is faster; Qwen3.6 (April 2026) is older than June 2026
         # DeepSeek (249-347 GB) is left out: it needs a local copy and the G4 disk is 225 GB.
     },
@@ -303,7 +303,8 @@ INDEX_NOTEBOOK = "notebooks/llm_hub_colab.ipynb"
 # hub measured on each (GB, as the hub reports them), which every planned model must fit.
 RUNTIMES = {
     "l4": {"band": "l4", "folder": "l4-rtx4070ti", "label": "L4 (RTX 4070 Ti class, 24 GB)", "vram_gb": 24.2, "ram_gb": 55.5, "disk_gb": 252, "arch": 89},
-    "a100": {"band": "a100_80", "folder": "a100", "label": "A100 80 GB (High-RAM)", "vram_gb": 85.0, "ram_gb": 167, "disk_gb": 252,
+    # A100 disk: the High-RAM A100's NVMe /mnt/local-scratch (351 GB free, measured), where the hub puts models.
+    "a100": {"band": "a100_80", "folder": "a100", "label": "A100 80 GB (High-RAM)", "vram_gb": 85.0, "ram_gb": 167, "disk_gb": 351,
              "arch": 80},
     "g4": {"band": "g4", "folder": "g4-rtx-pro6000", "label": "G4 (RTX PRO 6000 Blackwell, 96 GB)", "vram_gb": 102.6, "ram_gb": 185.5,
            "disk_gb": 222, "arch": 120},

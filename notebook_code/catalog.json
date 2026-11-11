@@ -832,6 +832,7 @@
     "name": "DeepSeek-V4.1-Flash-1017 UD-IQ1_S (llama.cpp; ~233 GB)",
     "backend": "llama",
     "repo": "unsloth/DeepSeek-V4.1-Flash-1017-GGUF",
+    "released": "2026-10-17",
     "files": [
       "UD-IQ1_S/*.gguf"
     ],
@@ -960,6 +961,7 @@
     "name": "DeepSeek-V4.1-Flash-1017 ISTA 2.00bpw (Strata strata-dsv41)",
     "backend": "strata",
     "repo": "ISTA-DASLab/DeepSeek-V4.1-Flash-1017-GSQ-RCO-GGUF",
+    "released": "2026-10-17",
     "files": [
       "*IQ2_XXS*",
       "*Engram*"
@@ -976,8 +978,7 @@
     "strata_family": "deepseek41",
     "strata_model": "ist-das-2.00bpw",
     "vision": "off",
-    "engine_download": true,
-    "notes": "Official Strata DeepSeek path (docs/DEEPSEEK41.md). ~257 GB download; SSD expert streaming. Prefer G4 + high host RAM/disk.",
+    "notes": "Official Strata DeepSeek path (docs/DEEPSEEK41.md). ~257 GB download; SSD expert streaming. Prefer G4 + high host RAM/disk. Downloaded to Drive like other models (a CPU runtime can prepare it); on the A100 it is copied to the 351 GB NVMe scratch disk each start, where Strata streams experts and the Engram table.",
     "resident_gb": 138.2
   },
   {
@@ -1068,6 +1069,7 @@
     "name": "DeepSeek-V4.1-Flash-1017 Maya-XS (Project Maya maya-ds4)",
     "backend": "maya",
     "repo": "peasantsmith/DeepSeek-V4.1-Flash-1017-Maya-GGUF",
+    "released": "2026-10-17",
     "files": [
       "Maya-XS/*.gguf",
       "dspark/dspark-xs2.*"
@@ -1095,6 +1097,7 @@
     "name": "DeepSeek-V4.1-Flash-1017 Maya-S (Project Maya maya-ds4)",
     "backend": "maya",
     "repo": "peasantsmith/DeepSeek-V4.1-Flash-1017-Maya-GGUF",
+    "released": "2026-10-17",
     "files": [
       "Maya-S/*.gguf",
       "dspark/dspark.bin",
