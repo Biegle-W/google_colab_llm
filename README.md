@@ -50,12 +50,12 @@ Measured with the notebooks' hub on real Colab runtimes, one request at a time; 
 
 | Engine | Model notebook | Per image / 5 s clip (after the first) | Cold start | Sample |
 |---|---|---|---|---|
-| ComfyUI | `flux3-klein-comfy` | 8 s per image | 3.5 min | next run |
+| ComfyUI | `flux3-klein-comfy` | 8 s per image | 3.5 min | not saved |
 | ComfyUI | `minimax-h3-l4-comfy` | 124 s per clip | not recorded | [l4_minimax-h3-l4-comfy.mp4](results/samples/l4_minimax-h3-l4-comfy.mp4) |
 | ComfyUI | `qwen-image-2.1-turbo-comfy` | 8 s per image | not recorded | <a href="results/samples/l4_qwen-image-2.1-turbo-comfy.jpg"><img src="results/samples/l4_qwen-image-2.1-turbo-comfy.jpg" width="160"></a> |
-| Diffusers | `qwen-image-2.1-nf4` | 37 s per image | 12.7 min | next run |
-| Diffusers | `sdxl-base` | 17 s per image | 6.1 min | next run |
-| Diffusers | `sdxl-turbo` | 3 s per image | 7.4 min | next run |
+| Diffusers | `qwen-image-2.1-nf4` | 37 s per image | 12.7 min | not saved |
+| Diffusers | `sdxl-base` | 17 s per image | 6.1 min | not saved |
+| Diffusers | `sdxl-turbo` | 3 s per image | 7.4 min | not saved |
 
 ### A100 80 GB (High-RAM)
 
@@ -69,7 +69,7 @@ Measured with the notebooks' hub on real Colab runtimes, one request at a time; 
 
 | Engine | Model notebook | Per image / 5 s clip (after the first) | Cold start | Sample |
 |---|---|---|---|---|
-| ComfyUI | `flux3-klein-comfy` | 3 s per image | 3.7 min | next run |
+| ComfyUI | `flux3-klein-comfy` | 3 s per image | 3.7 min | not saved |
 | ComfyUI | `minimax-h3-comfy` | 35 s per clip | not recorded | [a100_minimax-h3-comfy.mp4](results/samples/a100_minimax-h3-comfy.mp4) |
 | ComfyUI | `qwen-image-2.1-bf16-comfy` | 9 s per image | not recorded | <a href="results/samples/a100_qwen-image-2.1-bf16-comfy.jpg"><img src="results/samples/a100_qwen-image-2.1-bf16-comfy.jpg" width="160"></a> |
 | ComfyUI | `qwen-image-2.1-turbo-bf16-comfy` | 4 s per image | not recorded | <a href="results/samples/a100_qwen-image-2.1-turbo-bf16-comfy.jpg"><img src="results/samples/a100_qwen-image-2.1-turbo-bf16-comfy.jpg" width="160"></a> |

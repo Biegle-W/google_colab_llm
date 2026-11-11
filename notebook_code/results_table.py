@@ -59,7 +59,7 @@ def render(rows):
             for r in media:
                 per = f"{float(r['per_item_s']):.0f} s per {'clip' if r['kind'] == 'video' else 'image'}"
                 if not r["sample"]:
-                    sample = "next run"
+                    sample = "not saved"
                 elif r["sample"].endswith((".jpg", ".png", ".webp")):
                     sample = f'<a href="results/{r["sample"]}"><img src="results/{r["sample"]}" width="160"></a>'
                 else:
