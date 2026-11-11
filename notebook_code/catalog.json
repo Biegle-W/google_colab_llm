@@ -1671,6 +1671,7 @@
     ],
     "served_name": "qwen3.8-27b",
     "size_gb": 20.76,
+    "weights_dir": "qwen3.8-27b-w4a16",
     "contexts": [
       [
         25,

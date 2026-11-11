@@ -94,15 +94,16 @@ class Catalog(unittest.TestCase):
         self.assertTrue(any(x.startswith("qwen3.8-27b") for x in l4["prefetch"]))
         self.assertNotIn("deepseek-v4.1-flash-1017-iq1s", l4["prefetch"])
         g4 = recommend.for_gpu(102.6)
-        self.assertIn("flash-next-strata-iq3-s", g4["prefetch"])
+        self.assertIn("basalt-flash-next-nvfp4-dq6k", g4["prefetch"])   # Flash-Next: the fastest G4 engine
+        self.assertNotIn("flash-next-strata-iq3-s", g4["prefetch"])
         self.assertIn("glm-maya-s", g4["prefetch"])
         self.assertNotIn("deepseek-maya-xs", g4["prefetch"])      # 282 GB; the G4 disk is 225 GB
         self.assertIn("nemotron-3.5-bolt-74b-iq2", g4["prefetch"])
-        self.assertIn("qwen3.8-27b-exl3-2bpw", g4["prefetch"])
+        self.assertNotIn("qwen3.8-27b-exl3-2bpw", g4["prefetch"])        # Qwen3.8-27B: HyperQwen is faster
+        self.assertIn("hyperqwen-qwen3.8-27b-dflash2", g4["prefetch"])
         self.assertIn("minimax-m3.1-flash-iq2-kt", g4["prefetch"])
         self.assertIn("strata", g4["engines"])
         self.assertIn("maya", g4["engines"])
-        self.assertIn("tensorfold", g4["engines"])
         self.assertIn("comfyui", g4["engines"])
         self.assertIn("sparsa", g4["engines"])
 
@@ -115,8 +116,7 @@ class Catalog(unittest.TestCase):
         self.assertIn("ornith-1.5-122b-q4", llama["prefetch"])
         vllm = recommend.for_engine("vllm", 24.2)
         self.assertEqual(vllm["engines"], ["vllm"])
-        self.assertIn("qwen3.8-27b-w4a16", vllm["prefetch"])
-        self.assertNotIn("qwen3.8-27b-q4", vllm["prefetch"])
+        self.assertEqual(vllm["prefetch"], ["qwen3-14b-fp8"])   # Qwen3.8-27B runs faster on TensorFold / SGLang
         sgl = recommend.for_engine("sglang", 42.9)
         self.assertEqual(sgl["prefetch"], ["qwen3.8-27b-w4a16-sglang"])
         img = recommend.for_engine("diffusers", 16.1)
@@ -769,7 +769,7 @@ class SglangNinja(unittest.TestCase):
 
 
 class SharedWeights(unittest.TestCase):
-    KEYS = ("repo", "files", "exclude", "extra_downloads", "revision")
+    KEYS = ("repo", "files", "exclude", "revision")   # extra_downloads may add a subfolder of its own
 
     def test_entries_sharing_a_folder_come_from_one_repo(self):
         by = catalog.by_id(catalog.load())
@@ -779,6 +779,10 @@ class SharedWeights(unittest.TestCase):
                 groups.setdefault(e["weights_dir"], []).append(e)
         self.assertEqual(sorted(groups), ["comfy-minimax-h3", "comfy-qwen-image-2.1", "qwen-image-2.1-nf4",
                                           "qwen3.8-27b-w4a16"])
+        self.assertIn("hyperqwen-qwen3.8-27b-dflash2", {e["id"] for e in groups["qwen3.8-27b-w4a16"]})
+        for e in sum(groups.values(), []):
+            for x in e.get("extra_downloads") or []:
+                self.assertTrue(x.get("subdir"), e["id"])    # its own subfolder, never over shared files
         for folder, es in groups.items():
             if folder in by:                           # another model's folder: the very same files
                 owner = by[folder]
@@ -907,7 +911,8 @@ class RuntimeEngineModelLayout(unittest.TestCase):
         root = os.path.join(os.path.dirname(__file__), "..", "..")
         plan = recommend.notebook_plan()
         self.assertIn(("g4", "basalt", "basalt-flash-next-nvfp4-dq6k"), plan)
-        self.assertIn(("g4", "ninfer", "ninfer-qwen3.8-flash-next"), plan)      # the tested NInfer model
+        self.assertIn(("g4", "hyperqwen", "hyperqwen-qwen3.8-27b-dflash2"), plan)   # Qwen3.8-27B: 315 tok/s
+        self.assertFalse([x for x in plan if x[1] in ("ninfer", "strata_nvfp4")])    # slower, own weights
         self.assertIn(("l4", "comfyui", "minimax-h3-l4-comfy"), plan)
         self.assertEqual({rt for rt, _, _ in plan}, {"l4", "a100", "g4"})       # only the three GPU runtimes
         self.assertNotIn(("a100", "maya", "deepseek-maya-xs"), plan)          # 282 GB: A100 disks are 236 GB
@@ -1058,9 +1063,9 @@ class HyperQwenAndNInfer(unittest.TestCase):
 
         def rec(eng, gpu):
             return recommend.for_engine(eng, gpu[0], arch=gpu[1])["prefetch"]
-        self.assertEqual(rec("hyperqwen", self.A100), ["hyperqwen-qwen3.8-27b-batch"])
+        self.assertEqual(rec("hyperqwen", self.A100), [])        # TensorFold is faster on the A100
         self.assertEqual(rec("hyperqwen", self.G4), ["hyperqwen-qwen3.8-27b-dflash2"])
-        self.assertEqual(rec("ninfer", self.G4), ["ninfer-qwen3.8-flash-next", "ninfer-qwen3.8-27b-nvfp4"])
+        self.assertEqual(rec("ninfer", self.G4), [])              # HyperQwen and Basalt are faster
         self.assertEqual(rec("ninfer", self.A100), [])
 
     def test_hyperqwen_disk_counts_the_prepared_copy(self):
@@ -1249,7 +1254,7 @@ class PrepareOnCpu(unittest.TestCase):
 
     def test_pick_uses_the_target_not_this_runtime(self):
         from notebook_code import prepare
-        self.assertEqual(prepare.pick("ninfer", "g4")["id"], "ninfer-qwen3.8-flash-next")
+        self.assertEqual(prepare.pick("ninfer", "g4")["backend"], "ninfer")    # no notebook, still preparable
         self.assertEqual(prepare.pick("hyperqwen", "a100")["id"], "hyperqwen-qwen3.8-27b-batch")
         with self.assertRaises(ValueError):
             prepare.pick("ninfer", "a100")                                           # no NInfer model on sm_80
@@ -1927,8 +1932,7 @@ class BasaltAndStrataNvfp4(unittest.TestCase):
             self.assertIn("sm_120", catalog.why_not(e, 85.9, ram_gb=167, disk_gb=350, arch="80"))
         from notebook_code import recommend
         self.assertEqual(recommend.for_engine("basalt", 102.6, arch="120")["prefetch"], ["basalt-flash-next-nvfp4-dq6k"])
-        self.assertEqual(recommend.for_engine("strata_nvfp4", 102.6, arch="120")["prefetch"],
-                         ["strata-nvfp4-flash-next-gptq"])
+        self.assertEqual(recommend.for_engine("strata_nvfp4", 102.6, arch="120")["prefetch"], [])   # Basalt faster
 
     def test_basalt_command_and_env(self):
         e = self.by["basalt-flash-next-nvfp4-dq6k"]

@@ -12,18 +12,17 @@ ENGINES = ("llama", "vllm", "sglang", "diffusers", "strata", "maya", "tensorfold
 _ENGINE_PREFETCH = {
     "llama": {
         "t4": [],
-        "l4": ["qwen3.8-27b-q4", "nemotron-3.5-bolt-74b-iq2"],
+        "l4": ["nemotron-3.5-bolt-74b-iq2"],  # best engine per model, by the Colab tests
         "a100_40": ["qwen3.8-27b-q8", "nemotron-3.5-bolt-74b-iq2", "sage-a1.5-q4", "flash-next-iq1s"],
-        "a100_80": ["qwen3.8-27b-q8", "nemotron-3.5-bolt-74b-iq2", "sage-a1.5-q4", "flash-next-q3"],
-        "g4": ["nemotron-3.5-bolt-74b-iq2", "flash-next-q3", "ornith-1.5-122b-q4", "sage-a1.5-q4",
-               "qwen3.8-27b-bf16", "glm-5.3-flash-iq1s"],
+        "a100_80": ["nemotron-3.5-bolt-74b-iq2", "sage-a1.5-q4"],  # best engine per model, by the Colab tests
+        "g4": ["nemotron-3.5-bolt-74b-iq2", "ornith-1.5-122b-q4", "sage-a1.5-q4"],  # best engine per model, by the Colab tests
     },
     "vllm": {
         "t4": [],
-        "l4": ["qwen3.8-27b-w4a16", "qwen3-14b-fp8"],
+        "l4": ["qwen3-14b-fp8"],  # best engine per model, by the Colab tests
         "a100_40": ["qwen3.8-27b-fp8", "qwen3.8-27b-w4a16", "qwen3.6-35b-a3b-fp8"],
-        "a100_80": ["qwen3.8-27b-fp8", "sage-a1.5-fp8", "nemotron-3.5-bolt-74b-w4a16"],  # one quant per model, kept by the Colab test results (results/results.csv)
-        "g4": ["qwen3.8-27b-fp8", "sage-a1.5-fp8", "nemotron-3.5-bolt-74b-w4a16"],
+        "a100_80": [],  # best engine per model, by the Colab tests
+        "g4": [],  # best engine per model, by the Colab tests
     },
     "sglang": {
         "t4": [],
@@ -36,8 +35,8 @@ _ENGINE_PREFETCH = {
         "t4": ["qwen-image-2.1-nf4", "sd15"],
         "l4": ["qwen-image-2.1-nf4", "sdxl-turbo", "sdxl-base"],
         "a100_40": ["qwen-image-2.1", "flux-schnell", "sdxl-turbo"],
-        "a100_80": ["qwen-image-2.1", "flux-schnell"],
-        "g4": ["qwen-image-2.1", "flux-schnell"],   # MiniMax H3 video: the ComfyUI notebook
+        "a100_80": ["flux-schnell"],  # Qwen-Image 2.1: ComfyUI is faster
+        "g4": ["flux-schnell"],  # Qwen-Image 2.1: ComfyUI is faster
     },
     "strata": {
         "t4": [],
@@ -46,7 +45,7 @@ _ENGINE_PREFETCH = {
         "a100_40": ["flash-next-strata-iq3-xxs", "flash-next-gyro-m", "flash-next-swift-iq3-xxs",
                     "qwen36-strata-q4", "flash-next-strata-q2"],
         "a100_80": ["flash-next-strata-iq3-s", "qwen36-strata-q6"],  # one quant per model, kept by the Colab test results (results/results.csv)
-        "g4": ["flash-next-strata-iq3-s", "qwen36-strata-q6"],
+        "g4": ["qwen36-strata-q6"],  # Flash-Next: Basalt is faster
         # DeepSeek (249-347 GB) is left out: it needs a local copy and the G4 disk is 225 GB.
     },
     "maya": {
@@ -61,7 +60,7 @@ _ENGINE_PREFETCH = {
         "l4": ["qwen3.8-27b-exl3-2bpw"],
         "a100_40": ["qwen3.8-27b-exl3-2bpw"],
         "a100_80": ["qwen3.8-27b-exl3-2bpw"],
-        "g4": ["qwen3.8-27b-exl3-2bpw"],
+        "g4": [],  # Qwen3.8-27B: HyperQwen is faster
     },
     "comfyui": {
         "t4": ["qwen-image-2.1-turbo-comfy"],
@@ -83,7 +82,7 @@ _ENGINE_PREFETCH = {
         "t4": [],
         "l4": [],
         "a100_40": ["hyperqwen-qwen3.8-27b-batch"],
-        "a100_80": ["hyperqwen-qwen3.8-27b-batch"],
+        "a100_80": [],  # Qwen3.8-27B: TensorFold is faster
         "g4": ["hyperqwen-qwen3.8-27b-dflash2"],
     },
     "ninfer": {
@@ -91,10 +90,10 @@ _ENGINE_PREFETCH = {
         "l4": [],
         "a100_40": [],
         "a100_80": [],
-        "g4": ["ninfer-qwen3.8-flash-next", "ninfer-qwen3.8-27b-nvfp4"],   # flash-next: tested, 66 tok/s
+        "g4": [],  # Qwen3.8-27B: HyperQwen; Flash-Next: Basalt (both faster)
     },
     "basalt": {"t4": [], "l4": [], "a100_40": [], "a100_80": [], "g4": ["basalt-flash-next-nvfp4-dq6k"]},
-    "strata_nvfp4": {"t4": [], "l4": [], "a100_40": [], "a100_80": [], "g4": ["strata-nvfp4-flash-next-gptq"]},
+    "strata_nvfp4": {"t4": [], "l4": [], "a100_40": [], "a100_80": [], "g4": []},
 }
 
 _ENGINE_NOTES = {
