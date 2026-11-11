@@ -39,6 +39,10 @@ def render(rows):
            "- **Decode:** a 512-token reply at temperature 0.",
            "- **Cold start:** the hub starting the engine, loading the model from Drive and answering a short prompt.",
            "- *next run*: measured from the next test run on (earlier runs used a prompt too short for prefill).", ""]
+    from .recommend import notebook_plan
+    planned = {(rt, m) for rt, _, m in notebook_plan()}
+    dropped = [r for r in rows if (r["runtime"], r["model"]) not in planned]
+    rows = [r for r in rows if (r["runtime"], r["model"]) in planned]
     for rt, title in RUNTIMES:
         mine = sorted((r for r in rows if r["runtime"] == rt), key=lambda r: (r["engine"].lower(), r["model"]))
         chat = [r for r in mine if r["kind"] == "chat"]
@@ -66,6 +70,10 @@ def render(rows):
                     sample = f"[{os.path.basename(r['sample'])}](results/{r['sample']})"
                 out.append(f"| {r['engine']} | `{r['model']}` | {per} | {_time(r['cold_start_s'])} | {sample} |")
             out += [""]
+    if dropped:
+        out += ["Tested and then dropped for a faster quant of the same model (kept in the CSV): " + ", ".join(
+            f"{r['runtime'].upper()} {r['engine']} `{r['model']}` ({_num(r['decode_tok_s'], ' tok/s')})"
+            for r in dropped) + ".", ""]
     out += [END]
     return "\n".join(out)
 

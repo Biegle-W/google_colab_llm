@@ -99,7 +99,7 @@ class Catalog(unittest.TestCase):
         self.assertNotIn("deepseek-maya-xs", g4["prefetch"])      # 282 GB; the G4 disk is 225 GB
         self.assertIn("nemotron-3.5-bolt-74b-iq2", g4["prefetch"])
         self.assertIn("qwen3.8-27b-exl3-2bpw", g4["prefetch"])
-        self.assertIn("minimax-m3.1-flash-iq2-xs-d3", g4["prefetch"])
+        self.assertIn("minimax-m3.1-flash-iq2-kt", g4["prefetch"])
         self.assertIn("strata", g4["engines"])
         self.assertIn("maya", g4["engines"])
         self.assertIn("tensorfold", g4["engines"])
@@ -133,7 +133,7 @@ class Catalog(unittest.TestCase):
         comfy = recommend.for_engine("comfyui", 24.2)
         self.assertIn("qwen-image-2.1-turbo-comfy", comfy["prefetch"])
         sparsa = recommend.for_engine("sparsa", 102.6)
-        self.assertIn("minimax-m3.1-flash-iq2-xs-d3", sparsa["prefetch"])
+        self.assertEqual(sparsa["prefetch"], ["minimax-m3.1-flash-iq2-kt"])
         with self.assertRaises(ValueError):
             recommend.for_engine("tgi", 24.2)
 

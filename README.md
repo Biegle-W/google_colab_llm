@@ -41,8 +41,6 @@ Measured with the notebooks' hub on real Colab runtimes, one request at a time; 
 | llama.cpp | `qwen3.8-27b-q4` | next run | next run | 15 tok/s | 5 min |
 | SGLang | `qwen3.8-27b-w4a16-sglang` | next run | next run | 16 tok/s | 4.5 min |
 | Strata | `flash-next-gyro-s` | next run | next run | 68 tok/s | 24.3 min |
-| Strata | `flash-next-strata-q2` | next run | next run | 46 tok/s | 23.1 min |
-| Strata | `flash-next-swift-iq2-xs` | next run | next run | 55 tok/s | 20.5 min |
 | Strata | `qwen36-strata-q4` | next run | next run | 55 tok/s | 7.3 min |
 | TensorFold | `qwen3.8-27b-exl3-2bpw` | next run | next run | 83 tok/s | 7.5 min |
 | vLLM | `qwen3-14b-fp8` | next run | next run | 17 tok/s | 7.3 min |
@@ -90,6 +88,8 @@ Measured with the notebooks' hub on real Colab runtimes, one request at a time; 
 | NInfer | `ninfer-qwen3.8-flash-next` | next run | next run | 66 tok/s | not recorded |
 | SGLang | `qwen3.8-27b-w4a16-sglang` | next run | next run | 77 tok/s | not recorded |
 | Strata NVFP4 | `strata-nvfp4-flash-next-gptq` | next run | next run | 187 tok/s | 17 min |
+
+Tested and then dropped for a faster quant of the same model (kept in the CSV): L4 Strata `flash-next-strata-q2` (46 tok/s), L4 Strata `flash-next-swift-iq2-xs` (55 tok/s).
 
 <!-- RESULTS:END -->
 

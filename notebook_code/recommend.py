@@ -22,10 +22,8 @@ _ENGINE_PREFETCH = {
         "t4": [],
         "l4": ["qwen3.8-27b-w4a16", "qwen3-14b-fp8"],
         "a100_40": ["qwen3.8-27b-fp8", "qwen3.8-27b-w4a16", "qwen3.6-35b-a3b-fp8"],
-        "a100_80": ["qwen3.8-27b-fp8", "sage-a1.5-fp8", "nemotron-3.5-bolt-74b-w4a16",
-                    "qwen3.8-27b-bf16-vllm"],
-        "g4": ["qwen3.8-27b-fp8", "sage-a1.5-fp8", "nemotron-3.5-bolt-74b-w4a16",
-               "qwen3.8-27b-bf16-vllm"],
+        "a100_80": ["qwen3.8-27b-fp8", "sage-a1.5-fp8", "nemotron-3.5-bolt-74b-w4a16"],  # one quant per model, kept by the Colab test results (results/results.csv)
+        "g4": ["qwen3.8-27b-fp8", "sage-a1.5-fp8", "nemotron-3.5-bolt-74b-w4a16"],
     },
     "sglang": {
         "t4": [],
@@ -43,20 +41,20 @@ _ENGINE_PREFETCH = {
     },
     "strata": {
         "t4": [],
-        "l4": ["flash-next-gyro-s", "flash-next-strata-q2", "flash-next-swift-iq2-xs", "qwen36-strata-q4"],
+        "l4": ["flash-next-gyro-s", "qwen36-strata-q4"],  # one quant per model, kept by the Colab test results (results/results.csv)
+        # (Gyro-S 68 tok/s beat Flash-Next Q2 46 and Swift IQ2_XS 55 on the L4)
         "a100_40": ["flash-next-strata-iq3-xxs", "flash-next-gyro-m", "flash-next-swift-iq3-xxs",
                     "qwen36-strata-q4", "flash-next-strata-q2"],
-        "a100_80": ["flash-next-strata-iq3-s", "flash-next-strata-iq3-xxs", "flash-next-gyro-m",
-                    "qwen36-strata-q6"],
-        "g4": ["flash-next-strata-iq3-s", "flash-next-strata-iq3-xxs", "qwen36-strata-q6"],
+        "a100_80": ["flash-next-strata-iq3-s", "qwen36-strata-q6"],  # one quant per model, kept by the Colab test results (results/results.csv)
+        "g4": ["flash-next-strata-iq3-s", "qwen36-strata-q6"],
         # DeepSeek (249-347 GB) is left out: it needs a local copy and the G4 disk is 225 GB.
     },
     "maya": {
         "t4": [],
         "l4": [],                                  # GLM Maya needs 81+ GB VRAM+RAM; the L4 has 80
         "a100_40": ["glm-maya-s24", "glm-maya-s", "glm-maya-xs"],
-        "a100_80": ["glm-maya-s", "glm-maya-s24"],   # DeepSeek Maya-XS (282 GB) exceeds most A100 disks (236 GB)
-        "g4": ["glm-maya-s", "glm-maya-s24"],   # DeepSeek Maya (282+ GB) exceeds the G4's 225 GB disk
+        "a100_80": ["glm-maya-s"],   # one quant (Maya-S: 77 tok/s on the G4); DeepSeek Maya-XS exceeds the disk
+        "g4": ["glm-maya-s"],        # DeepSeek Maya (282+ GB) exceeds the G4's 225 GB disk
     },
     "tensorfold": {
         "t4": [],
@@ -79,7 +77,7 @@ _ENGINE_PREFETCH = {
         "l4": [],
         "a100_40": [],
         "a100_80": ["minimax-m3.1-flash-iq2-kt"],
-        "g4": ["minimax-m3.1-flash-iq2-xs-d3", "minimax-m3.1-flash-iq2-kt"],
+        "g4": ["minimax-m3.1-flash-iq2-kt"],   # one quant: the A100's, so one Drive copy serves both
     },
     "hyperqwen": {
         "t4": [],
