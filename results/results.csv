@@ -34,3 +34,5 @@ g4,Strata NVFP4,strata-nvfp4-flash-next-gptq,chat,,,,187,1020,,,2026-11-08
 a100,Diffusers,qwen-image-2.1,image,,,,,746,16,samples/a100_qwen-image-2.1.jpg,2026-11-11
 a100,llama.cpp,sage-a1.5-q4,chat,3558,1.00,3559,134,644,,,2026-11-11
 a100,llama.cpp,qwen3.8-27b-q8,chat,1314,2.71,3559,39,370,,,2026-11-11
+a100,vLLM,qwen3.8-27b-fp8,chat,2905,1.22,3559,48,1310,,,2026-11-11
+a100,ComfyUI,wan22-5b-comfy,video,,,,,384,61,samples/a100_wan22-5b-comfy.mp4,2026-11-11

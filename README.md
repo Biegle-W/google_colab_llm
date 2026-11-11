@@ -68,6 +68,7 @@ Measured with the notebooks' hub on real Colab runtimes, one request at a time; 
 | SGLang | `qwen3.8-27b-w4a16-sglang` | 2,018 tok/s | 1.76 s | 74 tok/s | 17.6 min |
 | Strata | `flash-next-strata-iq3-s` | next run | next run | 167 tok/s | 29.6 min |
 | TensorFold | `qwen3.8-27b-exl3-2bpw` | next run | next run | 144 tok/s | 5.9 min |
+| vLLM | `qwen3.8-27b-fp8` | 2,905 tok/s | 1.22 s | 48 tok/s | 21.8 min |
 
 | Engine | Model notebook | Per image / 5 s clip (after the first) | Cold start | Sample |
 |---|---|---|---|---|
@@ -75,6 +76,7 @@ Measured with the notebooks' hub on real Colab runtimes, one request at a time; 
 | ComfyUI | `minimax-h3-comfy` | 35 s per clip | not recorded | [a100_minimax-h3-comfy.mp4](results/samples/a100_minimax-h3-comfy.mp4) |
 | ComfyUI | `qwen-image-2.1-bf16-comfy` | 9 s per image | not recorded | <a href="results/samples/a100_qwen-image-2.1-bf16-comfy.jpg"><img src="results/samples/a100_qwen-image-2.1-bf16-comfy.jpg" width="160"></a> |
 | ComfyUI | `qwen-image-2.1-turbo-bf16-comfy` | 4 s per image | not recorded | <a href="results/samples/a100_qwen-image-2.1-turbo-bf16-comfy.jpg"><img src="results/samples/a100_qwen-image-2.1-turbo-bf16-comfy.jpg" width="160"></a> |
+| ComfyUI | `wan22-5b-comfy` | 61 s per clip | 6.4 min | [a100_wan22-5b-comfy.mp4](results/samples/a100_wan22-5b-comfy.mp4) |
 | Diffusers | `qwen-image-2.1` | 16 s per image | 12.4 min | <a href="results/samples/a100_qwen-image-2.1.jpg"><img src="results/samples/a100_qwen-image-2.1.jpg" width="160"></a> |
 
 ### G4 (RTX PRO 6000 Blackwell, 96 GB)
