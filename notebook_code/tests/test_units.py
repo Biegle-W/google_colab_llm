@@ -739,6 +739,10 @@ class ResultsRecord(unittest.TestCase):
         text = open(rt.README).read()
         a, b = text.index(rt.START), text.index(rt.END) + len(rt.END)
         self.assertEqual(text[a:b], rt.render(rt.load()), "run python -m notebook_code.results_table")
+        code = open(rt.CODE_README).read()
+        a, b = code.index(rt.U_START), code.index(rt.U_END) + len(rt.U_END)
+        self.assertEqual(code[a:b], rt.render_untested(rt.load()), "run python -m notebook_code.results_table")
+        self.assertNotIn("Nothing here has run on a Colab GPU", code)
 
     def test_every_listed_sample_is_in_the_repo(self):
         from notebook_code import results_table as rt

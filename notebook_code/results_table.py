@@ -8,6 +8,8 @@ import os
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 CSV = os.path.join(ROOT, "results", "results.csv")
 README = os.path.join(ROOT, "README.md")
+CODE_README = os.path.join(ROOT, "notebook_code", "README.md")
+U_START, U_END = "<!-- UNTESTED:START -->", "<!-- UNTESTED:END -->"
 START, END = "<!-- RESULTS:START -->", "<!-- RESULTS:END -->"
 RUNTIMES = (("l4", "L4 (RTX 4070 Ti class, 24 GB)"), ("a100", "A100 80 GB (High-RAM)"),
             ("g4", "G4 (RTX PRO 6000 Blackwell, 96 GB)"))
@@ -78,14 +80,33 @@ def render(rows):
     return "\n".join(out)
 
 
-def update_readme(path=README, rows=None):
+def render_untested(rows):
+    """Notebooks with no result in results.csv yet, per runtime."""
+    from .recommend import notebook_plan
+    done = {(r["runtime"], r["model"]) for r in rows}
+    out = [U_START, "", "Notebooks not yet run on their GPU runtime (no row in `results/results.csv`):", ""]
+    for rt, title in RUNTIMES:
+        todo = sorted(f"`{e}/{m}`" for r, e, m in notebook_plan() if r == rt and (rt, m) not in done)
+        out.append(f"- **{title}:** " + (", ".join(todo) if todo else "none, all tested") + ".")
+    out += ["", U_END]
+    return "\n".join(out)
+
+
+def _replace(path, start, end, block):
     text = open(path).read()
-    a, b = text.index(START), text.index(END) + len(END)
-    new = text[:a] + render(rows if rows is not None else load()) + text[b:]
+    a, b = text.index(start), text.index(end) + len(end)
+    new = text[:a] + block + text[b:]
     open(path, "w").write(new)
     return new
 
 
+def update_readme(path=README, rows=None):
+    rows = rows if rows is not None else load()
+    if os.path.isfile(CODE_README):
+        _replace(CODE_README, U_START, U_END, render_untested(rows))
+    return _replace(path, START, END, render(rows))
+
+
 if __name__ == "__main__":
     update_readme()
-    print("README.md results updated from", os.path.relpath(CSV, ROOT))
+    print("README.md and notebook_code/README.md updated from", os.path.relpath(CSV, ROOT))

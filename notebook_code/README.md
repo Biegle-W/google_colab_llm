@@ -104,15 +104,30 @@ curl "$OPENAI_BASE_URL/images/generations" \
   wiped restored it from Drive without downloading.
 - **Model repos.** Catalog repo and file names are expected to resolve on Hugging Face; sizes are approximate.
 
-## What has **not** been validated
+## Validated on Colab GPUs
 
-- Nothing here has run on a Colab GPU. No speed, memory or context numbers have been measured.
-- Context / max-edge sizes in `catalog.json` are conservative estimates for each amount of VRAM, not validated allocations.
-- vLLM support for these model architectures on whichever vLLM pip installs, and on Blackwell (G4), is unverified.
-  The Nemotron entry is marked experimental. FP8 on an A100 runs through a weight-only path (no native FP8).
-- Diffusers pipelines (SDXL / FLUX) and their VRAM use on Colab images are unverified; gated models need `HF_TOKEN`.
-- Colab's runtimes (A100 memory size, whether a G4 is the 96 GB RTX PRO 6000) are taken from public information and
-  measured at run time; the catalog adapts to the reported VRAM.
+The notebooks have run on real Colab L4, A100 80 GB (High-RAM) and G4 (RTX PRO 6000) runtimes. Every measured
+result (prefill, time to first token, decode, cold start; seconds per image or clip) is in
+[`results/results.csv`](../results/results.csv), shown in the main [README](../README.md#tested-on-colab), with the
+generated images and videos in [`results/samples/`](../results/samples/). Runtime hardware was measured on those
+sessions (VRAM, RAM, disk, including the A100's 369 GB NVMe scratch disk) and is recorded in `recommend.RUNTIMES`.
+
+<!-- UNTESTED:START -->
+
+Notebooks not yet run on their GPU runtime (no row in `results/results.csv`):
+
+- **L4 (RTX 4070 Ti class, 24 GB):** none, all tested.
+- **A100 80 GB (High-RAM):** `diffusers/flux-schnell`, `maya/glm-maya-s`, `sparsa/minimax-m3.1-flash-iq2-kt`, `strata/deepseek-strata-ist-2.00`.
+- **G4 (RTX PRO 6000 Blackwell, 96 GB):** `comfyui/flux3-klein-comfy`, `comfyui/minimax-h3-g4-comfy`, `comfyui/qwen-image-2.1-bf16-comfy`, `comfyui/qwen-image-2.1-turbo-bf16-comfy`, `comfyui/wan22-5b-comfy`, `diffusers/flux-schnell`, `llama/nemotron-3.5-bolt-74b-iq2`, `llama/ornith-1.5-122b-q4`, `llama/sage-a1.5-q4`, `sparsa/minimax-m3.1-flash-iq2-kt`.
+
+<!-- UNTESTED:END -->
+
+Still estimates rather than measurements:
+
+- Context / max-edge sizes in `catalog.json` are conservative estimates for each amount of VRAM, not validated
+  allocations.
+- Gated models (FLUX, some Black Forest Labs and NVIDIA repos) need `HF_TOKEN` or `access/hf_token.txt` on Drive,
+  and the Hugging Face account must have accepted the model's terms.
 
 ## Adding a model
 
