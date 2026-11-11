@@ -59,7 +59,9 @@ runtime, then engine.
 
 | Engine | Model notebook | Prefill | Decode | Time to first reply |
 |---|---|---|---|---|
+| HyperQwen | `hyperqwen-qwen3.8-27b-batch` | 3,709 tok/s | 66 tok/s | 10 min |
 | llama.cpp | `nemotron-3.5-bolt-74b-iq2` | next run | 79 tok/s | 7.5 min |
+| SGLang | `qwen3.8-27b-w4a16-sglang` | 2,018 tok/s | 74 tok/s | 17.5 min |
 | Strata | `flash-next-strata-iq3-s` | next run | 167 tok/s | 30 min |
 | TensorFold | `qwen3.8-27b-exl3-2bpw` | next run | 144 tok/s | 6 min |
 
