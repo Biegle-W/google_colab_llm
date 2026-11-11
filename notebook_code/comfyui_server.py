@@ -103,6 +103,12 @@ def video_length(seconds, fps=24):
     return n + (5 - n % 17) % 17
 
 
+def wan_length(seconds, fps=24):
+    """Frames for `seconds` of Wan 2.2 5B video: 24 fps on its 4k+1 grid (121 frames = 5 s)."""
+    n = max(1, round(float(seconds) * fps))
+    return n + (1 - n) % 4
+
+
 def apply_prompt(graph, prompt, *, negative="", seed=None, width=None, height=None, steps=None, seconds=None):
     """Fill prompt / seed / size into known node classes without depending on node ids."""
     seed = int(seed if seed is not None else (time.time_ns() % (2**31 - 1)))
@@ -139,6 +145,13 @@ def apply_prompt(graph, prompt, *, negative="", seed=None, width=None, height=No
                 inputs["height"] = int(height)
             if seconds:
                 inputs["length"] = video_length(seconds)
+        if kind == "Wan22ImageToVideoLatent":
+            if width:
+                inputs["width"] = int(width)
+            if height:
+                inputs["height"] = int(height)
+            if seconds:
+                inputs["length"] = wan_length(seconds)
         if kind == "BasicScheduler" and steps is not None:
             inputs["steps"] = int(steps)
         if kind == "SaveVideo":

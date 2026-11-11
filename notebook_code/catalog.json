@@ -1271,9 +1271,9 @@
       ]
     ],
     "kind": "video",
-    "workflow": "qwen-image-2.1-turbo.api.json",
-    "default_steps": 20,
-    "default_guidance": 1.0,
+    "workflow": "wan22-5b.api.json",
+    "default_steps": 30,
+    "default_guidance": 5.0,
     "experimental": true,
     "offload": true,
     "notes": "Video entry from workstation comfy-video-entries. Prefetch + UI workflows; OpenAI image route returns 501 for kind=video."

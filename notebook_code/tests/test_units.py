@@ -836,6 +836,20 @@ class Flux3Workflow(unittest.TestCase):
         self.assertEqual(kinds["KSampler"]["sampler_name"], "er_sde")
 
 
+class Wan22Workflow(unittest.TestCase):
+    def test_wan_uses_its_own_video_workflow(self):
+        from notebook_code import comfyui_server as cs
+        e = catalog.by_id(catalog.load())["wan22-5b-comfy"]
+        self.assertEqual(e["workflow"], "wan22-5b.api.json")
+        graph, _ = cs.apply_prompt(cs.load_workflow(e["workflow"]), "a fox", width=832, height=480, seconds=5)
+        latent = next(n["inputs"] for n in graph.values() if n["class_type"] == "Wan22ImageToVideoLatent")
+        self.assertEqual((latent["width"], latent["height"], latent["length"]), (832, 480, 121))
+        kinds = {n["class_type"] for n in graph.values()}
+        self.assertTrue({"CreateVideo", "SaveVideo", "ModelSamplingSD3"} <= kinds)
+        clip = next(n["inputs"] for n in graph.values() if n["class_type"] == "CLIPLoader")
+        self.assertEqual(clip["type"], "wan")
+
+
 class StrataStartChecks(unittest.TestCase):
     """`strata launch` checks the loaded model before it exits; its server can answer before that check is done."""
     class Proc:

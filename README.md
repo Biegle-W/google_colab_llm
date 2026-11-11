@@ -63,6 +63,7 @@ Measured with the notebooks' hub on real Colab runtimes, one request at a time; 
 |---|---|---|---|---|---|
 | HyperQwen | `hyperqwen-qwen3.8-27b-batch` | 3,709 tok/s | 0.96 s | 66 tok/s | 9.8 min |
 | llama.cpp | `nemotron-3.5-bolt-74b-iq2` | next run | next run | 79 tok/s | 7.4 min |
+| llama.cpp | `sage-a1.5-q4` | 3,558 tok/s | 1.00 s | 134 tok/s | 10.7 min |
 | SGLang | `qwen3.8-27b-w4a16-sglang` | 2,018 tok/s | 1.76 s | 74 tok/s | 17.6 min |
 | Strata | `flash-next-strata-iq3-s` | next run | next run | 167 tok/s | 29.6 min |
 | TensorFold | `qwen3.8-27b-exl3-2bpw` | next run | next run | 144 tok/s | 5.9 min |
@@ -73,6 +74,7 @@ Measured with the notebooks' hub on real Colab runtimes, one request at a time; 
 | ComfyUI | `minimax-h3-comfy` | 35 s per clip | not recorded | [a100_minimax-h3-comfy.mp4](results/samples/a100_minimax-h3-comfy.mp4) |
 | ComfyUI | `qwen-image-2.1-bf16-comfy` | 9 s per image | not recorded | <a href="results/samples/a100_qwen-image-2.1-bf16-comfy.jpg"><img src="results/samples/a100_qwen-image-2.1-bf16-comfy.jpg" width="160"></a> |
 | ComfyUI | `qwen-image-2.1-turbo-bf16-comfy` | 4 s per image | not recorded | <a href="results/samples/a100_qwen-image-2.1-turbo-bf16-comfy.jpg"><img src="results/samples/a100_qwen-image-2.1-turbo-bf16-comfy.jpg" width="160"></a> |
+| Diffusers | `qwen-image-2.1` | 16 s per image | 12.4 min | <a href="results/samples/a100_qwen-image-2.1.jpg"><img src="results/samples/a100_qwen-image-2.1.jpg" width="160"></a> |
 
 ### G4 (RTX PRO 6000 Blackwell, 96 GB)
 
