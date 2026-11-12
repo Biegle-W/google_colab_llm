@@ -982,6 +982,32 @@
     "resident_gb": 138.2
   },
   {
+    "id": "deepseek-strata-ist-1.75",
+    "name": "DeepSeek-V4.1-Flash-1017 ISTA 1.75bpw IQ1_M (Strata strata-dsv41)",
+    "backend": "strata",
+    "repo": "ISTA-DASLab/DeepSeek-V4.1-Flash-1017-GSQ-RCO-GGUF",
+    "released": "2026-10-17",
+    "files": [
+      "*IQ1_M*",
+      "*Engram*"
+    ],
+    "size_gb": 231.3,
+    "weights_dir": "deepseek-strata-ist-2.00",
+    "contexts": [
+      [
+        40,
+        8192
+      ]
+    ],
+    "offload": true,
+    "experimental": true,
+    "strata_family": "deepseek41",
+    "strata_model": "ist-das-1.75bpw",
+    "vision": "off",
+    "resident_gb": 120.7,
+    "notes": "Strata's smallest official DeepSeek set (docs/DEEPSEEK41.md): IQ1_M shards (121 GB) plus the same 111 GB Engram table as the 2.00 set, sharing its Drive folder. Perplexity +21% vs the original (2.00: +15.5%); weaker on prose. Fits the G4's 253 GB disk where the 2.00 set (249 GB) does not."
+  },
+  {
     "id": "glm-maya-s24",
     "name": "GLM-5.3-Flash Maya-S24 (Project Maya)",
     "backend": "maya",

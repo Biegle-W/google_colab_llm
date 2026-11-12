@@ -10,7 +10,7 @@ TARGETS = {
     "l4": {"name": "L4 (RTX 4070 Ti class)", "vram_gb": 24.2, "arch": "89", "ram_gb": 55.5, "disk_gb": 225},
     "a100": {"name": "A100 80 GB", "vram_gb": 85.9, "arch": "80", "ram_gb": 175.2, "disk_gb": 340},
     "g4": {"name": "G4 (RTX PRO 6000 Blackwell)", "vram_gb": 102.6, "arch": "120", "ram_gb": 185.5,
-           "disk_gb": 225},
+           "disk_gb": 253},   # /content free on a fresh G4 (measured)
 }
 
 

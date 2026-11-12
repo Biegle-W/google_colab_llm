@@ -731,6 +731,10 @@ class DeepSeekOnA100(unittest.TestCase):
         self.assertGreaterEqual(e["released"], "2026-06-01")
         g4 = recommend.RUNTIMES["g4"]
         self.assertIn("local disk", catalog.why_not(e, g4["vram_gb"], g4["ram_gb"], g4["disk_gb"], g4["arch"]))
+        small = catalog.by_id(catalog.load())["deepseek-strata-ist-1.75"]      # the G4's DeepSeek: IQ1_M, 231 GB
+        self.assertIsNone(catalog.why_not(small, g4["vram_gb"], g4["ram_gb"], g4["disk_gb"], g4["arch"]))
+        self.assertIn(("g4", "strata", "deepseek-strata-ist-1.75"), recommend.notebook_plan())
+        self.assertEqual(small["weights_dir"], "deepseek-strata-ist-2.00")      # shares the Engram file on Drive
 
 
 class NoSecretsInNotebooks(unittest.TestCase):
@@ -816,7 +820,7 @@ class SglangNinja(unittest.TestCase):
 
 
 class SharedWeights(unittest.TestCase):
-    KEYS = ("repo", "files", "exclude", "revision")   # extra_downloads may add a subfolder of its own
+    KEYS = ("repo", "exclude", "revision")   # files may differ (each model has its own marker); extra_downloads a subfolder
 
     def test_entries_sharing_a_folder_come_from_one_repo(self):
         by = catalog.by_id(catalog.load())
@@ -824,8 +828,8 @@ class SharedWeights(unittest.TestCase):
         for e in by.values():
             if e.get("weights_dir"):
                 groups.setdefault(e["weights_dir"], []).append(e)
-        self.assertEqual(sorted(groups), ["comfy-minimax-h3", "comfy-qwen-image-2.1", "qwen-image-2.1-nf4",
-                                          "qwen3.8-27b-w4a16"])
+        self.assertEqual(sorted(groups), ["comfy-minimax-h3", "comfy-qwen-image-2.1", "deepseek-strata-ist-2.00",
+                                          "qwen-image-2.1-nf4", "qwen3.8-27b-w4a16"])
         self.assertIn("hyperqwen-qwen3.8-27b-dflash2", {e["id"] for e in groups["qwen3.8-27b-w4a16"]})
         for e in sum(groups.values(), []):
             for x in e.get("extra_downloads") or []:

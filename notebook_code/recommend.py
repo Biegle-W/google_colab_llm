@@ -45,7 +45,7 @@ _ENGINE_PREFETCH = {
         "a100_40": ["flash-next-strata-iq3-xxs", "flash-next-gyro-m", "flash-next-swift-iq3-xxs",
                     "qwen36-strata-q4", "flash-next-strata-q2"],
         "a100_80": ["flash-next-strata-iq3-s", "deepseek-strata-ist-2.00"],  # DeepSeek: 249 GB, on the 351 GB NVMe  # one quant per model, kept by the Colab test results (results/results.csv)
-        "g4": [],  # Flash-Next: Basalt is faster; Qwen3.6 (April 2026) is older than June 2026
+        "g4": ["deepseek-strata-ist-1.75"],  # DeepSeek's smallest set; Flash-Next: Basalt is faster
         # DeepSeek (249-347 GB) is left out: it needs a local copy and the G4 disk is 225 GB.
     },
     "maya": {
@@ -307,7 +307,7 @@ RUNTIMES = {
     "a100": {"band": "a100_80", "folder": "a100", "label": "A100 80 GB (High-RAM)", "vram_gb": 85.0, "ram_gb": 167, "disk_gb": 351,
              "arch": 80},
     "g4": {"band": "g4", "folder": "g4-rtx-pro6000", "label": "G4 (RTX PRO 6000 Blackwell, 96 GB)", "vram_gb": 102.6, "ram_gb": 185.5,
-           "disk_gb": 222, "arch": 120},
+           "disk_gb": 253, "arch": 120},   # disk: /content free on a fresh G4 (measured)
 }
 
 
