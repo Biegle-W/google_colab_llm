@@ -15,7 +15,7 @@ _ENGINE_PREFETCH = {
         "l4": ["nemotron-3.5-bolt-74b-iq2"],  # best engine per model, by the Colab tests
         "a100_40": ["qwen3.8-27b-q8", "nemotron-3.5-bolt-74b-iq2", "sage-a1.5-q4", "flash-next-iq1s"],
         "a100_80": ["nemotron-3.5-bolt-74b-iq2", "sage-a1.5-q4"],  # best engine per model, by the Colab tests
-        "g4": ["nemotron-3.5-bolt-74b-iq2", "ornith-1.5-122b-q4", "sage-a1.5-q4"],  # best engine per model, by the Colab tests
+        "g4": ["nemotron-3.5-bolt-74b-iq2", "sage-a1.5-q4"],  # best engine per model, by the Colab tests
     },
     "vllm": {
         "t4": [],
@@ -75,8 +75,8 @@ _ENGINE_PREFETCH = {
         "t4": [],
         "l4": [],
         "a100_40": [],
-        "a100_80": ["minimax-m3.1-flash-iq2-kt"],
-        "g4": ["minimax-m3.1-flash-iq2-kt"],   # one quant: the A100's, so one Drive copy serves both
+        "a100_80": [],   # MiniMax M3.1 left out of the notebooks for now
+        "g4": [],
     },
     "hyperqwen": {
         "t4": [],

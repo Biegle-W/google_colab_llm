@@ -101,7 +101,7 @@ class Catalog(unittest.TestCase):
         self.assertIn("nemotron-3.5-bolt-74b-iq2", g4["prefetch"])
         self.assertNotIn("qwen3.8-27b-exl3-2bpw", g4["prefetch"])        # Qwen3.8-27B: HyperQwen is faster
         self.assertIn("hyperqwen-qwen3.8-27b-dflash2", g4["prefetch"])
-        self.assertIn("minimax-m3.1-flash-iq2-kt", g4["prefetch"])
+        self.assertNotIn("minimax-m3.1-flash-iq2-kt", g4["prefetch"])   # removed from the plan
         self.assertIn("strata", g4["engines"])
         self.assertIn("maya", g4["engines"])
         self.assertIn("comfyui", g4["engines"])
@@ -113,7 +113,7 @@ class Catalog(unittest.TestCase):
         self.assertEqual(llama["engines"], ["llama"])
         self.assertTrue(all(not x.startswith("qwen-image") for x in llama["prefetch"]))
         self.assertIn("nemotron-3.5-bolt-74b-iq2", llama["prefetch"])
-        self.assertIn("ornith-1.5-122b-q4", llama["prefetch"])
+        self.assertNotIn("ornith-1.5-122b-q4", llama["prefetch"])        # removed from the plan
         vllm = recommend.for_engine("vllm", 24.2)
         self.assertEqual(vllm["engines"], ["vllm"])
         self.assertEqual(vllm["prefetch"], [])   # Qwen3-14B is from 2025; Qwen3.8-27B runs faster on TensorFold / SGLang
@@ -133,7 +133,7 @@ class Catalog(unittest.TestCase):
         comfy = recommend.for_engine("comfyui", 24.2)
         self.assertIn("qwen-image-2.1-turbo-comfy", comfy["prefetch"])
         sparsa = recommend.for_engine("sparsa", 102.6)
-        self.assertEqual(sparsa["prefetch"], ["minimax-m3.1-flash-iq2-kt"])
+        self.assertEqual(sparsa["prefetch"], [])
         with self.assertRaises(ValueError):
             recommend.for_engine("tgi", 24.2)
 

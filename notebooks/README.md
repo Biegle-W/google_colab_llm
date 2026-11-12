@@ -26,18 +26,16 @@ OpenAI-compatible API), and keeps the weights and engine builds on Google Drive.
 | **Maya** (`maya/`) | [`glm-maya-s`](a100/maya/glm-maya-s.ipynb) |
 | **TensorFold** (`tensorfold/`) | [`qwen3.8-27b-exl3-2bpw`](a100/tensorfold/qwen3.8-27b-exl3-2bpw.ipynb) |
 | **ComfyUI** (`comfyui/`) | [`qwen-image-2.1-turbo-bf16-comfy`](a100/comfyui/qwen-image-2.1-turbo-bf16-comfy.ipynb), [`qwen-image-2.1-bf16-comfy`](a100/comfyui/qwen-image-2.1-bf16-comfy.ipynb), [`flux3-klein-comfy`](a100/comfyui/flux3-klein-comfy.ipynb), [`wan22-5b-comfy`](a100/comfyui/wan22-5b-comfy.ipynb), [`minimax-h3-comfy`](a100/comfyui/minimax-h3-comfy.ipynb) |
-| **Sparsa** (`sparsa/`) | [`minimax-m3.1-flash-iq2-kt`](a100/sparsa/minimax-m3.1-flash-iq2-kt.ipynb) |
 
 ### G4 (RTX PRO 6000 Blackwell, 96 GB) — `g4-rtx-pro6000/`
 
 | Engine | Model notebook |
 |---|---|
-| **llama.cpp** (`llama/`) | [`nemotron-3.5-bolt-74b-iq2`](g4-rtx-pro6000/llama/nemotron-3.5-bolt-74b-iq2.ipynb), [`ornith-1.5-122b-q4`](g4-rtx-pro6000/llama/ornith-1.5-122b-q4.ipynb), [`sage-a1.5-q4`](g4-rtx-pro6000/llama/sage-a1.5-q4.ipynb) |
+| **llama.cpp** (`llama/`) | [`nemotron-3.5-bolt-74b-iq2`](g4-rtx-pro6000/llama/nemotron-3.5-bolt-74b-iq2.ipynb), [`sage-a1.5-q4`](g4-rtx-pro6000/llama/sage-a1.5-q4.ipynb) |
 | **SGLang** (`sglang/`) | [`qwen3.8-27b-w4a16-sglang`](g4-rtx-pro6000/sglang/qwen3.8-27b-w4a16-sglang.ipynb) |
 | **Diffusers** (`diffusers/`) | [`flux-schnell`](g4-rtx-pro6000/diffusers/flux-schnell.ipynb) |
 | **Maya** (`maya/`) | [`glm-maya-s`](g4-rtx-pro6000/maya/glm-maya-s.ipynb) |
 | **ComfyUI** (`comfyui/`) | [`qwen-image-2.1-turbo-bf16-comfy`](g4-rtx-pro6000/comfyui/qwen-image-2.1-turbo-bf16-comfy.ipynb), [`qwen-image-2.1-bf16-comfy`](g4-rtx-pro6000/comfyui/qwen-image-2.1-bf16-comfy.ipynb), [`flux3-klein-comfy`](g4-rtx-pro6000/comfyui/flux3-klein-comfy.ipynb), [`wan22-5b-comfy`](g4-rtx-pro6000/comfyui/wan22-5b-comfy.ipynb), [`minimax-h3-g4-comfy`](g4-rtx-pro6000/comfyui/minimax-h3-g4-comfy.ipynb) |
-| **Sparsa** (`sparsa/`) | [`minimax-m3.1-flash-iq2-kt`](g4-rtx-pro6000/sparsa/minimax-m3.1-flash-iq2-kt.ipynb) |
 | **HyperQwen** (`hyperqwen/`) | [`hyperqwen-qwen3.8-27b-dflash2`](g4-rtx-pro6000/hyperqwen/hyperqwen-qwen3.8-27b-dflash2.ipynb) |
 | **Basalt** (`basalt/`) | [`basalt-flash-next-nvfp4-dq6k`](g4-rtx-pro6000/basalt/basalt-flash-next-nvfp4-dq6k.ipynb) |
 
