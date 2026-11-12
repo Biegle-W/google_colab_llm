@@ -29,6 +29,12 @@ def _mirror_txt(path, key):
         pass
 
 
+def mask(key):
+    """A key fit to print: first and last four characters only."""
+    key = str(key or "")
+    return f"{key[:4]}…{key[-4:]}" if len(key) > 12 else "****"
+
+
 def load_or_create(path):
     for candidate in (path, path + ".txt"):
         if os.path.exists(candidate):

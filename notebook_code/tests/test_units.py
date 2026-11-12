@@ -733,6 +733,29 @@ class DeepSeekOnA100(unittest.TestCase):
         self.assertIn("local disk", catalog.why_not(e, g4["vram_gb"], g4["ram_gb"], g4["disk_gb"], g4["arch"]))
 
 
+class NoSecretsInNotebooks(unittest.TestCase):
+    def test_committed_notebooks_carry_no_outputs(self):
+        import importlib.util
+        root = os.path.join(os.path.dirname(__file__), "..", "..")
+        spec = importlib.util.spec_from_file_location("check_notebooks", os.path.join(root, "tools", "check_notebooks.py"))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        self.assertEqual(mod.main([]), 0)
+        tmp = os.path.join(tempfile.mkdtemp(), "x.ipynb")
+        json.dump({"cells": [{"cell_type": "code", "source": [], "outputs": [{"text": "API key"}],
+                              "execution_count": 3}]}, open(tmp, "w"))
+        self.assertEqual(mod.main([tmp]), 1)
+
+    def test_api_key_prints_masked_by_default(self):
+        from notebook_code import keyfile, make_engine_notebooks as m
+        self.assertEqual(keyfile.mask("abcd" + "x" * 30 + "wxyz"), "abcd…wxyz")
+        text = "".join("".join(c["source"]) for c in m.build_notebook("sglang", "a100", "qwen3.8-27b-w4a16-sglang")["cells"])
+        self.assertIn('SHOW_API_KEY = False  # @param {type:"boolean"}', text)
+        self.assertNotIn('print("API key  :", API_KEY)', text)
+        self.assertNotIn("export COLAB_LLM_API_KEY='{API_KEY}'", text)
+        self.assertNotIn("openai_env(BASE, API_KEY)", text)
+
+
 class ResultsRecord(unittest.TestCase):
     def test_readme_tables_match_results_csv(self):
         from notebook_code import results_table as rt

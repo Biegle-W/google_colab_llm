@@ -101,6 +101,11 @@ Use a Pro runtime with an **L4** (RTX 4070 Ti class), **A100 80 GB**, or **G4** 
 ## Code
 `notebook_code/` is the Python package behind the hub notebooks (hub server, Drive model store, catalog, backends, tests). Each notebook carries it packed in a cell, so nothing is fetched from GitHub. Regenerate every notebook with `python3 -m notebook_code.make_engine_notebooks`.
 
+Notebooks are published without outputs: the serve cell prints the API key masked (tick `SHOW_API_KEY` to
+see it; the full key is in your private Drive at `colab_model_server/hub/api_key.txt`), and
+`python tools/check_notebooks.py` (also run by the `notebooks` GitHub Actions check) rejects any notebook that
+still carries outputs. Clear outputs before sharing a notebook you have run.
+
 ## Credit and license
 The Studio notebook is from [unslothai/unsloth](https://github.com/unslothai/unsloth); Unsloth Studio is licensed under AGPL-3.0.
 llama.cpp is from [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) (MIT).
