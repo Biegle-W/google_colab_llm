@@ -3,6 +3,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -163,18 +164,14 @@ class Catalog(unittest.TestCase):
         from notebook_code import install
         with tempfile.TemporaryDirectory() as d:
             Path(d, "eng-x.tar").write_bytes(b"cut off")
-            built = []
-            def run(cmd):
+            built, ran = [], []
+            def run(cmd):                                  # no shell: the test never touches /content
+                ran.append(cmd)
                 if "tar -xf" in cmd:
                     raise RuntimeError("tar: Unexpected EOF")
-                if "tar -cf" in cmd:
-                    return
-                return subprocess.run(cmd, shell=True, check=True)
-            def build(root):
-                built.append(root); Path(root, "ok").write_text("1")
-            got = install.local_tree("eng-x-test", d, lambda r: r if os.path.isfile(os.path.join(r, "ok")) else None,
-                                     build, run=run, log=lambda *a: None)
-            shutil.rmtree("/content/eng-x-test", ignore_errors=True)
+            got = install.local_tree("eng-x-test", d, lambda r: r if built else None,
+                                     built.append, run=run, log=lambda *a: None)
+        self.assertIn("rm -rf /content/eng-x-test && mkdir -p /content/eng-x-test", ran)
         self.assertEqual(built, ["/content/eng-x-test"])
         self.assertEqual(got, "/content/eng-x-test")
 
@@ -845,11 +842,12 @@ class SharedWeights(unittest.TestCase):
 
     def test_store_uses_the_shared_folder(self):
         from notebook_code.store import ModelStore
-        s = ModelStore("/d", "/l", downloader=lambda *a, **k: None, log=lambda *_: None)
+        tmp = Path(tempfile.mkdtemp()); self.addCleanup(shutil.rmtree, tmp, True)
+        s = ModelStore(tmp / "d", tmp / "l", downloader=lambda *a, **k: None, log=lambda *_: None)
         by = catalog.by_id(catalog.load())
         self.assertEqual(s.drive_path(by["qwen3.8-27b-w4a16-sglang"]), s.drive_path(by["qwen3.8-27b-w4a16"]))
-        self.assertEqual(str(s.local_path(by["qwen-image-2.1"])), "/l/qwen-image-2.1-nf4")
-        self.assertEqual(str(s.drive_path(by["minimax-h3-l4-comfy"])), "/d/models/comfy-minimax-h3")
+        self.assertEqual(Path(s.local_path(by["qwen-image-2.1"])), tmp / "l" / "qwen-image-2.1-nf4")
+        self.assertEqual(Path(s.drive_path(by["minimax-h3-l4-comfy"])), tmp / "d" / "models" / "comfy-minimax-h3")
 
     def test_each_model_in_a_shared_folder_is_complete_on_its_own(self):
         from notebook_code import store as st
@@ -1964,7 +1962,8 @@ class TruncatedCopyNeverMarkedComplete(unittest.TestCase):
         orig_dl = self.st.download_to_drive
         self.st.download_to_drive = lambda e, staging=None, **kw: orig_dl(
             e, staging=staging, lister=lambda r, t=None: self.listing, fetch=self.fetch, **kw)
-        r = prepare.prepare_many(["m"], store=self.st, free=lambda p: 500, log=lambda *a: None, entries=[self.e])
+        r = prepare.prepare_many(["m"], store=self.st, free=lambda p: 500, log=lambda *a: None, entries=[self.e],
+                                 staging=os.path.join(self.tmp, "staging"))
         self.assertEqual(r["saved"], ["m"])
         self.assertEqual((drive / "a.bin").stat().st_size, 100)
         self.assertEqual(self.st.verify_against_source(self.e), [])
@@ -1987,7 +1986,8 @@ class BasaltAndStrataNvfp4(unittest.TestCase):
 
     def test_basalt_command_and_env(self):
         e = self.by["basalt-flash-next-nvfp4-dq6k"]
-        st = ModelStore("/d", "/l", log=lambda *_: None)
+        tmp = tempfile.mkdtemp(); self.addCleanup(shutil.rmtree, tmp, True)
+        st = ModelStore(os.path.join(tmp, "d"), os.path.join(tmp, "l"), log=lambda *_: None)
         path = st.model_path(e, "/d/models/basalt-flash-next-nvfp4-dq6k")
         self.assertTrue(str(path).endswith("Qwen3.8-FN-NVFP4-DQ6_K.basalt"))
         cmd = backends.command(e, path, 131072, {"basalt": "/opt/basalt"})
@@ -2205,7 +2205,14 @@ class ComfyImageAndVideo(unittest.TestCase):
 
 class RateLimitRetry(unittest.TestCase):
     def test_a_429_is_waited_out_and_other_errors_are_not(self):
-        import huggingface_hub
+        try:
+            import huggingface_hub
+        except ImportError:                                # CI: a stand-in module the test patches below
+            import types
+            huggingface_hub = types.ModuleType("huggingface_hub")
+            huggingface_hub.hf_hub_download = None
+            sys.modules["huggingface_hub"] = huggingface_hub
+            self.addCleanup(sys.modules.pop, "huggingface_hub", None)
         from notebook_code import store
         calls, waits = [], []
 
