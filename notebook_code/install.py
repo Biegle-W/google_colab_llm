@@ -352,8 +352,14 @@ def ensure_tensorfold(builds_dir, refresh=False, run=sh, log=print):
     return local_tree(name, builds_dir, ready, build, refresh, run, log, "TensorFold")
 
 
-def comfyui_wheelhouse(builds_dir):
-    return os.path.join(builds_dir, f"comfyui_{COMFYUI_PIN}_gpu_py{sys.version_info.major}{sys.version_info.minor}")
+def version_key(tag):
+    """Sort key of a release tag like v0.45.4."""
+    return tuple(int(x) for x in re.findall(r"\d+", tag))
+
+
+def comfyui_wheelhouse(builds_dir, pin=None):
+    pin = pin or COMFYUI_PIN
+    return os.path.join(builds_dir, f"comfyui_{pin}_gpu_py{sys.version_info.major}{sys.version_info.minor}")
 
 
 def comfyui_requirements(root, dest="/content/comfyui-requirements.txt"):
@@ -371,8 +377,12 @@ def comfyui_requirements(root, dest="/content/comfyui-requirements.txt"):
     return dest
 
 
-def ensure_comfyui(builds_dir, refresh=False, run=sh, log=print):
-    """Clone ComfyUI + install deps from Drive wheels. Returns ComfyUI root path."""
+def ensure_comfyui(builds_dir, refresh=False, run=sh, log=print, pin=None):
+    """Clone ComfyUI + install deps from Drive wheels. Returns ComfyUI root path.
+
+    `pin` is a model's own ComfyUI release (its catalog `comfyui_pin`) when it needs nodes newer than COMFYUI_PIN;
+    each release is its own folder and wheel cache, so the tested models keep theirs."""
+    pin = pin or COMFYUI_PIN
     pip = f"{sys.executable} -m pip"
 
     def ready(root):
@@ -381,12 +391,12 @@ def ensure_comfyui(builds_dir, refresh=False, run=sh, log=print):
     def build(root):
         log("Cloning ComfyUI...")
         try:
-            run(f"rm -rf {root} && git clone -q --depth 1 --branch {COMFYUI_PIN} {COMFYUI_REPO} {root}")
+            run(f"rm -rf {root} && git clone -q --depth 1 --branch {pin} {COMFYUI_REPO} {root}")
         except InstallError:
-            log(f"Tag {COMFYUI_PIN} unavailable; cloning default branch...")
+            log(f"Tag {pin} unavailable; cloning default branch...")
             run(f"rm -rf {root} && git clone -q --depth 1 {COMFYUI_REPO} {root}")
-    root = local_tree(f"ComfyUI-{COMFYUI_PIN}", builds_dir, ready, build, refresh, run, log, "ComfyUI")
-    wheels = comfyui_wheelhouse(builds_dir)
+    root = local_tree(f"ComfyUI-{pin}", builds_dir, ready, build, refresh, run, log, "ComfyUI")
+    wheels = comfyui_wheelhouse(builds_dir, pin)
     pkgs = " ".join(COMFYUI_PKGS)
     # Prefer ComfyUI's requirements.txt when present (less torch); fall back to the pinned package list.
     req = comfyui_requirements(root) or ""

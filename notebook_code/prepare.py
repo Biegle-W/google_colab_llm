@@ -43,7 +43,7 @@ def pick(engine, target, model="recommended", entries=None):
 
 
 def build_engine(engine, target, builds_dir, refresh=False, run=install.sh, log=print, force_compile=False,
-                 threads=None):
+                 threads=None, comfyui_pin=None):
     """Put `engine`'s build (or wheels) for `target` on Drive. Returns what was cached."""
     arch = runtimes.target(target)["arch"]
     threads = threads or os.cpu_count() or 1
@@ -67,6 +67,8 @@ def build_engine(engine, target, builds_dir, refresh=False, run=install.sh, log=
         return install.ensure_basalt(builds_dir, arch, install_now=False, **kw)
     if engine == "strata_nvfp4":
         return install.ensure_strata_nvfp4(builds_dir, arch, install_now=False, **kw)
+    if engine == "comfyui":
+        return install.ensure_comfyui(builds_dir, pin=comfyui_pin, **kw)
     ensure = {"strata": install.ensure_strata, "maya": install.ensure_maya, "tensorfold": install.ensure_tensorfold,
               "comfyui": install.ensure_comfyui, "sparsa": install.ensure_sparsa}.get(engine)
     if ensure is None:
@@ -105,7 +107,8 @@ def prepare(target, engine, model="recommended", drive_dir="/content/drive/MyDri
                 result["engine_cache"] = engine_builder(engine, target, builds, refresh=refresh, log=log)
             else:
                 result["engine_cache"] = build_engine(engine, target, builds, refresh=refresh, log=log,
-                                                      force_compile=force_compile)
+                                                      force_compile=force_compile,
+                                                      comfyui_pin=entry.get("comfyui_pin"))
         except Skipped as e:
             result["skipped"]["engine"] = str(e)
             log(f"[prepare] engine skipped: {e}")

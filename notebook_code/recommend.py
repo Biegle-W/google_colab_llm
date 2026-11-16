@@ -64,12 +64,12 @@ _ENGINE_PREFETCH = {
     },
     "comfyui": {
         "t4": ["qwen-image-2.1-turbo-comfy"],
-        "l4": ["qwen-image-2.1-turbo-comfy", "flux3-klein-comfy", "minimax-h3-l4-comfy"],
+        "l4": ["qwen-image-2.1-turbo-comfy", "flux3-klein-comfy", "minimax-h3-image-l4-comfy", "minimax-h3-l4-comfy"],
         "a100_40": ["qwen-image-2.1-turbo-comfy", "flux3-klein-comfy", "wan22-5b-comfy"],
         "a100_80": ["qwen-image-2.1-turbo-bf16-comfy", "qwen-image-2.1-bf16-comfy", "flux3-klein-comfy",
-                    "wan22-5b-comfy", "minimax-h3-comfy"],
+                    "minimax-h3-image-comfy", "wan22-5b-comfy", "minimax-h3-comfy"],
         "g4": ["qwen-image-2.1-turbo-bf16-comfy", "qwen-image-2.1-bf16-comfy", "flux3-klein-comfy",
-               "wan22-5b-comfy", "minimax-h3-g4-comfy"],
+               "minimax-h3-image-g4-comfy", "wan22-5b-comfy", "minimax-h3-g4-comfy"],
     },
     "sparsa": {
         "t4": [],

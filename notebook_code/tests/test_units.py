@@ -828,9 +828,19 @@ class SharedWeights(unittest.TestCase):
         self.assertEqual(sorted(groups), ["comfy-minimax-h3", "comfy-qwen-image-2.1", "deepseek-strata-ist-2.00",
                                           "qwen-image-2.1-nf4", "qwen3.8-27b-w4a16"])
         self.assertIn("hyperqwen-qwen3.8-27b-dflash2", {e["id"] for e in groups["qwen3.8-27b-w4a16"]})
-        for e in sum(groups.values(), []):
-            for x in e.get("extra_downloads") or []:
-                self.assertTrue(x.get("subdir"), e["id"])    # its own subfolder, never over shared files
+        for folder, es in groups.items():
+            for e in es:
+                for x in e.get("extra_downloads") or []:
+                    if x.get("subdir"):
+                        continue                         # its own subfolder, never over shared files
+                    # In the folder root (ComfyUI's model folders): only named files, none of which another repo
+                    # in the group also places there (the same file from the same repo is simply shared).
+                    files = x.get("files") or ["*"]
+                    self.assertFalse(any(ch in f for f in files for ch in "*?["), e["id"])
+                    others = {f for o in es for f in o["files"]} | {
+                        f for o in es for y in o.get("extra_downloads") or []
+                        if not y.get("subdir") and y["repo"] != x["repo"] for f in y.get("files") or []}
+                    self.assertFalse(set(files) & others, e["id"])
         for folder, es in groups.items():
             if folder in by:                           # another model's folder: the very same files
                 owner = by[folder]
@@ -901,6 +911,84 @@ class Wan22Workflow(unittest.TestCase):
         self.assertTrue({"CreateVideo", "SaveVideo", "ModelSamplingSD3"} <= kinds)
         clip = next(n["inputs"] for n in graph.values() if n["class_type"] == "CLIPLoader")
         self.assertEqual(clip["type"], "wan")
+
+
+class MiniMaxH3Image(unittest.TestCase):
+    """MiniMax-H3-Image: one 6-step workflow, a quant per runtime, every file shared through comfy-minimax-h3."""
+    IDS = {"l4": "minimax-h3-image-l4-comfy", "a100": "minimax-h3-image-comfy", "g4": "minimax-h3-image-g4-comfy"}
+
+    def setUp(self):
+        self.by = catalog.by_id(catalog.load())
+
+    def test_workflow_is_the_distilled_6_step_schedule(self):
+        from notebook_code import comfyui_server as cs
+        graph, seed = cs.apply_prompt(cs.load_workflow("minimax-h3-image.api.json"), "a lighthouse", width=3000,
+                                      height=2010, steps=6, seed=7)
+        cond = next(n["inputs"] for n in graph.values() if n["class_type"] == "MiniMaxH3ImageConditioning")
+        self.assertEqual((cond["prompt"], cond["width"], cond["height"]), ("a lighthouse", 2976, 1984))  # 32 px grid
+        ks = next(n["inputs"] for n in graph.values() if n["class_type"] == "KSampler")
+        self.assertEqual((ks["steps"], ks["cfg"], ks["sampler_name"], ks["scheduler"], ks["seed"]),
+                         (6, 1.0, "euler", "simple", 7))
+        self.assertEqual(ks["latent_image"], [next(k for k, n in graph.items()
+                                                   if n["class_type"] == "MiniMaxH3ImageConditioning"), 1])
+        clip = next(n["inputs"] for n in graph.values() if n["class_type"] == "CLIPLoader")
+        self.assertEqual(clip["type"], "minimax")
+
+    def test_one_quant_per_runtime_and_where_each_fits(self):
+        from notebook_code import recommend
+        plan = recommend._ENGINE_PREFETCH["comfyui"]
+        self.assertIn(self.IDS["l4"], plan["l4"])
+        self.assertIn(self.IDS["a100"], plan["a100_80"])
+        self.assertIn(self.IDS["g4"], plan["g4"])
+        dit = lambda e: next(f for x in e["extra_downloads"] for f in x["files"] if "diffusion_models/" in f)
+        self.assertIn("w4a8", dit(self.by[self.IDS["l4"]]))            # 12.6 GB: the one that fits 24 GB
+        self.assertIn("int8", dit(self.by[self.IDS["a100"]]))
+        self.assertEqual(dit(self.by[self.IDS["a100"]]), dit(self.by[self.IDS["g4"]]))   # one copy on Drive
+        self.assertIn("nvfp4", self.by[self.IDS["g4"]]["files"][0])     # the G4 video build's encoder
+        self.assertIsNone(catalog.why_not(self.by[self.IDS["l4"]], 22.5, 53, 200, "89"))
+        self.assertIsNone(catalog.why_not(self.by[self.IDS["a100"]], 80, 167, 351, "80"))
+        self.assertIsNone(catalog.why_not(self.by[self.IDS["g4"]], 95.6, 167, 253, "120"))
+        self.assertTrue(catalog.why_not(self.by[self.IDS["g4"]], 80, 167, 351, "80"))   # NVFP4 needs Blackwell
+        for e in (self.by[i] for i in self.IDS.values()):
+            self.assertEqual((e["workflow"], e["default_steps"], e["weights_dir"]),
+                             ("minimax-h3-image.api.json", 6, "comfy-minimax-h3"))
+            self.assertEqual(e["comfyui_pin"], "v0.45.4")              # MiniMaxH3ImageConditioning arrived in 0.45
+
+    def test_loaders_take_this_models_files_in_the_shared_folder(self):
+        from notebook_code import comfyui_server as cs
+        root = Path(tempfile.mkdtemp()); self.addCleanup(shutil.rmtree, root, True)
+        for rel in ("diffusion_models/minimax_h3_image_pruned_int8_convrot.safetensors",
+                    "diffusion_models/minimax_h3_image_pruned_w4a8.safetensors",
+                    "diffusion_models/minimax_h3_fl2va_int8_convrot.safetensors",
+                    "diffusion_models/minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+                    "text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+                    "text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+                    "vae/minimax_h3_image_vae_fp16.safetensors", "vae/minimax_h3_video_vae_fp16.safetensors"):
+            (root / rel).parent.mkdir(parents=True, exist_ok=True); (root / rel).write_bytes(b"x")
+        pick = lambda wf, mid: {n["class_type"]: n["inputs"] for n in cs.bind_files(
+            cs.load_workflow(wf), root, cs.own_files(self.by[mid])).values()}
+        l4, g4 = (pick("minimax-h3-image.api.json", self.IDS[r]) for r in ("l4", "g4"))
+        self.assertEqual(l4["UNETLoader"]["unet_name"], "minimax_h3_image_pruned_w4a8.safetensors")
+        self.assertEqual(g4["UNETLoader"]["unet_name"], "minimax_h3_image_pruned_int8_convrot.safetensors")
+        self.assertEqual(g4["CLIPLoader"]["clip_name"], "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors")
+        self.assertEqual(l4["VAELoader"]["vae_name"], "minimax_h3_image_vae_fp16.safetensors")
+        # the L4 video model no longer picks up the A100's full-size DiT that now sits in the same folder
+        video = pick("minimax-h3-t2v.api.json", "minimax-h3-l4-comfy")
+        self.assertEqual(video["UNETLoader"]["unet_name"], "minimax_h3_fl2va_pruned_int8_convrot.safetensors")
+        self.assertIsNone(cs.own_files({"files": ["*"]}))            # glob entries keep the whole folder
+
+    def test_a_models_comfyui_release_gets_its_own_folder_and_wheels(self):
+        self.assertGreater(install.version_key("v0.45.4"), install.version_key(install.COMFYUI_PIN))
+        self.assertIn("v0.45.4", install.comfyui_wheelhouse("/b", "v0.45.4"))
+        self.assertIn(install.COMFYUI_PIN, install.comfyui_wheelhouse("/b"))
+        names, orig = [], install.local_tree
+        install.local_tree = lambda name, *a, **k: names.append(name) or "/content/" + name
+        try:
+            with tempfile.TemporaryDirectory() as d:
+                install.ensure_comfyui(d, run=lambda cmd: None, log=lambda *a: None, pin="v0.45.4")
+        finally:
+            install.local_tree = orig
+        self.assertEqual(names, ["ComfyUI-v0.45.4"])
 
 
 class StrataStartChecks(unittest.TestCase):

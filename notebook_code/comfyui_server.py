@@ -58,12 +58,28 @@ LOADER_FOLDERS = {"UNETLoader": ("unet_name", "diffusion_models"), "CLIPLoader":
                   "VAELoader": ("vae_name", "vae"), "LoraLoaderModelOnly": ("lora_name", "loras")}
 
 
-def bind_files(graph, model_path):
+def own_files(entry):
+    """File names a catalog entry downloads, when it lists them one by one (None for glob patterns).
+
+    Several entries can share one Drive folder (the MiniMax H3 models keep every quant together), so a loader
+    must pick this entry's file, not whichever quant another entry left there."""
+    if not entry:
+        return None
+    paths = list(entry.get("files") or [])
+    for extra in entry.get("extra_downloads") or []:
+        paths += extra.get("files") or ["*"]
+    if not paths or any(ch in p for p in paths for ch in "*?["):
+        return None
+    return {Path(p).name for p in paths}
+
+
+def bind_files(graph, model_path, own=None):
     """Point the workflow's loaders at the files this model's folder holds.
 
     One workflow serves several quants (INT8 on an L4 or A100, BF16, NVFP4 on a G4): each catalog entry downloads
     one file per role, so a loader whose file is missing takes the folder's file for that role (an audio VAE
-    loader the audio VAE). A LoRA loader with no LoRA in the folder is bypassed."""
+    loader the audio VAE). A LoRA loader with no LoRA in the folder is bypassed. `own` (the entry's file names)
+    limits the choice to this model's files in a shared folder."""
     root = Path(model_path)
     names = {}
     for folder in ("diffusion_models", "text_encoders", "vae", "loras"):
@@ -72,7 +88,7 @@ def bind_files(graph, model_path):
             d = base / folder
             if d.is_dir():
                 found += sorted(p.name for p in d.iterdir() if p.suffix in (".safetensors", ".gguf", ".pt"))
-        names[folder] = found
+        names[folder] = [n for n in found if own is None or n in own]
     for nid, node in list(graph.items()):
         kind = node.get("class_type")
         if kind not in LOADER_FOLDERS:
@@ -145,6 +161,12 @@ def apply_prompt(graph, prompt, *, negative="", seed=None, width=None, height=No
                 inputs["height"] = int(height)
             if seconds:
                 inputs["length"] = video_length(seconds)
+        if kind == "MiniMaxH3ImageConditioning":
+            inputs["prompt"] = prompt
+            if width:
+                inputs["width"] = max(32, int(width) // 32 * 32)       # the model's canvas is on a 32 px grid
+            if height:
+                inputs["height"] = max(32, int(height) // 32 * 32)
         if kind == "Wan22ImageToVideoLatent":
             if width:
                 inputs["width"] = int(width)
@@ -298,7 +320,7 @@ def make_handler(state):
             seconds = min(float(data.get("seconds") or data.get("duration") or 5), 15.0) if video else None
             try:
                 graph = json.loads(json.dumps(state["workflow"]))  # deep copy
-                graph = bind_files(graph, state["model_path"])
+                graph = bind_files(graph, state["model_path"], state.get("own_files"))
                 graph, seed = apply_prompt(
                     graph, prompt, negative=data.get("negative_prompt") or "",
                     seed=data.get("seed"), width=width, height=height, steps=steps, seconds=seconds)
@@ -365,6 +387,14 @@ def start_comfy(comfy_root, model_path, comfy_port, log_path):
     return proc, str(output_dir)
 
 
+def _catalog_entry(model_id):
+    try:
+        from . import catalog
+        return catalog.by_id(catalog.load()).get(model_id)
+    except Exception:                                   # no catalog (tests, a copied workflow): use the folder
+        return None
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="notebook_code.comfyui_server")
     p.add_argument("--comfy-root", required=True)
@@ -389,7 +419,7 @@ def main(argv=None):
         "model_id": a.model_id, "max_edge": a.max_edge, "default_steps": a.steps,
         "default_guidance": a.guidance, "workflow": workflow, "comfy_port": a.comfy_port,
         "client_id": str(uuid.uuid4()), "output_dir": output_dir, "kind": a.kind, "model_path": a.model_path,
-        "proc": proc,
+        "proc": proc, "own_files": own_files(_catalog_entry(a.model_id)),
     }
     print(f"[comfyui] ready on 127.0.0.1:{a.port} (ComfyUI UI :{a.comfy_port})", flush=True)
     import signal

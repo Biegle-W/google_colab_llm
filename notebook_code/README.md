@@ -116,9 +116,9 @@ sessions (VRAM, RAM, disk, including the A100's 369 GB NVMe scratch disk) and is
 
 Notebooks not yet run on their GPU runtime (no row in `results/results.csv`):
 
-- **L4 (RTX 4070 Ti class, 24 GB):** none, all tested.
-- **A100 80 GB (High-RAM):** `diffusers/flux-schnell`, `maya/glm-maya-s`, `strata/deepseek-strata-ist-2.00`.
-- **G4 (RTX PRO 6000 Blackwell, 96 GB):** `comfyui/flux3-klein-comfy`, `comfyui/minimax-h3-g4-comfy`, `comfyui/qwen-image-2.1-bf16-comfy`, `comfyui/qwen-image-2.1-turbo-bf16-comfy`, `comfyui/wan22-5b-comfy`, `diffusers/flux-schnell`, `llama/nemotron-3.5-bolt-74b-iq2`, `llama/sage-a1.5-q4`, `strata/deepseek-strata-ist-1.75`.
+- **L4 (RTX 4070 Ti class, 24 GB):** `comfyui/minimax-h3-image-l4-comfy`.
+- **A100 80 GB (High-RAM):** `comfyui/minimax-h3-image-comfy`, `diffusers/flux-schnell`, `maya/glm-maya-s`, `strata/deepseek-strata-ist-2.00`.
+- **G4 (RTX PRO 6000 Blackwell, 96 GB):** `comfyui/flux3-klein-comfy`, `comfyui/minimax-h3-g4-comfy`, `comfyui/minimax-h3-image-g4-comfy`, `comfyui/qwen-image-2.1-bf16-comfy`, `comfyui/qwen-image-2.1-turbo-bf16-comfy`, `comfyui/wan22-5b-comfy`, `diffusers/flux-schnell`, `llama/nemotron-3.5-bolt-74b-iq2`, `llama/sage-a1.5-q4`, `strata/deepseek-strata-ist-1.75`.
 
 <!-- UNTESTED:END -->
 

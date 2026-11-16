@@ -1420,6 +1420,123 @@
     "notes": "Full INT8 video model + the NVFP4 AWQ encoder (Blackwell only) + Turbo 8-step LoRA. Shares the video model with minimax-h3-comfy."
   },
   {
+    "id": "minimax-h3-image-l4-comfy",
+    "name": "MiniMax-H3-Image pruned W4A8 (ComfyUI; L4)",
+    "backend": "comfyui",
+    "repo": "Comfy-Org/MiniMax-H3",
+    "released": "2026-11-03",
+    "weights_dir": "comfy-minimax-h3",
+    "kind": "image",
+    "workflow": "minimax-h3-image.api.json",
+    "default_steps": 6,
+    "default_guidance": 1.0,
+    "comfyui_pin": "v0.45.4",
+    "experimental": true,
+    "files": [
+      "text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors"
+    ],
+    "extra_downloads": [
+      {
+        "repo": "Comfy-Org/MiniMax-H3-Image",
+        "files": [
+          "diffusion_models/minimax_h3_image_pruned_w4a8.safetensors",
+          "vae/minimax_h3_image_vae_fp16.safetensors"
+        ],
+        "subdir": ""
+      }
+    ],
+    "size_gb": 40.86,
+    "contexts": [
+      [
+        22,
+        2048
+      ]
+    ],
+    "offload": true,
+    "notes": "33B image DiT distilled to 6 steps (no CFG). W4A8 (12.6 GB) is the quant that fits 24 GB beside activations; ComfyUI loads the 27 GB INT8 text encoder and the DiT in turn. 4 MP (2048 px) on the L4. Text encoder shared with the MiniMax H3 video models."
+  },
+  {
+    "id": "minimax-h3-image-comfy",
+    "name": "MiniMax-H3-Image pruned INT8 (ComfyUI; A100)",
+    "backend": "comfyui",
+    "repo": "Comfy-Org/MiniMax-H3",
+    "released": "2026-11-03",
+    "weights_dir": "comfy-minimax-h3",
+    "kind": "image",
+    "workflow": "minimax-h3-image.api.json",
+    "default_steps": 6,
+    "default_guidance": 1.0,
+    "comfyui_pin": "v0.45.4",
+    "experimental": true,
+    "files": [
+      "text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors"
+    ],
+    "extra_downloads": [
+      {
+        "repo": "Comfy-Org/MiniMax-H3-Image",
+        "files": [
+          "diffusion_models/minimax_h3_image_pruned_int8_convrot.safetensors",
+          "vae/minimax_h3_image_vae_fp16.safetensors"
+        ],
+        "subdir": ""
+      }
+    ],
+    "size_gb": 49.29,
+    "contexts": [
+      [
+        40,
+        2048
+      ],
+      [
+        70,
+        4096
+      ]
+    ],
+    "notes": "33B image DiT distilled to 6 steps (no CFG). INT8 convrot is ComfyUI's recommended file, near pixel-identical to BF16, on the A100's INT8 tensor cores. Up to 16 MP (4096 px) on 80 GB. Text encoder shared with the MiniMax H3 video models."
+  },
+  {
+    "id": "minimax-h3-image-g4-comfy",
+    "name": "MiniMax-H3-Image pruned INT8 + NVFP4 encoder (ComfyUI; G4)",
+    "backend": "comfyui",
+    "repo": "Comfy-Org/MiniMax-H3",
+    "released": "2026-11-03",
+    "weights_dir": "comfy-minimax-h3",
+    "kind": "image",
+    "workflow": "minimax-h3-image.api.json",
+    "default_steps": 6,
+    "default_guidance": 1.0,
+    "comfyui_pin": "v0.45.4",
+    "experimental": true,
+    "files": [
+      "text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"
+    ],
+    "extra_downloads": [
+      {
+        "repo": "Comfy-Org/MiniMax-H3-Image",
+        "files": [
+          "diffusion_models/minimax_h3_image_pruned_int8_convrot.safetensors",
+          "vae/minimax_h3_image_vae_fp16.safetensors"
+        ],
+        "subdir": ""
+      }
+    ],
+    "size_gb": 37.84,
+    "contexts": [
+      [
+        40,
+        2048
+      ],
+      [
+        70,
+        4096
+      ]
+    ],
+    "gpu_arch": [
+      "120"
+    ],
+    "notes": "33B image DiT distilled to 6 steps (no CFG). INT8 DiT (shared with the A100 build) and the Blackwell NVFP4 text encoder (shared with the G4 video build). Up to 16 MP (4096 px)."
+  },
+  {
     "id": "flash-next-gyro-s",
     "name": "Qwen3.8-Flash-Next Gyro-S (Strata)",
     "backend": "strata",
