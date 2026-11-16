@@ -22,6 +22,18 @@ READY_TIMEOUT = 1800
 COPY_SECONDS_PER_GB = 20    # Drive read at ~100-130 MB/s, twice (Maya's import checks sha256, then copies)
 
 
+MAYA_BUILD_SECONDS = 3600  # Maya compiles its engine at the first start on a GPU without a saved build (A100: >1 h)
+
+
+def start_build_seconds(entry, bins=None):
+    """Extra start time for an engine that compiles itself at its first start (Maya, when no build was restored)."""
+    if entry.get("backend") != "maya":
+        return 0
+    from . import install
+    root = (bins or {}).get("maya", "/content/project-maya")
+    return 0 if install.maya_build_ready(root) else MAYA_BUILD_SECONDS
+
+
 def start_copy_seconds(entry):
     """Extra start time for engines that copy the model from Drive to local disk before they load it."""
     if entry.get("backend") == "maya" or entry.get("disk_stream"):

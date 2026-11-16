@@ -991,6 +991,51 @@ class MiniMaxH3Image(unittest.TestCase):
         self.assertEqual(names, ["ComfyUI-v0.45.4"])
 
 
+class MayaBuildCache(unittest.TestCase):
+    """Maya compiles its engine at the first start (over an hour on the A100); the build is kept on Drive per GPU."""
+
+    def make_build(self, root, archs):
+        b = Path(root, "build"); b.mkdir(parents=True, exist_ok=True)
+        (b / "maya").write_bytes(b"\x7fELF")
+        (b / "MAYA-BUILD.json").write_text(json.dumps({"archs": archs, "src": "abc"}))
+        Path(root, ".venv", "bin").mkdir(parents=True, exist_ok=True)
+        Path(root, ".venv", "bin", "python").write_text("py")
+
+    def test_save_then_restore_per_architecture(self):
+        with tempfile.TemporaryDirectory() as d:
+            root, builds, fresh = Path(d, "maya"), Path(d, "engines"), Path(d, "fresh")
+            self.make_build(root, [80])
+            self.assertTrue(install.save_maya_build(root, builds, "80", log=lambda *a: None))
+            self.assertTrue(Path(install.maya_build_tar(builds, "80")).is_file())
+            self.assertFalse(install.save_maya_build(root, builds, "80", log=lambda *a: None))   # same stamp: kept
+            self.assertFalse(Path(install.maya_build_tar(builds, "120")).exists())             # G4's is its own
+            fresh.mkdir()
+            self.assertFalse(install.maya_build_ready(fresh))
+            self.assertTrue(install.restore_maya_build(fresh, builds, "80", log=lambda *a: None))
+            self.assertTrue(Path(fresh, ".venv", "bin", "python").is_file())
+            self.assertFalse(install.restore_maya_build(Path(d, "g4"), builds, "120", log=lambda *a: None))
+
+    def test_a_cut_off_tarball_means_a_compile_not_an_error(self):
+        with tempfile.TemporaryDirectory() as d:
+            Path(install.maya_build_tar(d, "80")).write_bytes(b"cut off")
+            def run(cmd):
+                raise RuntimeError("tar: Unexpected EOF")
+            self.assertFalse(install.restore_maya_build(Path(d, "maya"), d, "80", run=run, log=lambda *a: None))
+
+    def test_first_start_gets_an_extra_hour_only_without_a_build(self):
+        e = catalog.by_id(catalog.load())["glm-maya-s"]
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(backends.start_build_seconds(e, {"maya": d}), backends.MAYA_BUILD_SECONDS)
+            self.make_build(d, [80])
+            self.assertEqual(backends.start_build_seconds(e, {"maya": d}), 0)
+        self.assertEqual(backends.start_build_seconds({"backend": "llama"}, {}), 0)
+
+    def test_the_notebook_restores_this_gpus_build(self):
+        from notebook_code import make_engine_notebooks as m
+        src = Path(m.__file__).read_text()
+        self.assertIn('install.ensure_maya(BUILDS, refresh=REFRESH_WHEELS, arch=G[\\"arch\\"])', src)
+
+
 class StrataStartChecks(unittest.TestCase):
     """`strata launch` checks the loaded model before it exits; its server can answer before that check is done."""
     class Proc:

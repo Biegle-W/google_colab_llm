@@ -45,6 +45,7 @@ class Hub:
         self.all_entries = catalog.by_id(entries)
         self.entries = catalog.by_id(catalog.visible(entries, vram_gb, ram_gb, disk_gb, arch))
         self.store, self.bins, self.log_dir = store, bins, log_dir
+        self.arch = arch
         self.ctx_overrides = ctx_overrides or {}
         self._launch, self._serving, self._gpu_used = launch, serving, gpu_used
         self.sleep, self.now, self.ready_timeout, self.log = sleep, now, ready_timeout, log
@@ -193,7 +194,8 @@ class Hub:
         engine = self._launch(entry, path, ctx, self.bins, self.log_dir)
         # Strata's launcher asks to be run again when its post-load check fails; do that once.
         retries = 1 if engine.detaching else 0
-        timeout = self.ready_timeout + backends.start_copy_seconds(entry)
+        timeout = (self.ready_timeout + backends.start_copy_seconds(entry)
+                   + backends.start_build_seconds(entry, self.bins))
         deadline = self.now() + timeout
         while True:
             if self.stopping:
@@ -224,6 +226,22 @@ class Hub:
         with self.cond:
             self.engine, self.active = engine, model_id
             self.log(f"[hub] {model_id} is ready (context {ctx})")
+        if entry.get("backend") == "maya":
+            self._save_maya_build()
+
+    def _save_maya_build(self):
+        """Keep the engine Maya just compiled on Drive (in the background), so the next session skips the compile."""
+        from . import install
+        root, builds = self.bins.get("maya", "/content/project-maya"), self.bins.get("builds")
+        if not (builds and self.arch):
+            return
+
+        def save():
+            try:
+                install.save_maya_build(root, builds, self.arch, log=self.log)
+            except Exception as e:             # never fails a load: the build is only kept for later sessions
+                self.log(f"[hub] could not save Maya's build to Drive: {e}")
+        threading.Thread(target=save, daemon=True).start()
 
     def _wait_gpu_free(self, limit_mib=2000, seconds=90):
         for _ in range(seconds):

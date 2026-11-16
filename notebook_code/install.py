@@ -10,6 +10,7 @@ import re
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 from . import gpu
 
@@ -299,8 +300,58 @@ def ensure_strata(builds_dir, refresh=False, run=sh, log=print):
     return local_tree("strata_terminal", builds_dir, ready, build, refresh, run, log, "Strata Terminal")
 
 
-def ensure_maya(builds_dir, refresh=False, run=sh, log=print):
-    """Project Maya (git clone; its ./setup.sh runs at the first model load) in /content/project-maya."""
+MAYA_BUILD_PARTS = ("build", ".venv")     # what Maya's setup.sh makes at the first start (engine + its venv)
+
+
+def maya_build_tar(builds_dir, arch):
+    """Maya's compiled engine for one GPU architecture. Maya stamps a build with the archs it was compiled for and
+    rebuilds for any other, so the A100 (sm80) and G4 (sm120) builds are kept apart."""
+    return os.path.join(builds_dir, f"maya_build_sm{arch}.tar")
+
+
+def maya_build_ready(root):
+    build = os.path.join(str(root), "build")
+    return os.path.isfile(os.path.join(build, "MAYA-BUILD.json")) and any(
+        os.path.isfile(os.path.join(build, n)) for n in ("maya", "maya-ds4", "maya-mm3"))
+
+
+def restore_maya_build(root, builds_dir, arch, run=sh, log=print):
+    """Unpack this GPU's saved Maya build into the checkout, so setup.sh starts without compiling (it took over an
+    hour on an A100). True when a build is in place afterwards."""
+    tar = maya_build_tar(builds_dir, arch)
+    if maya_build_ready(root) or not os.path.isfile(tar):
+        return maya_build_ready(root)
+    log(f"Restoring Maya's sm_{arch} engine build from Drive:", tar)
+    try:
+        run(f"tar -xf {tar} -C {root}")
+    except Exception as e:                     # a tarball cut off mid-upload: setup.sh compiles again
+        log(f"Could not unpack the saved Maya build ({e}); it is compiled again at the first start")
+    return maya_build_ready(root)
+
+
+def save_maya_build(root, builds_dir, arch, run=sh, log=print):
+    """After a start that compiled Maya's engine, save build/ and .venv/ for this GPU architecture on Drive.
+    Skipped when the saved one has the same build stamp. True when a new tarball was written."""
+    if not (arch and builds_dir and maya_build_ready(root)):
+        return False
+    stamp = Path(root, "build", "MAYA-BUILD.json").read_text()
+    tar = maya_build_tar(builds_dir, arch)
+    side = tar + ".json"
+    if os.path.isfile(tar) and os.path.isfile(side) and Path(side).read_text() == stamp:
+        return False
+    parts = " ".join(p for p in MAYA_BUILD_PARTS if os.path.exists(os.path.join(str(root), p)))
+    os.makedirs(builds_dir, exist_ok=True)
+    log(f"Saving Maya's sm_{arch} engine build to Drive (later starts skip the compile):", tar)
+    run(f"tar -cf {tar}.tmp -C {root} {parts} && mv {tar}.tmp {tar}")
+    with open(side, "w") as f:
+        f.write(stamp)
+    return True
+
+
+def ensure_maya(builds_dir, refresh=False, run=sh, log=print, arch=None):
+    """Project Maya (git clone; its ./setup.sh runs at the first model load) in /content/project-maya.
+
+    With `arch`, this GPU's saved engine build (see save_maya_build) is unpacked into it as well."""
     def ready(root):
         ok = os.path.isfile(os.path.join(root, "setup.sh")) and os.path.exists(os.path.join(root, ".pybin", "python3"))
         return root if ok else None
@@ -314,7 +365,10 @@ def ensure_maya(builds_dir, refresh=False, run=sh, log=print):
         run(f"{sys.executable} -m pip install -q uv && {uv} python install 3.12")
         py = run(f"{uv} python find --managed-python 3.12").strip().splitlines()[-1]
         run(f"mkdir -p {root}/.pybin && ln -sf {py} {root}/.pybin/python3 && ln -sf {py} {root}/.pybin/python")
-    return local_tree("project-maya", builds_dir, ready, build, refresh, run, log, "Project Maya")
+    root = local_tree("project-maya", builds_dir, ready, build, refresh, run, log, "Project Maya")
+    if arch and not refresh:
+        restore_maya_build(root, builds_dir, arch, run=run, log=log)
+    return root
 
 
 TENSORFOLD_VERSION = "1.2.2"

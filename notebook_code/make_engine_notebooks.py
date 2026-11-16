@@ -457,7 +457,7 @@ def build_notebook(engine: str, runtime: str | None = None, model: str | None = 
             "    STRATA_BIN = install.ensure_strata(BUILDS, refresh=REFRESH_WHEELS)",
             "    print(\"strata:\", STRATA_BIN)",
             f'elif ENGINE == "maya":',
-            "    MAYA_ROOT = install.ensure_maya(BUILDS, refresh=REFRESH_WHEELS)",
+            "    MAYA_ROOT = install.ensure_maya(BUILDS, refresh=REFRESH_WHEELS, arch=G[\"arch\"])  # + this GPU's saved engine build",
             "    print(\"maya:\", MAYA_ROOT)",
             f'elif ENGINE == "tensorfold":',
             "    TENSORFOLD_BIN = install.ensure_tensorfold(BUILDS, refresh=REFRESH_WHEELS)",
