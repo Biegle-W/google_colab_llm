@@ -528,7 +528,7 @@ class Misc(unittest.TestCase):
         self.assertTrue(any("checkout -q FETCH_HEAD" in c for c in pinned))
         self.assertEqual(len(install.llama_fetch_commands("latest", "/s")), 1)
         self.assertIn("sm89", install.llama_tarball("/b", install.LLAMA_PIN, "89"))
-        self.assertIn("4c3c5810f8", install.llama_tarball("/b", install.LLAMA_PIN, "89"))
+        self.assertIn(install.LLAMA_PIN[:10], install.llama_tarball("/b", install.LLAMA_PIN, "89"))
 
     def test_keyfile_is_stable(self):
         path = os.path.join(tempfile.mkdtemp(), "hub", "api_key")
@@ -1347,8 +1347,9 @@ class HyperQwenAndNInfer(unittest.TestCase):
     def test_hyperqwen_build_applies_patches_to_the_venv(self):
         cmds = install.hyperqwen_build_commands("/content/HyperQwen", install.HYPERQWEN_PIN, python="python3")
         text = "\n".join(cmds)
-        self.assertIn("vllm==0.32.0", text)
-        self.assertIn("bash patches/apply.sh", text)
+        self.assertIn("-r docker/requirements.txt", text)        # HyperQwen's own vLLM pin, whatever version
+        self.assertIn("flashinfer-cubin==$FIV", text)
+        self.assertLess(text.index("-r docker/requirements.txt"), text.index("bash patches/apply.sh"))
         self.assertIn(install.HYPERQWEN_PIN, text)
 
     def test_notebooks_exist_and_install_their_engine(self):

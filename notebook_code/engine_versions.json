@@ -3,73 +3,82 @@
     "repo": "ggml-org/llama.cpp",
     "source": "git",
     "track": "tag:^b\\d+$",
-    "version": "4c3c5810f87efe177949f1b85ae509d38a2a311f",
-    "label": "4c3c5810",
-    "tested": "4c3c5810f87efe177949f1b85ae509d38a2a311f"
+    "version": "6d3568e31d4e4b1e4db4acb8f6ceaad0084932f3",
+    "label": "b12408",
+    "tested": "4c3c5810f87efe177949f1b85ae509d38a2a311f",
+    "updated": "2026-11-17"
   },
   "comfyui": {
     "repo": "Comfy-Org/ComfyUI",
     "source": "git",
     "track": "tag:^v\\d+\\.\\d+\\.\\d+$",
-    "version": "v0.43.2",
-    "label": "v0.43.2",
-    "tested": "v0.43.2"
+    "version": "v0.45.3",
+    "label": "v0.45.3",
+    "tested": "v0.43.2",
+    "updated": "2026-11-17"
   },
   "tensorfold": {
     "repo": "ashhart/TensorFold",
     "source": "release",
     "track": "tag:^v\\d+\\.\\d+\\.\\d+$",
-    "version": "1.2.2",
-    "label": "v1.2.2",
-    "tested": "1.2.2"
+    "version": "1.2.9",
+    "label": "v1.2.9",
+    "tested": "1.2.2",
+    "updated": "2026-11-17"
   },
   "hyperqwen": {
     "repo": "syv-ai/HyperQwen",
     "source": "git",
     "track": "head",
-    "version": "6ab9bd05cb84b538a6595d634f3e337ac8a80856",
-    "label": "6ab9bd05",
-    "tested": "6ab9bd05cb84b538a6595d634f3e337ac8a80856"
+    "version": "3d6c9543292efc17372b824071ef8d9f33366b21",
+    "label": "3d6c9543",
+    "tested": "6ab9bd05cb84b538a6595d634f3e337ac8a80856",
+    "updated": "2026-11-17"
   },
   "ninfer": {
     "repo": "Neroued/ninfer",
     "source": "git",
     "track": "head",
-    "version": "a754fcf3bf524494aa927c2f54e0cbfb58f569ab",
-    "label": "a754fcf3",
-    "tested": "a754fcf3bf524494aa927c2f54e0cbfb58f569ab"
+    "version": "d9ad9dea4cdbc64ec44b5b18704b46b5db2613dc",
+    "label": "d9ad9dea",
+    "tested": "a754fcf3bf524494aa927c2f54e0cbfb58f569ab",
+    "updated": "2026-11-17"
   },
   "basalt": {
     "repo": "jesdga95/basalt",
     "source": "git",
     "track": "tag:^v\\d+\\.\\d+\\.\\d+$",
-    "version": "364815560d2d2fc5e0db37c86191065abe7c6309",
-    "label": "v0.3.1",
-    "tested": "364815560d2d2fc5e0db37c86191065abe7c6309"
+    "version": "99dc78cb51ac43555c3feed9a1ec14f056d05035",
+    "label": "v0.4.0",
+    "tested": "364815560d2d2fc5e0db37c86191065abe7c6309",
+    "updated": "2026-11-17"
   },
   "strata_nvfp4": {
     "repo": "sergqwer/strata-nvfp4",
     "source": "git",
     "track": "tag:^v\\d+\\.\\d+\\.\\d+(-beta)?-nvfp4\\.\\d+$",
-    "version": "57293b8ec57203a741dc7b2abd69f24f077037ab",
-    "label": "v0.2.0-beta-nvfp4.3",
-    "tested": "57293b8ec57203a741dc7b2abd69f24f077037ab"
+    "version": "b08a70078eb3b94d18f72df2c39b7d53f22511f7",
+    "label": "v0.2.13-nvfp4.1",
+    "tested": "57293b8ec57203a741dc7b2abd69f24f077037ab",
+    "updated": "2026-11-17"
   },
   "strata": {
     "repo": "Niko1221/Strata",
     "source": "release",
     "track": "tag:^v\\d+\\.\\d+\\.\\d+(\\.\\d+)?$",
-    "version": null,
-    "label": "first cached copy",
-    "tested": null
+    "version": "v0.2.13",
+    "label": "v0.2.13",
+    "tested": null,
+    "updated": "2026-11-17"
   },
   "maya": {
     "repo": "mw00/project-maya",
     "source": "git",
     "track": "tag:^v\\d+\\.\\d+\\.\\d+$",
-    "version": null,
-    "label": "first cached copy",
-    "tested": null
+    "version": "v1.1.64",
+    "label": "v1.1.64",
+    "tested": null,
+    "updated": "2026-11-17"
   },
   "sparsa": {
     "repo": "LyJonathan/Sparsa",
@@ -84,26 +93,29 @@
     "source": "pypi",
     "track": "pypi",
     "python": "3.13",
-    "version": null,
-    "label": "first cached copy",
-    "tested": null
+    "version": "0.33.0",
+    "label": "0.33.0",
+    "tested": null,
+    "updated": "2026-11-17"
   },
   "sglang": {
     "package": "sglang",
     "source": "pypi",
     "track": "pypi",
     "python": "3.12",
-    "version": null,
-    "label": "first cached copy",
-    "tested": null
+    "version": "0.5.23",
+    "label": "0.5.23",
+    "tested": null,
+    "updated": "2026-11-17"
   },
   "diffusers": {
     "package": "diffusers",
     "source": "pypi",
     "track": "pypi",
     "python": "3.13",
-    "version": null,
-    "label": "first cached copy",
-    "tested": null
+    "version": "0.43.0",
+    "label": "0.43.0",
+    "tested": null,
+    "updated": "2026-11-17"
   }
 }

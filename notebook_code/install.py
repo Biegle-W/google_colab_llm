@@ -547,10 +547,10 @@ def ensure_sparsa(builds_dir, refresh=False, run=sh, log=print):
 HYPERQWEN_REPO = "https://github.com/syv-ai/HyperQwen.git"
 HYPERQWEN_PIN = pin("hyperqwen")
 HYPERQWEN_ROOT = "/content/HyperQwen"
-# docs/install.md (bare metal): vLLM pin plus the CUDA 13 nvcc that FlashInfer's JIT needs.
-HYPERQWEN_PIP = ("vllm==0.32.0 huggingface_hub hf_transfer ninja --extra-index-url https://flashinfer.ai/whl/ "
-                 "flashinfer-cubin==0.7.0.post1 pandas nvidia-cuda-nvcc==13.0.88 nvidia-cuda-crt==13.0.88 "
-                 "nvidia-cuda-cccl==13.0.85 nvidia-nvvm==13.0.88")
+# HyperQwen's own pinned set (docker/requirements.txt: its vLLM, which its patches are cut for, plus the CUDA 13
+# nvcc that FlashInfer's JIT needs), so a newer HyperQwen brings the vLLM it was made for.
+HYPERQWEN_REQUIREMENTS = "docker/requirements.txt"
+FLASHINFER_INDEX = "https://flashinfer.ai/whl/"
 
 
 HYPERQWEN_PYTHON = "3.12"     # what HyperQwen documents; uv supplies it, whatever Python the runtime has
@@ -574,7 +574,11 @@ def hyperqwen_build_commands(root=HYPERQWEN_ROOT, ref=HYPERQWEN_PIN, python=None
         f"{python} -m pip install -q uv",
         f"cd {root} && {uv} venv --seed --python {HYPERQWEN_PYTHON} --managed-python venv",
         f"cd {root} && {uv} pip install --python venv/bin/python --index-strategy unsafe-best-match "
-        f"{HYPERQWEN_PIP}",
+        f"--extra-index-url {FLASHINFER_INDEX} -r {HYPERQWEN_REQUIREMENTS}",
+        # FlashInfer's precompiled kernels must match the flashinfer-python that vLLM pulled in (HyperQwen verify.sh)
+        f"cd {root} && FIV=$({venv_py} -c \"import importlib.metadata as m; print(m.version('flashinfer-python'))\")"
+        f" && {uv} pip install --python venv/bin/python --index-strategy unsafe-best-match "
+        f"--extra-index-url {FLASHINFER_INDEX} \"flashinfer-cubin==$FIV\"",
         f"cd {root} && SP=$({venv_py} -c 'import vllm, os; print(os.path.dirname(vllm.__file__))' | tail -n1)"
         f" && bash patches/apply.sh \"$SP\"",
     ]
@@ -595,7 +599,7 @@ def ensure_hyperqwen(builds_dir, refresh=False, run=sh, log=print, root=HYPERQWE
         log("Restoring HyperQwen (patched vLLM venv) from Drive:", tar)
         run(f"rm -rf {root} && mkdir -p {os.path.dirname(root)} && tar -xf {tar} -C {os.path.dirname(root)}")
         return root
-    log(f"Building HyperQwen {ref[:10]} (vLLM 0.32.0 + patches); first run takes 10-20 minutes...")
+    log(f"Building HyperQwen {ref[:10]} (its pinned vLLM + patches); first run takes 10-20 minutes...")
     for cmd in hyperqwen_build_commands(root, ref):
         run(cmd)
     try:

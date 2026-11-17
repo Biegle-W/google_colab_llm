@@ -48,6 +48,16 @@ ENGINES = {
     "diffusers": {"store": "pypi", "checks": ["wheels", "pipelines"], "source": ("huggingface/diffusers", "v{version}")},
 }
 STABLE_PYPI = re.compile(r"^\d+(\.\d+)*$")
+# Files (and, after ":", a string in them) the installer's build steps rely on.
+BUILD_FILES = {
+    "llama": ["CMakeLists.txt", "tools/server/CMakeLists.txt:llama-server"],
+    "comfyui": ["main.py", "requirements.txt"],
+    "hyperqwen": ["docker/requirements.txt:vllm==", "patches/apply.sh"],
+    "ninfer": ["CMakePresets.json:rtx5090-release"],
+    "basalt": ["CMakeLists.txt", "requirements.txt"],
+    "strata_nvfp4": ["setup.sh"],
+    "maya": ["setup.sh", "maya.sh", "maya.py"],
+}
 
 
 def sh(cmd, cwd=None, timeout=900):
@@ -227,6 +237,11 @@ def check(name, v, version, label, work):
                 pass                                   # the pinned source is gone: judge the candidate alone
         if gone:
             problems.append("flags no longer in its source: " + ", ".join(gone))
+    for spec in BUILD_FILES.get(name, []):
+        rel, _, needle = spec.partition(":")
+        f = src / rel
+        if not f.is_file() or (needle and needle not in f.read_text(errors="ignore")):
+            problems.append(f"build file missing or changed: {spec}")
     if "nodes" in cfg["checks"]:
         nodes, clip_types = workflow_needs()
         gone = missing_strings(src, [f'"{n}"' for n in nodes] + [f'"{t}"' for t in clip_types])
