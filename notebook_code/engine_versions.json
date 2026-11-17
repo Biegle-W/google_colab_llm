@@ -1,0 +1,109 @@
+{
+  "llama": {
+    "repo": "ggml-org/llama.cpp",
+    "source": "git",
+    "track": "tag:^b\\d+$",
+    "version": "4c3c5810f87efe177949f1b85ae509d38a2a311f",
+    "label": "4c3c5810",
+    "tested": "4c3c5810f87efe177949f1b85ae509d38a2a311f"
+  },
+  "comfyui": {
+    "repo": "Comfy-Org/ComfyUI",
+    "source": "git",
+    "track": "tag:^v\\d+\\.\\d+\\.\\d+$",
+    "version": "v0.43.2",
+    "label": "v0.43.2",
+    "tested": "v0.43.2"
+  },
+  "tensorfold": {
+    "repo": "ashhart/TensorFold",
+    "source": "release",
+    "track": "tag:^v\\d+\\.\\d+\\.\\d+$",
+    "version": "1.2.2",
+    "label": "v1.2.2",
+    "tested": "1.2.2"
+  },
+  "hyperqwen": {
+    "repo": "syv-ai/HyperQwen",
+    "source": "git",
+    "track": "head",
+    "version": "6ab9bd05cb84b538a6595d634f3e337ac8a80856",
+    "label": "6ab9bd05",
+    "tested": "6ab9bd05cb84b538a6595d634f3e337ac8a80856"
+  },
+  "ninfer": {
+    "repo": "Neroued/ninfer",
+    "source": "git",
+    "track": "head",
+    "version": "a754fcf3bf524494aa927c2f54e0cbfb58f569ab",
+    "label": "a754fcf3",
+    "tested": "a754fcf3bf524494aa927c2f54e0cbfb58f569ab"
+  },
+  "basalt": {
+    "repo": "jesdga95/basalt",
+    "source": "git",
+    "track": "tag:^v\\d+\\.\\d+\\.\\d+$",
+    "version": "364815560d2d2fc5e0db37c86191065abe7c6309",
+    "label": "v0.3.1",
+    "tested": "364815560d2d2fc5e0db37c86191065abe7c6309"
+  },
+  "strata_nvfp4": {
+    "repo": "sergqwer/strata-nvfp4",
+    "source": "git",
+    "track": "tag:^v\\d+\\.\\d+\\.\\d+(-beta)?-nvfp4\\.\\d+$",
+    "version": "57293b8ec57203a741dc7b2abd69f24f077037ab",
+    "label": "v0.2.0-beta-nvfp4.3",
+    "tested": "57293b8ec57203a741dc7b2abd69f24f077037ab"
+  },
+  "strata": {
+    "repo": "Niko1221/Strata",
+    "source": "release",
+    "track": "tag:^v\\d+\\.\\d+\\.\\d+(\\.\\d+)?$",
+    "version": null,
+    "label": "first cached copy",
+    "tested": null
+  },
+  "maya": {
+    "repo": "mw00/project-maya",
+    "source": "git",
+    "track": "tag:^v\\d+\\.\\d+\\.\\d+$",
+    "version": null,
+    "label": "first cached copy",
+    "tested": null
+  },
+  "sparsa": {
+    "repo": "LyJonathan/Sparsa",
+    "source": "release",
+    "track": "none",
+    "version": "v0.2.2-experimental",
+    "label": "v0.2.2-experimental",
+    "tested": null
+  },
+  "vllm": {
+    "package": "vllm",
+    "source": "pypi",
+    "track": "pypi",
+    "python": "3.13",
+    "version": null,
+    "label": "first cached copy",
+    "tested": null
+  },
+  "sglang": {
+    "package": "sglang",
+    "source": "pypi",
+    "track": "pypi",
+    "python": "3.12",
+    "version": null,
+    "label": "first cached copy",
+    "tested": null
+  },
+  "diffusers": {
+    "package": "diffusers",
+    "source": "pypi",
+    "track": "pypi",
+    "python": "3.13",
+    "version": null,
+    "label": "first cached copy",
+    "tested": null
+  }
+}

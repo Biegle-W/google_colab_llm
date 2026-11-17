@@ -122,6 +122,29 @@ Notebooks not yet run on their GPU runtime (no row in `results/results.csv`):
 
 <!-- UNTESTED:END -->
 
+### Engine versions
+
+<!-- ENGINES:START -->
+
+Engine versions the notebooks install (`notebook_code/engine_versions.json`, moved forward nightly by `tools/engine_updates.py`; a new version is used from the next session on):
+
+| Engine | Pinned | Since | GPU-tested with |
+| --- | --- | --- | --- |
+| basalt | v0.3.1 |  | this version |
+| comfyui | v0.43.2 |  | this version |
+| diffusers | first cached copy |  | unpinned (copy cached on Drive) |
+| hyperqwen | 6ab9bd05 |  | this version |
+| llama | 4c3c5810 |  | this version |
+| maya | first cached copy |  | unpinned (copy cached on Drive) |
+| ninfer | a754fcf3 |  | this version |
+| sglang | first cached copy |  | unpinned (copy cached on Drive) |
+| strata | first cached copy |  | unpinned (copy cached on Drive) |
+| strata_nvfp4 | v0.2.0-beta-nvfp4.3 |  | this version |
+| tensorfold | v1.2.2 |  | this version |
+| vllm | first cached copy |  | unpinned (copy cached on Drive) |
+
+<!-- ENGINES:END -->
+
 Still estimates rather than measurements:
 
 - Context / max-edge sizes in `catalog.json` are conservative estimates for each amount of VRAM, not validated

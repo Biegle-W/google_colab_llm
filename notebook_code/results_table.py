@@ -10,6 +10,8 @@ CSV = os.path.join(ROOT, "results", "results.csv")
 README = os.path.join(ROOT, "README.md")
 CODE_README = os.path.join(ROOT, "notebook_code", "README.md")
 U_START, U_END = "<!-- UNTESTED:START -->", "<!-- UNTESTED:END -->"
+E_START, E_END = "<!-- ENGINES:START -->", "<!-- ENGINES:END -->"
+VERSIONS = os.path.join(ROOT, "notebook_code", "engine_versions.json")
 START, END = "<!-- RESULTS:START -->", "<!-- RESULTS:END -->"
 RUNTIMES = (("l4", "L4 (RTX 4070 Ti class, 24 GB)"), ("a100", "A100 80 GB (High-RAM)"),
             ("g4", "G4 (RTX PRO 6000 Blackwell, 96 GB)"))
@@ -92,6 +94,30 @@ def render_untested(rows):
     return "\n".join(out)
 
 
+def render_engines(versions=None):
+    """Each engine's pinned version (notebook_code/engine_versions.json) and whether a GPU run has used it."""
+    import json
+    versions = versions if versions is not None else json.load(open(VERSIONS))
+    out = [E_START, "", "Engine versions the notebooks install (`notebook_code/engine_versions.json`, moved forward "
+           "nightly by `tools/engine_updates.py`; a new version is used from the next session on):", "",
+           "| Engine | Pinned | Since | GPU-tested with |", "| --- | --- | --- | --- |"]
+    for name, v in sorted(versions.items()):
+        if v.get("track") == "none":
+            continue
+        tested = v.get("tested")
+        if not v.get("version"):
+            state = "unpinned (copy cached on Drive)"
+        elif tested == v["version"]:
+            state = "this version"
+        elif tested:
+            state = "an older version: **retest on GPU**"
+        else:
+            state = "not yet: **test on GPU**"
+        out.append(f"| {name} | {v.get('label') or v.get('version')} | {v.get('updated', '')} | {state} |")
+    out += ["", E_END]
+    return "\n".join(out)
+
+
 def _replace(path, start, end, block):
     text = open(path).read()
     a, b = text.index(start), text.index(end) + len(end)
@@ -104,6 +130,8 @@ def update_readme(path=README, rows=None):
     rows = rows if rows is not None else load()
     if os.path.isfile(CODE_README):
         _replace(CODE_README, U_START, U_END, render_untested(rows))
+        if E_START in open(CODE_README).read():
+            _replace(CODE_README, E_START, E_END, render_engines())
     return _replace(path, START, END, render(rows))
 
 

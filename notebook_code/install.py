@@ -5,6 +5,7 @@ Diffusers wheels are saved in a wheelhouse on Drive and installed offline in lat
 also go under the Drive workspace ``logs/`` when ``COLAB_LLM_DRIVE`` is set.
 """
 import glob
+import json
 import os
 import re
 import shutil
@@ -14,9 +15,17 @@ from pathlib import Path
 
 from . import gpu
 
+# Every engine's version lives in engine_versions.json (tools/engine_updates.py moves them forward). Drive caches are
+# named after the version, so a new pin is picked up by the next session; None = the copy already cached on Drive.
+VERSIONS = json.loads((Path(__file__).with_name("engine_versions.json")).read_text())
+
+
+def pin(engine):
+    return VERSIONS[engine]["version"]
+
+
 LLAMA_URL = "https://github.com/ggml-org/llama.cpp"
-# The commit the reference setup validated its llama.cpp flags against (fetched by SHA, so it stays reproducible).
-LLAMA_PIN = "4c3c5810f87efe177949f1b85ae509d38a2a311f"
+LLAMA_PIN = pin("llama")     # fetched by SHA, so it stays reproducible
 SRC = "/content/llama.cpp"
 
 
@@ -111,8 +120,17 @@ def _cache_wheels(wheels, pkgs, refresh, run, log):
     return wheels
 
 
+VLLM_VERSION = pin("vllm")
+VLLM_SPEC = f"vllm=={VLLM_VERSION}" if VLLM_VERSION else "vllm"
+
+
+def _versioned(name, version):
+    """A Drive cache name for an engine version (the unversioned name is the copy cached before versions were pinned)."""
+    return f"{name}-{version}" if version else name
+
+
 def vllm_wheelhouse(builds_dir):
-    return os.path.join(builds_dir, f"vllm_gpu_py{sys.version_info.major}{sys.version_info.minor}")
+    return os.path.join(builds_dir, _versioned("vllm", VLLM_VERSION) + f"_gpu_py{sys.version_info.major}{sys.version_info.minor}")
 
 
 def ensure_vllm(builds_dir, refresh=False, run=sh, log=print, install_now=True):
@@ -122,30 +140,31 @@ def ensure_vllm(builds_dir, refresh=False, run=sh, log=print, install_now=True):
     wheels = vllm_wheelhouse(builds_dir)
     pip = f"{sys.executable} -m pip"
     if not install_now:
-        return _cache_wheels(wheels, "vllm", refresh, run, log)
+        return _cache_wheels(wheels, f"'{VLLM_SPEC}'", refresh, run, log)
     cached = bool(glob.glob(f"{wheels}/*.whl")) and not refresh
     if cached:
         log("Installing vLLM from the wheels saved on Drive...")
         try:
-            run(f"{pip} install -q --no-index --find-links {wheels} vllm")
+            run(f"{pip} install -q --no-index --find-links {wheels} '{VLLM_SPEC}'")
         except InstallError as e:
             log("Cached install failed, rebuilding the wheel cache:", str(e)[:300])
             cached = False
     if not cached:
         log("Downloading vLLM and its dependencies (several GB, one time)...")
         os.makedirs(wheels, exist_ok=True)
-        run(f"{pip} wheel -q -w {wheels} vllm")
-        run(f"{pip} install -q --no-index --find-links {wheels} vllm")
+        run(f"{pip} wheel -q -w {wheels} '{VLLM_SPEC}'")
+        run(f"{pip} install -q --no-index --find-links {wheels} '{VLLM_SPEC}'")
     return run(f"{pip} show vllm").split("Version:")[-1].split()[0]
 
 
 # Diffusers stack used for text-to-image. Torch is already present on Colab GPU images; we cache the rest.
-DIFFUSERS_PKGS = ("diffusers", "transformers", "accelerate", "safetensors", "sentencepiece",
+DIFFUSERS_VERSION = pin("diffusers")
+DIFFUSERS_PKGS = (f"diffusers=={DIFFUSERS_VERSION}" if DIFFUSERS_VERSION else "diffusers", "transformers", "accelerate", "safetensors", "sentencepiece",
                   "protobuf", "Pillow", "bitsandbytes", "huggingface_hub", "hf_xet")
 
 
 def diffusers_wheelhouse(builds_dir):
-    return os.path.join(builds_dir, f"diffusers_gpu_py{sys.version_info.major}{sys.version_info.minor}")
+    return os.path.join(builds_dir, _versioned("diffusers", DIFFUSERS_VERSION) + f"_gpu_py{sys.version_info.major}{sys.version_info.minor}")
 
 
 def ensure_diffusers(builds_dir, refresh=False, run=sh, log=print, install_now=True):
@@ -197,11 +216,12 @@ def sglang_wheelhouse(builds_dir):
 
 SGLANG_ROOT = "/content/sglang"
 SGLANG_PYTHON = "3.12"      # sglang[all] needs outlines_core, which has no wheels for Colab's Python 3.13
-SGLANG_SPEC = "sglang[all]"
+SGLANG_VERSION = pin("sglang")
+SGLANG_SPEC = f"sglang[all]=={SGLANG_VERSION}" if SGLANG_VERSION else "sglang[all]"
 
 
 def sglang_tarball(builds_dir):
-    return os.path.join(builds_dir, f"sglang_py{SGLANG_PYTHON.replace('.', '')}.tar")
+    return os.path.join(builds_dir, _versioned("sglang", SGLANG_VERSION) + f"_py{SGLANG_PYTHON.replace('.', '')}.tar")
 
 
 def ensure_sglang(builds_dir, refresh=False, run=sh, log=print, install_now=True, root=SGLANG_ROOT):
@@ -240,11 +260,15 @@ def ensure_sglang(builds_dir, refresh=False, run=sh, log=print, install_now=True
     return python if install_now else tar
 
 
-STRATA_INSTALL_SH = "https://github.com/Niko1221/Strata/releases/latest/download/install.sh"
+STRATA_VERSION = pin("strata")
+STRATA_FEED = (f"https://github.com/Niko1221/Strata/releases/download/{STRATA_VERSION}" if STRATA_VERSION
+               else "https://github.com/Niko1221/Strata/releases/latest/download")
+STRATA_INSTALL_SH = f"{STRATA_FEED}/install.sh"
 MAYA_REPO = "https://github.com/mw00/project-maya.git"
+MAYA_VERSION = pin("maya")
 
 
-def local_tree(name, builds_dir, ready, build, refresh=False, run=sh, log=print, title=None):
+def local_tree(name, builds_dir, ready, build, refresh=False, run=sh, log=print, title=None, cache=None):
     """An engine folder that runs from local disk, cached on Drive as one tarball.
 
     Colab's Drive mount cannot hold executables or symlinks (it is mounted noexec and refuses ln -s), so an
@@ -252,7 +276,7 @@ def local_tree(name, builds_dir, ready, build, refresh=False, run=sh, log=print,
     sessions unpack that tarball. `ready(root)` returns the path to hand back once the folder is usable."""
     title = title or name
     root = os.path.join("/content", name)
-    tar = os.path.join(builds_dir, f"{name}.tar")
+    tar = os.path.join(builds_dir, f"{cache or name}.tar")      # cache: a versioned tarball name for the same folder
     if not refresh:
         got = ready(root)
         if got:
@@ -291,13 +315,14 @@ def ensure_strata(builds_dir, refresh=False, run=sh, log=print):
         log("Installing Strata Terminal (official install.sh)...")
         script = os.path.join(root, "install.sh")
         run(f"curl -fsSL {STRATA_INSTALL_SH} -o {script}")
-        env_prefix = (f"HOME={root} XDG_DATA_HOME={root}/share XDG_CONFIG_HOME={root}/config "
+        env_prefix = (f"STRATA_FEED={STRATA_FEED} HOME={root} XDG_DATA_HOME={root}/share XDG_CONFIG_HOME={root}/config "
                       f"XDG_BIN_HOME={root}/bin PATH={root}/bin:$PATH")
         try:
             run(f"{env_prefix} sh {script}")
         except InstallError as e:
             log("Strata install.sh reported an error; looking for the binary anyway:", str(e)[:300])
-    return local_tree("strata_terminal", builds_dir, ready, build, refresh, run, log, "Strata Terminal")
+    return local_tree("strata_terminal", builds_dir, ready, build, refresh, run, log, "Strata Terminal",
+                      cache=_versioned("strata_terminal", STRATA_VERSION))
 
 
 MAYA_BUILD_PARTS = ("build", ".venv")     # what Maya's setup.sh makes at the first start (engine + its venv)
@@ -306,7 +331,7 @@ MAYA_BUILD_PARTS = ("build", ".venv")     # what Maya's setup.sh makes at the fi
 def maya_build_tar(builds_dir, arch):
     """Maya's compiled engine for one GPU architecture. Maya stamps a build with the archs it was compiled for and
     rebuilds for any other, so the A100 (sm80) and G4 (sm120) builds are kept apart."""
-    return os.path.join(builds_dir, f"maya_build_sm{arch}.tar")
+    return os.path.join(builds_dir, _versioned("maya_build", MAYA_VERSION) + f"_sm{arch}.tar")
 
 
 def maya_build_ready(root):
@@ -358,28 +383,30 @@ def ensure_maya(builds_dir, refresh=False, run=sh, log=print, arch=None):
 
     def build(root):
         log("Cloning Project Maya (mw00/project-maya)...")
-        run(f"rm -rf {root} && git clone -q --depth 1 {MAYA_REPO} {root} && chmod +x {root}/*.sh")
+        branch = f"--branch {MAYA_VERSION} " if MAYA_VERSION else ""
+        run(f"rm -rf {root} && git clone -q --depth 1 {branch}{MAYA_REPO} {root} && chmod +x {root}/*.sh")
         # maya.sh makes its venv with `python3 -m venv`; Colab's Python has no working ensurepip, so a uv-managed
         # Python 3.12 (inside root, so the Drive tarball carries it) goes first on Maya's PATH as python3.
         uv = f"UV_PYTHON_INSTALL_DIR={root}/.python UV_CACHE_DIR=/content/.uv-cache {sys.executable} -m uv"
         run(f"{sys.executable} -m pip install -q uv && {uv} python install 3.12")
         py = run(f"{uv} python find --managed-python 3.12").strip().splitlines()[-1]
         run(f"mkdir -p {root}/.pybin && ln -sf {py} {root}/.pybin/python3 && ln -sf {py} {root}/.pybin/python")
-    root = local_tree("project-maya", builds_dir, ready, build, refresh, run, log, "Project Maya")
+    root = local_tree("project-maya", builds_dir, ready, build, refresh, run, log, "Project Maya",
+                      cache=_versioned("project-maya", MAYA_VERSION))
     if arch and not refresh:
         restore_maya_build(root, builds_dir, arch, run=run, log=log)
     return root
 
 
-TENSORFOLD_VERSION = "1.2.2"
+TENSORFOLD_VERSION = pin("tensorfold")
 TENSORFOLD_URL = (
     f"https://github.com/ashhart/TensorFold/releases/download/v{TENSORFOLD_VERSION}/"
     f"tensorfold-{TENSORFOLD_VERSION}-linux-x86_64.tar.gz"
 )
 COMFYUI_REPO = "https://github.com/Comfy-Org/ComfyUI.git"
-COMFYUI_PIN = "v0.43.2"  # 2026-10-30: MiniMax H3 + Qwen-Image 2.1 nodes, comfy-kitchen INT8 / NVFP4 kernels
+COMFYUI_PIN = pin("comfyui")
 COMFYUI_KEEP = ("torch", "torchvision", "torchaudio")   # Colab's CUDA builds stay; PyPI's would replace them
-SPARSA_VERSION = "v0.2.2-experimental"
+SPARSA_VERSION = pin("sparsa")
 SPARSA_REPO = "https://github.com/LyJonathan/Sparsa.git"
 SPARSA_TARBALL = (
     f"https://github.com/LyJonathan/Sparsa/releases/download/{SPARSA_VERSION}/"
@@ -518,7 +545,7 @@ def ensure_sparsa(builds_dir, refresh=False, run=sh, log=print):
 
 # ---- HyperQwen (patched vLLM 0.32.0 for Qwen3.8-27B) ----------------------------------------------------
 HYPERQWEN_REPO = "https://github.com/syv-ai/HyperQwen.git"
-HYPERQWEN_PIN = "6ab9bd05cb84b538a6595d634f3e337ac8a80856"
+HYPERQWEN_PIN = pin("hyperqwen")
 HYPERQWEN_ROOT = "/content/HyperQwen"
 # docs/install.md (bare metal): vLLM pin plus the CUDA 13 nvcc that FlashInfer's JIT needs.
 HYPERQWEN_PIP = ("vllm==0.32.0 huggingface_hub hf_transfer ninja --extra-index-url https://flashinfer.ai/whl/ "
@@ -583,7 +610,7 @@ def ensure_hyperqwen(builds_dir, refresh=False, run=sh, log=print, root=HYPERQWE
 
 # ---- NInfer (native C++/CUDA, Blackwell sm_120 only) -----------------------------------------------------
 NINFER_REPO = "https://github.com/Neroued/ninfer.git"
-NINFER_PIN = "a754fcf3bf524494aa927c2f54e0cbfb58f569ab"
+NINFER_PIN = pin("ninfer")
 NINFER_SRC = "/content/ninfer-src"
 NINFER_ROOT = "/content/ninfer"            # apps/ + lib/ (restored from Drive)
 NINFER_APT = ("ninja-build pkg-config libjpeg-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev "
@@ -707,7 +734,7 @@ def _uv_venv_commands(root, venv, python_version="3.12", python=None):
 
 # ---- Basalt (Strata fork for Blackwell: Qwen3.8-Flash-Next NVFP4 .basalt packs) ------------------------------
 BASALT_REPO = "https://github.com/jesdga95/basalt.git"
-BASALT_PIN = "364815560d2d2fc5e0db37c86191065abe7c6309"      # v0.3.1
+BASALT_PIN = pin("basalt")
 BASALT_ROOT = "/content/basalt"
 
 
@@ -756,7 +783,7 @@ def ensure_basalt(builds_dir, arch, refresh=False, run=sh, log=print, ref=BASALT
 
 # ---- Strata NVFP4 fork (sergqwer/strata-nvfp4: Qwen3.8-Flash-Next NVFP4 GPTQ) --------------------------------
 STRATA_NVFP4_REPO = "https://github.com/sergqwer/strata-nvfp4.git"
-STRATA_NVFP4_PIN = "57293b8ec57203a741dc7b2abd69f24f077037ab"     # v0.2.0-beta-nvfp4.3
+STRATA_NVFP4_PIN = pin("strata_nvfp4")
 STRATA_NVFP4_ROOT = "/content/strata-nvfp4"
 
 

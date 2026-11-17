@@ -2698,3 +2698,60 @@ class DshSandboxShim(unittest.TestCase):
                                                    "ls --proc 'a b'"])
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
+
+
+class EngineVersions(unittest.TestCase):
+    """Every engine version comes from engine_versions.json; caches are named after it, so a new pin is used."""
+
+    def test_pins_come_from_the_versions_file(self):
+        v = install.VERSIONS
+        self.assertEqual(install.LLAMA_PIN, v["llama"]["version"])
+        self.assertEqual(install.COMFYUI_PIN, v["comfyui"]["version"])
+        self.assertEqual(install.BASALT_PIN, v["basalt"]["version"])
+        for name, e in v.items():
+            self.assertIn("track", e, name)
+            self.assertTrue(e.get("repo") or e.get("package"), name)
+
+    def test_cache_names_follow_the_version(self):
+        self.assertEqual(install._versioned("strata_terminal", None), "strata_terminal")   # the copy cached before pins
+        self.assertEqual(install._versioned("strata_terminal", "v0.2.13"), "strata_terminal-v0.2.13")
+        self.assertIn(install._versioned("maya_build", install.MAYA_VERSION), install.maya_build_tar("/b", "80"))
+        self.assertIn(install._versioned("sglang", install.SGLANG_VERSION), install.sglang_tarball("/b"))
+
+    def test_notebooks_use_the_pin_not_a_saved_llama_ref(self):
+        from notebook_code import make_engine_notebooks as m, workspace
+        src = Path(m.__file__).read_text()
+        self.assertIn("LLAMA_CPP_REF = install.LLAMA_PIN", src)
+        self.assertNotIn('"llama_cpp_ref": LLAMA_CPP_REF', src)
+        self.assertNotIn("llama_cpp_ref", workspace.DEFAULT_SETTINGS)
+
+    def test_updater_helpers(self):
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
+        import engine_updates as u
+        self.assertGreater(u.vkey("b12464"), u.vkey("b9999"))
+        self.assertGreater(u.vkey("v0.45.10"), u.vkey("v0.45.9"))
+        whl = lambda n: [{"filename": n}]
+        self.assertTrue(u.wheel_fits(whl("vllm-0.33.0-cp38-abi3-manylinux_2_31_x86_64.whl"), "3.13"))
+        self.assertTrue(u.wheel_fits(whl("sglang-0.5.23-py3-none-any.whl"), "3.12"))
+        self.assertFalse(u.wheel_fits(whl("x-1.0-cp312-cp312-manylinux_2_28_aarch64.whl"), "3.12"))
+        self.assertIn("--flash-attn", u.used_flags("llama"))
+        nodes, clips = u.workflow_needs()
+        self.assertIn("MiniMaxH3ImageConditioning", nodes)
+        self.assertIn("minimax", clips)
+        with tempfile.TemporaryDirectory() as d:
+            Path(d, "arg.cpp").write_text('add_opt({"-c", "--ctx-size"})')
+            self.assertEqual(u.missing_strings(d, ["--ctx-size", "--gone"]), ["--gone"])
+        for name in u.ENGINES:
+            self.assertIn(name, install.VERSIONS)
+
+    def test_readme_lists_each_engines_version_and_test_state(self):
+        from notebook_code import results_table
+        out = results_table.render_engines({
+            "a": {"track": "head", "version": "x", "label": "x", "tested": "x"},
+            "b": {"track": "head", "version": "y", "label": "y", "tested": "x"},
+            "c": {"track": "pypi", "version": None, "tested": None},
+            "d": {"track": "none", "version": "z"}})
+        self.assertIn("| a | x |  | this version |", out)
+        self.assertIn("retest on GPU", out)
+        self.assertIn("unpinned", out)
+        self.assertNotIn("| d |", out)
