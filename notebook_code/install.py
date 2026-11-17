@@ -39,7 +39,10 @@ def _install_log_path():
         path = os.path.join(drive, "logs", "install.log")
         os.makedirs(os.path.dirname(path), exist_ok=True)
         return path
-    return "/content/install.log"
+    if os.access("/content", os.W_OK):
+        return "/content/install.log"
+    import tempfile                                  # off Colab (CI, a laptop): no /content
+    return os.path.join(tempfile.gettempdir(), "colab-llm-install.log")
 
 
 def sh(cmd, log_path=None):
