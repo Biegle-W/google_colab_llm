@@ -44,8 +44,8 @@ _ENGINE_PREFETCH = {
         # (Gyro-S 68 tok/s beat Flash-Next Q2 46 and Swift IQ2_XS 55 on the L4)
         "a100_40": ["flash-next-strata-iq3-xxs", "flash-next-gyro-m", "flash-next-swift-iq3-xxs",
                     "qwen36-strata-q4", "flash-next-strata-q2"],
-        "a100_80": ["flash-next-strata-iq3-s", "deepseek-strata-ist-2.00"],  # DeepSeek: 249 GB, on the 351 GB NVMe  # one quant per model, kept by the Colab test results (results/results.csv)
-        "g4": ["deepseek-strata-ist-1.75"],  # DeepSeek's smallest set; Flash-Next: Basalt is faster
+        "a100_80": ["flash-next-strata-iq3-s", "deepseek-strata-ist-2.00", "hy4-flash-sq-128"],  # DeepSeek: 249 GB, on the 351 GB NVMe  # one quant per model, kept by the Colab test results (results/results.csv)
+        "g4": ["deepseek-strata-ist-1.75", "hy4-flash-sq-128"],  # DeepSeek's smallest set; Flash-Next: Basalt is faster
         # DeepSeek (249-347 GB) is left out: it needs a local copy and the G4 disk is 225 GB.
     },
     "maya": {

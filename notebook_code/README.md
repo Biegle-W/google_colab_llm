@@ -117,8 +117,8 @@ sessions (VRAM, RAM, disk, including the A100's 369 GB NVMe scratch disk) and is
 Notebooks not yet run on their GPU runtime (no row in `results/results.csv`):
 
 - **L4 (RTX 4070 Ti class, 24 GB):** `comfyui/minimax-h3-image-l4-comfy`, `llama/inkling-2-mini-iq4`.
-- **A100 80 GB (High-RAM):** `comfyui/minimax-h3-image-comfy`, `diffusers/flux-schnell`, `llama/inkling-2-mini-q8`, `maya/glm-maya-s`, `strata/deepseek-strata-ist-2.00`.
-- **G4 (RTX PRO 6000 Blackwell, 96 GB):** `comfyui/flux3-klein-comfy`, `comfyui/minimax-h3-g4-comfy`, `comfyui/minimax-h3-image-g4-comfy`, `comfyui/qwen-image-2.1-bf16-comfy`, `comfyui/qwen-image-2.1-turbo-bf16-comfy`, `comfyui/wan22-5b-comfy`, `diffusers/flux-schnell`, `llama/inkling-2-mini-q8`, `strata/deepseek-strata-ist-1.75`.
+- **A100 80 GB (High-RAM):** `comfyui/minimax-h3-image-comfy`, `diffusers/flux-schnell`, `llama/inkling-2-mini-q8`, `maya/glm-maya-s`, `strata/deepseek-strata-ist-2.00`, `strata/hy4-flash-sq-128`.
+- **G4 (RTX PRO 6000 Blackwell, 96 GB):** `comfyui/flux3-klein-comfy`, `comfyui/minimax-h3-g4-comfy`, `comfyui/minimax-h3-image-g4-comfy`, `comfyui/qwen-image-2.1-bf16-comfy`, `comfyui/qwen-image-2.1-turbo-bf16-comfy`, `comfyui/wan22-5b-comfy`, `diffusers/flux-schnell`, `llama/inkling-2-mini-q8`, `strata/deepseek-strata-ist-1.75`, `strata/hy4-flash-sq-128`.
 
 <!-- UNTESTED:END -->
 
@@ -138,7 +138,7 @@ Engine versions the notebooks install (`notebook_code/engine_versions.json`, mov
 | maya | v1.1.68 | 2026-11-22 | not yet: **test on GPU** |
 | ninfer | ebdc67e5 | 2026-11-22 | an older version: **retest on GPU** |
 | sglang | 0.5.23 | 2026-11-17 | not yet: **test on GPU** |
-| strata | v0.2.17 | 2026-11-22 | not yet: **test on GPU** |
+| strata | v0.2.18 | 2026-11-22 | not yet: **test on GPU** |
 | strata_nvfp4 | v0.2.15-nvfp4.3 | 2026-11-22 | an older version: **retest on GPU** |
 | tensorfold | v1.3.0 | 2026-11-22 | an older version: **retest on GPU** |
 | vllm | 0.34.0 | 2026-11-22 | not yet: **test on GPU** |

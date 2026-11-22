@@ -66,8 +66,8 @@
     "repo": "Niko1221/Strata",
     "source": "release",
     "track": "tag:^v\\d+\\.\\d+\\.\\d+(\\.\\d+)?$",
-    "version": "v0.2.17",
-    "label": "v0.2.17",
+    "version": "v0.2.18",
+    "label": "v0.2.18",
     "tested": null,
     "updated": "2026-11-22"
   },

@@ -170,7 +170,7 @@ def strata_command(entry, model_path, ctx, strata_bin="strata", port=None, data_
         args += ["--data-dir", str(data_dir)]
     # Prefer files already restored from Drive; otherwise Strata downloads into --data-dir.
     if model_path and os.path.isdir(str(model_path)) and any(
-            p.endswith(".gguf") for p in _walk_names(model_path)):
+            p.endswith((".gguf", ".strata")) for p in _walk_names(model_path)):
         args += ["--model-path", str(model_path)]
     return args + list(entry.get("extra_args", []))
 

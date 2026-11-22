@@ -2807,6 +2807,43 @@ class Inkling2Mini(unittest.TestCase):
         self.assertFalse(u.is_older({"version": "abc", "label": "abc12345", "track": "head"}, "def67890"))
 
 
+class Hy4FlashStrata(unittest.TestCase):
+    """Tencent Hy4-Flash (220B-A12B) on Strata v0.2.18+: build SQ-128 on the G4 and the A100 80 GB (one set of
+    files), plus the Engram shard every build shares and the Vision shard, all copied to local disk each start."""
+
+    def test_plan_and_fit(self):
+        from notebook_code import recommend
+        by = catalog.by_id(catalog.load())
+        e = by["hy4-flash-sq-128"]
+        plan = recommend._ENGINE_PREFETCH["strata"]
+        self.assertIn("hy4-flash-sq-128", plan["g4"])
+        self.assertIn("hy4-flash-sq-128", plan["a100_80"])
+        self.assertNotIn("hy4-flash-sq-128", plan["l4"])
+        self.assertIsNone(catalog.why_not(e, 95.6, 167, 253, "120"))
+        self.assertIsNone(catalog.why_not(e, 80, 167, 351, "80"))
+        self.assertIsNotNone(catalog.why_not(e, 22.5, 53, 200, "89"))
+        self.assertEqual(catalog.context_for(e, 95.6), 131072)
+        self.assertEqual(catalog.context_for(e, 79.2), 131072)
+        self.assertTrue(catalog.streams_from_disk(e))
+        self.assertIn("Hy4-Flash-Engram-Q8.strata", e["files"])
+
+    def test_strata_version_runs_hy4(self):
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
+        import engine_updates as u
+        self.assertGreaterEqual(u.vkey(install.VERSIONS["strata"]["label"]), u.vkey("v0.2.18"))
+
+    def test_launch_uses_the_drive_files(self):
+        e = catalog.by_id(catalog.load())["hy4-flash-sq-128"]
+        with tempfile.TemporaryDirectory() as d:
+            for name in e["files"]:
+                Path(d, name).write_bytes(b"")
+            args = backends.strata_command(e, d, 131072, port=30050)
+        self.assertEqual(args[args.index("--family") + 1], "hy4-flash")
+        self.assertEqual(args[args.index("--model") + 1], "SQ-128")
+        self.assertEqual(args[args.index("--model-path") + 1], d)
+        self.assertEqual(args[args.index("--vision") + 1], "on")
+
+
 class ConnectionChoice(unittest.TestCase):
     """Each notebook asks how to connect: the OpenAI API over Tailscale, the dsh web page over a Cloudflare quick
     tunnel, both, or the API over Cloudflare. Image and video notebooks offer only the API choices."""

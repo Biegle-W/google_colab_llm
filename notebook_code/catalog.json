@@ -1091,7 +1091,7 @@
     ],
     "offload": true,
     "maya_model": "glm-maya-s24",
-    "notes": "Official Maya quant for ≤24 GB cards (+14% decode vs Maya-S). OpenAI API via ./setup.sh. Colab needs high host RAM + Drive for the ~95 GB pack."
+    "notes": "Official Maya quant for \u226424 GB cards (+14% decode vs Maya-S). OpenAI API via ./setup.sh. Colab needs high host RAM + Drive for the ~95 GB pack."
   },
   {
     "id": "glm-maya-s",
@@ -1780,6 +1780,36 @@
     "strata_model": "UD-Q6_K_XL",
     "vision": "off",
     "notes": "Higher-quality Strata Qwen3.6 pack (~44 GB RAM plan)."
+  },
+  {
+    "id": "hy4-flash-sq-128",
+    "name": "Tencent Hy4-Flash 220B SQ-128 (Strata)",
+    "backend": "strata",
+    "repo": "strata-engine/Hy4-Flash-Strata",
+    "released": "2026-11-21",
+    "files": [
+      "Hy4-Flash-SQ-128.strata",
+      "Hy4-Flash-Engram-Q8.strata",
+      "Hy4-Flash-Vision.strata"
+    ],
+    "size_gb": 182.2,
+    "resident_gb": 114.6,
+    "contexts": [
+      [
+        70,
+        32768
+      ],
+      [
+        78,
+        131072
+      ]
+    ],
+    "offload": true,
+    "strata_family": "hy4-flash",
+    "strata_model": "SQ-128",
+    "vision": "on",
+    "disk_stream": true,
+    "notes": "Tencent Hy4-Flash (220B-A12B) in Strata's own .strata v1.0 format; needs Strata v0.2.18 or newer (engine strata-hy4). SQ-128 is the build closest to the full model: by Strata's fit rule (hy4_fit) it sits wholly in VRAM + RAM on the G4 (84 GB VRAM + 22 GB RAM at 128K) and the A100 80 GB (67 + 39 GB). The 67.6 GB Engram file is shared by every build and read in random 4 KiB pieces while it answers, so all files are copied to local disk each start. Always reasons; images on (Vision shard)."
   },
   {
     "id": "minimax-m3.1-flash-iq2-xs-d3",
