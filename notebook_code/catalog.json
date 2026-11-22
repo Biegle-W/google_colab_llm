@@ -1839,6 +1839,38 @@
     "notes": "Maya's own IQ4_XS quant of Tencent Hy4-Flash (220B-A12B) on its maya-hy4 engine; needs Maya v1.1.70 or newer (the G4's Blackwell card). 89.5 GB model + the 63.4 GB n-gram table every Maya size shares (read from the SSD while it answers) + DFly2 drafter, vision reader and Tencent's MTP block (7.5 GB, Maya-L drafts with it). Maya's import finds the files by size and sha256 and copies them to local disk each start. Compared against Strata SQ-128 on the same runtimes."
   },
   {
+    "id": "inkling-2-mini-sq-20",
+    "name": "Inkling 2 Mini SQ-20 (Strata)",
+    "backend": "strata",
+    "repo": "strata-engine/Inkling-2-Mini-Strata",
+    "released": "2026-11-22",
+    "files": [
+      "Inkling-2-Mini-SQ-20.strata",
+      "Inkling-2-Mini-Vision.strata",
+      "tokenizer.json",
+      "tokenizer_config.json",
+      "special_tokens_map.json",
+      "config.json",
+      "chat_template.jinja"
+    ],
+    "size_gb": 20.03,
+    "resident_gb": 19.35,
+    "contexts": [
+      [
+        22,
+        131072
+      ],
+      [
+        40,
+        262144
+      ]
+    ],
+    "strata_family": "inkling-2-mini",
+    "strata_model": "SQ-20",
+    "vision": "on",
+    "notes": "Thinking Machines' Inkling 2 Mini (26.4B looped MoE, 3.4B active) in Strata's native .strata v1.1 format; needs Strata v0.2.19 or newer (engine strata-inkling). SQ-20 matches the original exactly (100% same top word, KL 0) and has the DSpark drafter built in, on by default. By Strata's fit rule (inkling_fit) it is wholly on the card on the A100 and the G4, and on the L4 at 128K about 1 GB of experts sits in RAM. Strata serves it without reasoning (direct answers). Published: up to 199 tok/s on an RTX 5090 with this build."
+  },
+  {
     "id": "minimax-m3.1-flash-iq2-xs-d3",
     "name": "MiniMax-M3.1-Flash IQ2_XS-D3 (Sparsa)",
     "backend": "sparsa",

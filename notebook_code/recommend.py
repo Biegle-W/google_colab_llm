@@ -40,12 +40,14 @@ _ENGINE_PREFETCH = {
     },
     "strata": {
         "t4": [],
-        "l4": ["flash-next-gyro-s"],  # one quant per model, kept by the Colab test results (results/results.csv)
+        "l4": ["flash-next-gyro-s", "inkling-2-mini-sq-20"],  # one quant per model, kept by the Colab test results (results/results.csv)
         # (Gyro-S 68 tok/s beat Flash-Next Q2 46 and Swift IQ2_XS 55 on the L4)
         "a100_40": ["flash-next-strata-iq3-xxs", "flash-next-gyro-m", "flash-next-swift-iq3-xxs",
                     "qwen36-strata-q4", "flash-next-strata-q2"],
-        "a100_80": ["flash-next-strata-iq3-s", "deepseek-strata-ist-2.00", "hy4-flash-sq-128"],  # DeepSeek: 249 GB, on the 351 GB NVMe  # one quant per model, kept by the Colab test results (results/results.csv)
-        "g4": ["deepseek-strata-ist-1.75", "hy4-flash-sq-128"],  # DeepSeek's smallest set; Flash-Next: Basalt is faster
+        "a100_80": ["flash-next-strata-iq3-s", "deepseek-strata-ist-2.00", "hy4-flash-sq-128",
+                    "inkling-2-mini-sq-20"],  # DeepSeek: 249 GB, on the 351 GB NVMe  # one quant per model, kept by the Colab test results (results/results.csv)
+        "g4": ["deepseek-strata-ist-1.75", "hy4-flash-sq-128", "inkling-2-mini-sq-20",
+               "flash-next-strata-iq3-s"],  # DeepSeek's smallest set; Flash-Next IQ3_S: re-test against Basalt (273 tok/s) on v0.2.19's Blackwell kernels
         # DeepSeek (249-347 GB) is left out: it needs a local copy and the G4 disk is 225 GB.
     },
     "maya": {

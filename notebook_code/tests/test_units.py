@@ -107,7 +107,7 @@ class Catalog(unittest.TestCase):
         self.assertNotIn("deepseek-v4.1-flash-1017-iq1s", l4["prefetch"])
         g4 = recommend.for_gpu(102.6)
         self.assertIn("basalt-flash-next-nvfp4-dq6k", g4["prefetch"])   # Flash-Next: the fastest G4 engine
-        self.assertNotIn("flash-next-strata-iq3-s", g4["prefetch"])
+        self.assertIn("flash-next-strata-iq3-s", g4["prefetch"])  # re-test against Basalt on Strata v0.2.19
         self.assertIn("glm-maya-s", g4["prefetch"])
         self.assertNotIn("deepseek-maya-xs", g4["prefetch"])      # 282 GB; the G4 disk is 225 GB
         self.assertIn("inkling-2-mini-q8", g4["prefetch"])
@@ -2842,6 +2842,40 @@ class Hy4FlashStrata(unittest.TestCase):
         self.assertEqual(args[args.index("--model") + 1], "SQ-128")
         self.assertEqual(args[args.index("--model-path") + 1], d)
         self.assertEqual(args[args.index("--vision") + 1], "on")
+
+
+class InklingStrata(unittest.TestCase):
+    """Inkling 2 Mini SQ-20 on Strata v0.2.19+ (engine strata-inkling, DSpark drafter built in) on all three runtimes,
+    plus Flash-Next IQ3_S back on the G4 for a re-test against Basalt on v0.2.19's Blackwell kernels."""
+
+    def test_plan_and_fit(self):
+        from notebook_code import recommend
+        e = catalog.by_id(catalog.load())["inkling-2-mini-sq-20"]
+        plan = recommend._ENGINE_PREFETCH["strata"]
+        for rt in ("l4", "a100_80", "g4"):
+            self.assertIn("inkling-2-mini-sq-20", plan[rt])
+        self.assertIn("flash-next-strata-iq3-s", plan["g4"])
+        self.assertIsNone(catalog.why_not(e, 95.6, 167, 253, "120"))
+        self.assertIsNone(catalog.why_not(e, 80, 167, 351, "80"))
+        self.assertIsNone(catalog.why_not(e, 22.5, 53, 200, "89"))
+        self.assertEqual(catalog.context_for(e, 22.5), 131072)
+        self.assertEqual(catalog.context_for(e, 95.6), 262144)
+
+    def test_strata_version_runs_inkling(self):
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
+        import engine_updates as u
+        self.assertGreaterEqual(u.vkey(install.VERSIONS["strata"]["label"]), u.vkey("v0.2.19"))
+
+    def test_launch_uses_the_drive_files(self):
+        e = catalog.by_id(catalog.load())["inkling-2-mini-sq-20"]
+        with tempfile.TemporaryDirectory() as d:
+            for name in e["files"]:
+                Path(d, name).write_bytes(b"")
+            args = backends.strata_command(e, d, 131072, port=30050)
+        self.assertEqual(args[args.index("--family") + 1], "inkling-2-mini")
+        self.assertEqual(args[args.index("--model") + 1], "SQ-20")
+        self.assertEqual(args[args.index("--model-path") + 1], d)
+        self.assertNotIn("--drafting", args)  # Strata's Auto: DSpark for Inkling, DFlash2 for Flash-Next IQ3_S on CUDA
 
 
 class Hy4FlashMaya(unittest.TestCase):
