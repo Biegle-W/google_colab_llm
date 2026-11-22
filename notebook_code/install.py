@@ -465,8 +465,8 @@ def ensure_comfyui(builds_dir, refresh=False, run=sh, log=print, pin=None):
     """Clone ComfyUI + install deps from Drive wheels. Returns ComfyUI root path.
 
     `pin` is a model's own ComfyUI release (its catalog `comfyui_pin`) when it needs nodes newer than COMFYUI_PIN;
-    each release is its own folder and wheel cache, so the tested models keep theirs."""
-    pin = pin or COMFYUI_PIN
+    the newer of the two is used (the default moves forward nightly), each release in its own folder and wheels."""
+    pin = max((p for p in (pin, COMFYUI_PIN) if p), key=version_key)
     pip = f"{sys.executable} -m pip"
 
     def ready(root):

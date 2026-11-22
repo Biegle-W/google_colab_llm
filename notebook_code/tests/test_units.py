@@ -990,10 +990,11 @@ class MiniMaxH3Image(unittest.TestCase):
         install.local_tree = lambda name, *a, **k: names.append(name) or "/content/" + name
         try:
             with tempfile.TemporaryDirectory() as d:
-                install.ensure_comfyui(d, run=lambda cmd: None, log=lambda *a: None, pin="v0.45.4")
+                install.ensure_comfyui(d, run=lambda cmd: None, log=lambda *a: None, pin="v99.0.0")
+                install.ensure_comfyui(d, run=lambda cmd: None, log=lambda *a: None, pin="v0.0.1")
         finally:
             install.local_tree = orig
-        self.assertEqual(names, ["ComfyUI-v0.45.4"])
+        self.assertEqual(names, ["ComfyUI-v99.0.0", f"ComfyUI-{install.COMFYUI_PIN}"])   # never an older release
 
 
 class MayaBuildCache(unittest.TestCase):
