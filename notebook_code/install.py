@@ -576,12 +576,19 @@ def hyperqwen_build_commands(root=HYPERQWEN_ROOT, ref=HYPERQWEN_PIN, python=None
         f"cd {root} && git init -q && git fetch -q --depth 1 {HYPERQWEN_REPO} {ref} && git checkout -q FETCH_HEAD",
         f"{python} -m pip install -q uv",
         f"cd {root} && {uv} venv --seed --python {HYPERQWEN_PYTHON} --managed-python venv",
-        f"cd {root} && {uv} pip install --python venv/bin/python --index-strategy unsafe-best-match "
-        f"--extra-index-url {FLASHINFER_INDEX} -r {HYPERQWEN_REQUIREMENTS}",
-        # FlashInfer's precompiled kernels must match the flashinfer-python that vLLM pulled in (HyperQwen verify.sh)
+        # FlashInfer's own index first; when it is down (it returned 503 for a whole prepare run), PyPI alone
+        # has every requirement too.
+        f"cd {root} && ({uv} pip install --python venv/bin/python --index-strategy unsafe-best-match "
+        f"--extra-index-url {FLASHINFER_INDEX} -r {HYPERQWEN_REQUIREMENTS} || "
+        f"{uv} pip install --python venv/bin/python -r {HYPERQWEN_REQUIREMENTS})",
+        # FlashInfer's precompiled kernels must match the flashinfer-python that vLLM pulled in (HyperQwen verify.sh).
+        # They are only on FlashInfer's index; without them FlashInfer compiles its kernels at the first start with
+        # the CUDA 13 nvcc above (slower once, then cached), so a missing index is a warning, not a failure.
         f"cd {root} && FIV=$({venv_py} -c \"import importlib.metadata as m; print(m.version('flashinfer-python'))\")"
-        f" && {uv} pip install --python venv/bin/python --index-strategy unsafe-best-match "
-        f"--extra-index-url {FLASHINFER_INDEX} \"flashinfer-cubin==$FIV\"",
+        f" && ({uv} pip install --python venv/bin/python --index-strategy unsafe-best-match "
+        f"--extra-index-url {FLASHINFER_INDEX} \"flashinfer-cubin==$FIV\" || "
+        f"echo \"WARNING: flashinfer-cubin==$FIV unavailable (FlashInfer index down?); FlashInfer will compile its "
+        f"kernels at the first start\")",
         f"cd {root} && SP=$({venv_py} -c 'import vllm, os; print(os.path.dirname(vllm.__file__))' | tail -n1)"
         f" && bash patches/apply.sh \"$SP\"",
     ]

@@ -1355,6 +1355,10 @@ class HyperQwenAndNInfer(unittest.TestCase):
         text = "\n".join(cmds)
         self.assertIn("-r docker/requirements.txt", text)        # HyperQwen's own vLLM pin, whatever version
         self.assertIn("flashinfer-cubin==$FIV", text)
+        deps = next(c for c in cmds if "-r docker/requirements.txt" in c)
+        self.assertEqual(deps.count("-r docker/requirements.txt"), 2)          # FlashInfer index, else PyPI alone
+        self.assertIn(" || ", deps)
+        self.assertIn("WARNING: flashinfer-cubin", next(c for c in cmds if "flashinfer-cubin" in c))
         self.assertLess(text.index("-r docker/requirements.txt"), text.index("bash patches/apply.sh"))
         self.assertIn(install.HYPERQWEN_PIN, text)
 
