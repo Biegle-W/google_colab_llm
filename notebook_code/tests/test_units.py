@@ -978,7 +978,9 @@ class MiniMaxH3Image(unittest.TestCase):
         self.assertIsNone(cs.own_files({"files": ["*"]}))            # glob entries keep the whole folder
 
     def test_a_models_comfyui_release_gets_its_own_folder_and_wheels(self):
-        self.assertGreater(install.version_key("v0.45.4"), install.version_key(install.COMFYUI_PIN))
+        # the notebook takes the newer of the default and a model's own release, whichever moves ahead
+        self.assertEqual(max(["v0.45.4", "v0.46.0"], key=install.version_key), "v0.46.0")
+        self.assertEqual(max(["v0.45.4", "v0.45.10"], key=install.version_key), "v0.45.10")
         self.assertIn("v0.45.4", install.comfyui_wheelhouse("/b", "v0.45.4"))
         self.assertIn(install.COMFYUI_PIN, install.comfyui_wheelhouse("/b"))
         names, orig = [], install.local_tree

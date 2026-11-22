@@ -3,28 +3,28 @@
     "repo": "ggml-org/llama.cpp",
     "source": "git",
     "track": "tag:^b\\d+$",
-    "version": "6d3568e31d4e4b1e4db4acb8f6ceaad0084932f3",
-    "label": "b12408",
+    "version": "b94959a64d011915d77a5381c7d4846dcda99530",
+    "label": "b12557",
     "tested": "4c3c5810f87efe177949f1b85ae509d38a2a311f",
-    "updated": "2026-11-17"
+    "updated": "2026-11-22"
   },
   "comfyui": {
     "repo": "Comfy-Org/ComfyUI",
     "source": "git",
     "track": "tag:^v\\d+\\.\\d+\\.\\d+$",
-    "version": "v0.45.3",
-    "label": "v0.45.3",
+    "version": "v0.46.1",
+    "label": "v0.46.1",
     "tested": "v0.43.2",
-    "updated": "2026-11-17"
+    "updated": "2026-11-22"
   },
   "tensorfold": {
     "repo": "ashhart/TensorFold",
     "source": "release",
     "track": "tag:^v\\d+\\.\\d+\\.\\d+$",
-    "version": "1.2.9",
-    "label": "v1.2.9",
+    "version": "1.3.0",
+    "label": "v1.3.0",
     "tested": "1.2.2",
-    "updated": "2026-11-17"
+    "updated": "2026-11-22"
   },
   "hyperqwen": {
     "repo": "syv-ai/HyperQwen",
@@ -39,46 +39,46 @@
     "repo": "Neroued/ninfer",
     "source": "git",
     "track": "head",
-    "version": "d9ad9dea4cdbc64ec44b5b18704b46b5db2613dc",
-    "label": "d9ad9dea",
+    "version": "ebdc67e584bcd9ebe16ee63af9abeb2118bac6cd",
+    "label": "ebdc67e5",
     "tested": "a754fcf3bf524494aa927c2f54e0cbfb58f569ab",
-    "updated": "2026-11-17"
+    "updated": "2026-11-22"
   },
   "basalt": {
     "repo": "jesdga95/basalt",
     "source": "git",
     "track": "tag:^v\\d+\\.\\d+\\.\\d+$",
-    "version": "99dc78cb51ac43555c3feed9a1ec14f056d05035",
-    "label": "v0.4.0",
+    "version": "ad274aa8dc243f0fdcc1ad382f2e31c4591b4552",
+    "label": "v0.5.0",
     "tested": "364815560d2d2fc5e0db37c86191065abe7c6309",
-    "updated": "2026-11-17"
+    "updated": "2026-11-22"
   },
   "strata_nvfp4": {
     "repo": "sergqwer/strata-nvfp4",
     "source": "git",
     "track": "tag:^v\\d+\\.\\d+\\.\\d+(-beta)?-nvfp4\\.\\d+$",
-    "version": "b08a70078eb3b94d18f72df2c39b7d53f22511f7",
-    "label": "v0.2.13-nvfp4.1",
+    "version": "2572b0e0f3d500217975cdb0bb9a8cb48037cdec",
+    "label": "v0.2.15-nvfp4.3",
     "tested": "57293b8ec57203a741dc7b2abd69f24f077037ab",
-    "updated": "2026-11-17"
+    "updated": "2026-11-22"
   },
   "strata": {
     "repo": "Niko1221/Strata",
     "source": "release",
     "track": "tag:^v\\d+\\.\\d+\\.\\d+(\\.\\d+)?$",
-    "version": "v0.2.13",
-    "label": "v0.2.13",
+    "version": "v0.2.17",
+    "label": "v0.2.17",
     "tested": null,
-    "updated": "2026-11-17"
+    "updated": "2026-11-22"
   },
   "maya": {
     "repo": "mw00/project-maya",
     "source": "git",
     "track": "tag:^v\\d+\\.\\d+\\.\\d+$",
-    "version": "v1.1.64",
-    "label": "v1.1.64",
+    "version": "v1.1.68",
+    "label": "v1.1.68",
     "tested": null,
-    "updated": "2026-11-17"
+    "updated": "2026-11-22"
   },
   "sparsa": {
     "repo": "LyJonathan/Sparsa",
@@ -93,10 +93,10 @@
     "source": "pypi",
     "track": "pypi",
     "python": "3.13",
-    "version": "0.33.0",
-    "label": "0.33.0",
+    "version": "0.34.0",
+    "label": "0.34.0",
     "tested": null,
-    "updated": "2026-11-17"
+    "updated": "2026-11-22"
   },
   "sglang": {
     "package": "sglang",
