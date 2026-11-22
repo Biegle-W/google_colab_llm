@@ -732,6 +732,52 @@ def build_notebook(engine: str, runtime: str | None = None, model: str | None = 
             ]),
         ]
 
+    if engine == "comfyui":
+        editor_cells = [
+            _md([
+                "## 7c. Optional: ComfyUI's own editor (node graph)",
+                "",
+                "ComfyUI notebooks can also open ComfyUI's own web editor, the node-graph page, to build and run "
+                "workflows by hand on this GPU with the model already loaded. It asks how when it runs "
+                "(Enter keeps your last answer; the default is off):",
+                "",
+                "- **On your tailnet only**: private, at your Tailscale URL on port 10000 (needs choice 1 or 2 in "
+                "cell 6).",
+                "- **Cloudflare quick tunnel**: any browser, but **ComfyUI has no login**: anyone who gets the "
+                "link can use your GPU and see your outputs. Only for short sessions; never share the link.",
+                "- What you make in the editor is copied to Drive's `outputs/comfyui/` within a minute, so it "
+                "survives the runtime (API requests are saved to `outputs/images/` as before).",
+            ]),
+            _code([
+                "import socket",
+                "from IPython.display import HTML, display",
+                "",
+                "EDITOR = tunnel.choose_comfy_editor(saved.get(\"comfy_editor\"), tailnet=(TUNNEL == \"tailscale\"))",
+                "WS.save_settings({**WS.load_settings(), \"comfy_editor\": EDITOR})",
+                "tunnel.stop_cloudflare(tunnel.COMFY_EDITOR_PORT)",
+                "if EDITOR != \"off\":",
+                "    with socket.socket() as sock:",
+                "        running = sock.connect_ex((\"127.0.0.1\", tunnel.COMFY_EDITOR_PORT)) == 0",
+                "    if not running:",
+                "        print(\"ComfyUI is not running yet: run cell 7 first (its request loads the model), then this cell.\")",
+                "    else:",
+                "        if EDITOR == \"tailnet\":",
+                "            EDITOR_URL = tunnel.tailscale_serve_port(tunnel.COMFY_EDITOR_PORT, tunnel.COMFY_EDITOR_TS_PORT, BASE,",
+                "                                                     drive_dir=DRIVE_DIR)",
+                "        else:",
+                "            _, EDITOR_URL = tunnel.start_cloudflare_quick(tunnel.COMFY_EDITOR_PORT, drive_dir=DRIVE_DIR,",
+                "                                                          probe=tunnel.probe_reachable)",
+                "        if EDITOR_URL:",
+                "            display(HTML(f'<p><a href=\"{EDITOR_URL}\" target=\"_blank\">Open ComfyUI\\'s editor</a></p>'))",
+                "            print(\"ComfyUI editor:\", EDITOR_URL)",
+                "            if EDITOR == \"cloudflare\":",
+                "                print(\"No login on this page: keep the link private and re-run this cell with 'off' when done.\")",
+                "        else:",
+                "            print(\"Could not publish the editor on your tailnet (is cell 6's Tailscale connection up?).\")",
+            ]),
+        ]
+    else:
+        editor_cells = []
     if is_image:
         cells += [
             _md([
@@ -762,7 +808,8 @@ def build_notebook(engine: str, runtime: str | None = None, model: str | None = 
                 "        print(\"=== image:\", IMG, j.get(\"size\"), \"===\")",
                 "        if r.ok:",
                 "            display(IPyImage(data=base64.b64decode(j[\"data\"][0][\"b64_json\"])))",
-                "            path = WS.save_image_b64(j[\"data\"][0][\"b64_json\"], IMG, prompt=prompt)",
+                "            # the image server already saved it to Drive (outputs/images); older hubs did not",
+                "            path = (j.get(\"saved_to\") or [None])[0] or WS.save_image_b64(j[\"data\"][0][\"b64_json\"], IMG, prompt=prompt)",
                 "            print(f\"[{time.time() - t0:.1f} s] Saved →\", path)",
                 "        else:",
                 "            print(j)",
@@ -788,13 +835,14 @@ def build_notebook(engine: str, runtime: str | None = None, model: str | None = 
                 "        print(\"Video model still loading; re-run this cell in a minute.\")",
                 "    elif r.ok:",
                 "        j = r.json()",
-                "        path = WS.save_video_b64(j[\"data\"][0][\"b64_mp4\"], VID, prompt=vprompt)",
+                "        path = (j.get(\"saved_to\") or [None])[0] or WS.save_video_b64(j[\"data\"][0][\"b64_mp4\"], VID, prompt=vprompt)",
                 "        print(f\"[{time.time() - t0:.0f} s] {j.get('size')}, {j.get('seconds')} s → {path}\")",
                 "        display(Video(str(path), embed=True, width=640))",
                 "    else:",
                 "        print(r.status_code, r.text[:1000])",
             ]),
         ]
+        cells += editor_cells
     else:
         cells += [
             _md([

@@ -333,19 +333,25 @@ def make_handler(state):
             except Exception as e:
                 traceback.print_exc()
                 return self.error_json(500, f"Generation failed: {e}", "generation_failed")
+            from . import outputs
+            meta = {"size": f"{width}x{height}", "steps": int(steps), "seed": seed, "engine": "comfyui"}
             if video:
+                saved = outputs.save(pngs[:1], state["model_id"], prompt, ext="mp4", extra={**meta, "seconds": seconds})
                 return self.send_json(200, {
                     "created": int(time.time()), "model": state["model_id"],
                     "data": [{"b64_mp4": base64.b64encode(pngs[0]).decode("ascii")}],
-                    "size": f"{width}x{height}", "seconds": seconds, "steps": int(steps), "seed": seed})
+                    "size": f"{width}x{height}", "seconds": seconds, "steps": int(steps), "seed": seed,
+                    "saved_to": saved})
+            pngs = pngs[: max(1, min(int(data.get("n", 1)), 4))]
+            saved = outputs.save(pngs, state["model_id"], prompt, extra=meta)    # Drive outputs/images, in the background
             self.send_json(200, {
                 "created": int(time.time()),
                 "model": state["model_id"],
-                "data": [{"b64_json": base64.b64encode(p).decode("ascii"), "revised_prompt": None}
-                         for p in pngs[: max(1, min(int(data.get("n", 1)), 4))]],
+                "data": [{"b64_json": base64.b64encode(p).decode("ascii"), "revised_prompt": None} for p in pngs],
                 "size": f"{width}x{height}",
                 "steps": int(steps),
                 "seed": seed,
+                "saved_to": saved,
             })
 
     return Handler
@@ -415,6 +421,8 @@ def main(argv=None):
     log_path = os.path.join(a.comfy_root, f"comfyui-{a.model_id}.log")
     print(f"[comfyui] starting ComfyUI for {a.model_id} (workflow {a.workflow})", flush=True)
     proc, output_dir = start_comfy(a.comfy_root, a.model_path, a.comfy_port, log_path)
+    from . import outputs
+    outputs.watch_comfy(output_dir)        # what ComfyUI's own editor makes goes to Drive outputs/comfyui/
     state = {
         "model_id": a.model_id, "max_edge": a.max_edge, "default_steps": a.steps,
         "default_guidance": a.guidance, "workflow": workflow, "comfy_port": a.comfy_port,

@@ -166,12 +166,17 @@ def make_handler(state):
                 traceback.print_exc()
                 return self.error_json(500, f"Generation failed: {e}", "generation_failed")
             created = int(time.time())
+            from . import outputs
+            saved = outputs.save([base64.b64decode(b) for b in images], state["model_id"], prompt,
+                                 extra={"size": f"{width}x{height}", "steps": steps, "seed": data.get("seed"),
+                                        "engine": "diffusers"})        # Drive outputs/images, in the background
             self.send_json(200, {
                 "created": created,
                 "model": state["model_id"],
                 "data": [{"b64_json": b, "revised_prompt": None} for b in images],
                 "size": f"{width}x{height}",
                 "steps": steps,
+                "saved_to": saved,
             })
 
     return Handler

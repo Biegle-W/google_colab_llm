@@ -358,6 +358,24 @@ def choose_connection(last=None, chat=True, ask=input, log=print):
     return pick, api, dsh, new_key
 
 
+COMFY_EDITOR_PORT = 8188          # ComfyUI's own web editor (the hub talks to the same ComfyUI)
+COMFY_EDITOR_TS_PORT = 10000      # its HTTPS port on your tailnet (dsh uses 8443)
+COMFY_EDITOR = (
+    ("off", "Off (default): image and video only through the API"),
+    ("tailnet", "On your tailnet only (private; needs the Tailscale API connection from cell 6)"),
+    ("cloudflare", "Cloudflare quick tunnel, any browser. WARNING: ComfyUI has no login, so anyone who gets "
+                   "this link can use your GPU and read the outputs"),
+)
+
+
+def choose_comfy_editor(last=None, tailnet=False, ask=input, log=print):
+    """Ask whether and how to open ComfyUI's own editor. Returns "off", "tailnet" or "cloudflare"."""
+    options = [(n, a) for n, a in COMFY_EDITOR if n != "tailnet" or tailnet]
+    if last not in [n for n, _ in options]:
+        last = "off"
+    return _menu("Open ComfyUI's own editor (its node-graph web page)?", options, last, ask, log)[0]
+
+
 def _menu(title, options, last, ask, log):
     names = [n for n, _ in options]
     log(title)

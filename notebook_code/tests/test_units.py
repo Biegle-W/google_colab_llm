@@ -2859,3 +2859,62 @@ class ConnectionChoice(unittest.TestCase):
         self.assertIn("public_url=DSH_URL", chat)
         self.assertNotIn("dsh_web.ask_open(", chat)
         self.assertNotIn("dsh_web.start(", image)
+
+
+class OutputsKeptOnDrive(unittest.TestCase):
+    """Every image / video the servers return is also saved to Drive (outputs/images), and what ComfyUI's own
+    editor makes is copied to outputs/comfyui; nothing is kept when Drive is not there."""
+
+    def setUp(self):
+        self.d = Path(tempfile.mkdtemp()); self.addCleanup(shutil.rmtree, self.d, True)
+
+    def test_api_outputs_with_their_prompt(self):
+        from notebook_code import outputs
+        paths = outputs.save([b"png1", b"png2"], "flux/schnell", "a fox", extra={"steps": 4},
+                             drive_dir=str(self.d), background=False)
+        self.assertEqual(len(paths), 2)
+        self.assertTrue(all(p.startswith(str(self.d / "outputs" / "images")) for p in paths))
+        self.assertEqual(Path(paths[1]).read_bytes(), b"png2")
+        meta = json.loads(Path(paths[0] + ".json").read_text())
+        self.assertEqual((meta["prompt"], meta["steps"], meta["source"]), ("a fox", 4, "api"))
+        self.assertNotIn("/", Path(paths[0]).name.replace(".png", ""))     # model id made file-safe
+        os.environ["COLAB_LLM_NO_DRIVE"] = "1"
+        self.addCleanup(os.environ.pop, "COLAB_LLM_NO_DRIVE", None)
+        self.assertEqual(outputs.save([b"x"], "m", "p", drive_dir=str(self.d), background=False), [])
+
+    def test_editor_outputs_copied_once_api_ones_skipped(self):
+        from notebook_code import outputs
+        out = self.d / "ComfyUI" / "output"
+        (out / "video").mkdir(parents=True)
+        (out / "ComfyUI_00001_.png").write_bytes(b"editor")
+        (out / "colab-42_00001_.png").write_bytes(b"api")          # the API's own: already in outputs/images
+        (out / "video" / "colab-7_00001_.mp4").write_bytes(b"apivid")
+        done = set()
+        self.assertEqual(outputs.sync_comfy(out, drive_dir=str(self.d), done=done), 1)
+        self.assertEqual((self.d / "outputs" / "comfyui" / "ComfyUI_00001_.png").read_bytes(), b"editor")
+        self.assertEqual(outputs.sync_comfy(out, drive_dir=str(self.d), done=done), 0)   # nothing new
+
+    def test_servers_save_and_report_where(self):
+        for mod in ("comfyui_server", "diffusers_server"):
+            src = Path(__file__).resolve().parents[1].joinpath(f"{mod}.py").read_text()
+            self.assertIn("outputs.save(", src, mod)
+            self.assertIn('"saved_to": saved', src, mod)
+        self.assertIn("outputs.watch_comfy(", Path(__file__).resolve().parents[1].joinpath("comfyui_server.py").read_text())
+
+
+class ComfyEditor(unittest.TestCase):
+    def test_menu_defaults_off_and_tailnet_needs_tailscale(self):
+        ask = lambda *a: (lambda it: (lambda p: next(it)))(iter(a))
+        q = lambda last, tailnet, *a: tunnel.choose_comfy_editor(last, tailnet=tailnet, ask=ask(*a), log=lambda *x: None)
+        self.assertEqual(q(None, True, ""), "off")
+        self.assertEqual(q(None, True, "2"), "tailnet")
+        self.assertEqual(q("tailnet", False, ""), "off")              # no Tailscale: the tailnet choice is gone
+        self.assertEqual(q(None, False, "2"), "cloudflare")
+        self.assertIn("no login", dict(tunnel.COMFY_EDITOR)["cloudflare"])
+
+    def test_only_comfyui_notebooks_offer_it(self):
+        from notebook_code import make_engine_notebooks as m
+        text = lambda e, mdl: "".join("".join(c["source"]) for c in m.build_notebook(e, runtime="g4", model=mdl)["cells"])
+        self.assertIn("tunnel.choose_comfy_editor(", text("comfyui", "flux3-klein-comfy"))
+        self.assertNotIn("tunnel.choose_comfy_editor(", text("diffusers", "flux-schnell"))
+        self.assertNotIn("tunnel.choose_comfy_editor(", text("llama", "inkling-2-mini-q8"))
