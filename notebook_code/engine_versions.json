@@ -3,8 +3,8 @@
     "repo": "ggml-org/llama.cpp",
     "source": "git",
     "track": "tag:^b\\d+$",
-    "version": "b94959a64d011915d77a5381c7d4846dcda99530",
-    "label": "b12557",
+    "version": "225a5345bbb0e0c70859af5441ba922beb666fcf",
+    "label": "b12627",
     "tested": "4c3c5810f87efe177949f1b85ae509d38a2a311f",
     "updated": "2026-11-22"
   },

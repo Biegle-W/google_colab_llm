@@ -12,10 +12,10 @@ ENGINES = ("llama", "vllm", "sglang", "diffusers", "strata", "maya", "tensorfold
 _ENGINE_PREFETCH = {
     "llama": {
         "t4": [],
-        "l4": ["nemotron-3.5-bolt-74b-iq2"],  # best engine per model, by the Colab tests
-        "a100_40": ["qwen3.8-27b-q8", "nemotron-3.5-bolt-74b-iq2", "sage-a1.5-q4", "flash-next-iq1s"],
-        "a100_80": ["nemotron-3.5-bolt-74b-iq2", "sage-a1.5-q4"],  # best engine per model, by the Colab tests
-        "g4": ["nemotron-3.5-bolt-74b-iq2", "sage-a1.5-q4"],  # best engine per model, by the Colab tests
+        "l4": ["inkling-2-mini-iq4"],
+        "a100_40": ["qwen3.8-27b-q8", "inkling-2-mini-q8", "flash-next-iq1s"],
+        "a100_80": ["inkling-2-mini-q8"],  # Nemotron 3.5 Bolt and Sage A1.5 retired 2026-11-22
+        "g4": ["inkling-2-mini-q8"],  # same file as the A100's
     },
     "vllm": {
         "t4": [],

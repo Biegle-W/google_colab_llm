@@ -8,7 +8,7 @@ OpenAI-compatible API), and keeps the weights and engine builds on Google Drive.
 
 | Engine | Model notebook |
 |---|---|
-| **llama.cpp** (`llama/`) | [`nemotron-3.5-bolt-74b-iq2`](l4-rtx4070ti/llama/nemotron-3.5-bolt-74b-iq2.ipynb) |
+| **llama.cpp** (`llama/`) | [`inkling-2-mini-iq4`](l4-rtx4070ti/llama/inkling-2-mini-iq4.ipynb) |
 | **SGLang** (`sglang/`) | [`qwen3.8-27b-w4a16-sglang`](l4-rtx4070ti/sglang/qwen3.8-27b-w4a16-sglang.ipynb) |
 | **Diffusers** (`diffusers/`) | [`qwen-image-2.1-nf4`](l4-rtx4070ti/diffusers/qwen-image-2.1-nf4.ipynb), [`sdxl-turbo`](l4-rtx4070ti/diffusers/sdxl-turbo.ipynb), [`sdxl-base`](l4-rtx4070ti/diffusers/sdxl-base.ipynb) |
 | **Strata** (`strata/`) | [`flash-next-gyro-s`](l4-rtx4070ti/strata/flash-next-gyro-s.ipynb) |
@@ -19,7 +19,7 @@ OpenAI-compatible API), and keeps the weights and engine builds on Google Drive.
 
 | Engine | Model notebook |
 |---|---|
-| **llama.cpp** (`llama/`) | [`nemotron-3.5-bolt-74b-iq2`](a100/llama/nemotron-3.5-bolt-74b-iq2.ipynb), [`sage-a1.5-q4`](a100/llama/sage-a1.5-q4.ipynb) |
+| **llama.cpp** (`llama/`) | [`inkling-2-mini-q8`](a100/llama/inkling-2-mini-q8.ipynb) |
 | **SGLang** (`sglang/`) | [`qwen3.8-27b-w4a16-sglang`](a100/sglang/qwen3.8-27b-w4a16-sglang.ipynb) |
 | **Diffusers** (`diffusers/`) | [`flux-schnell`](a100/diffusers/flux-schnell.ipynb) |
 | **Strata** (`strata/`) | [`flash-next-strata-iq3-s`](a100/strata/flash-next-strata-iq3-s.ipynb), [`deepseek-strata-ist-2.00`](a100/strata/deepseek-strata-ist-2.00.ipynb) |
@@ -31,7 +31,7 @@ OpenAI-compatible API), and keeps the weights and engine builds on Google Drive.
 
 | Engine | Model notebook |
 |---|---|
-| **llama.cpp** (`llama/`) | [`nemotron-3.5-bolt-74b-iq2`](g4-rtx-pro6000/llama/nemotron-3.5-bolt-74b-iq2.ipynb), [`sage-a1.5-q4`](g4-rtx-pro6000/llama/sage-a1.5-q4.ipynb) |
+| **llama.cpp** (`llama/`) | [`inkling-2-mini-q8`](g4-rtx-pro6000/llama/inkling-2-mini-q8.ipynb) |
 | **SGLang** (`sglang/`) | [`qwen3.8-27b-w4a16-sglang`](g4-rtx-pro6000/sglang/qwen3.8-27b-w4a16-sglang.ipynb) |
 | **Diffusers** (`diffusers/`) | [`flux-schnell`](g4-rtx-pro6000/diffusers/flux-schnell.ipynb) |
 | **Strata** (`strata/`) | [`deepseek-strata-ist-1.75`](g4-rtx-pro6000/strata/deepseek-strata-ist-1.75.ipynb) |

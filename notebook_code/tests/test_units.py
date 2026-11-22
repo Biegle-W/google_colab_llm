@@ -99,7 +99,9 @@ class Catalog(unittest.TestCase):
         self.assertNotIn("flash-next-strata-iq3-s", g4["prefetch"])
         self.assertIn("glm-maya-s", g4["prefetch"])
         self.assertNotIn("deepseek-maya-xs", g4["prefetch"])      # 282 GB; the G4 disk is 225 GB
-        self.assertIn("nemotron-3.5-bolt-74b-iq2", g4["prefetch"])
+        self.assertIn("inkling-2-mini-q8", g4["prefetch"])
+        self.assertNotIn("nemotron-3.5-bolt-74b-iq2", g4["prefetch"])   # retired 2026-11-22
+        self.assertNotIn("sage-a1.5-q4", g4["prefetch"])
         self.assertNotIn("qwen3.8-27b-exl3-2bpw", g4["prefetch"])        # Qwen3.8-27B: HyperQwen is faster
         self.assertIn("hyperqwen-qwen3.8-27b-dflash2", g4["prefetch"])
         self.assertNotIn("minimax-m3.1-flash-iq2-kt", g4["prefetch"])   # removed from the plan
@@ -113,7 +115,8 @@ class Catalog(unittest.TestCase):
         llama = recommend.for_engine("llama", 102.6)
         self.assertEqual(llama["engines"], ["llama"])
         self.assertTrue(all(not x.startswith("qwen-image") for x in llama["prefetch"]))
-        self.assertIn("nemotron-3.5-bolt-74b-iq2", llama["prefetch"])
+        self.assertIn("inkling-2-mini-q8", llama["prefetch"])
+        self.assertEqual(recommend.for_engine("llama", 24.2)["prefetch"], ["inkling-2-mini-iq4"])
         self.assertNotIn("ornith-1.5-122b-q4", llama["prefetch"])        # removed from the plan
         vllm = recommend.for_engine("vllm", 24.2)
         self.assertEqual(vllm["engines"], ["vllm"])
@@ -2758,3 +2761,29 @@ class EngineVersions(unittest.TestCase):
         self.assertIn("retest on GPU", out)
         self.assertIn("unpinned", out)
         self.assertNotIn("| d |", out)
+
+
+class Inkling2Mini(unittest.TestCase):
+    """Inkling 2 Mini replaced Nemotron 3.5 Bolt and Sage A1.5: Q8_0 on the A100 and G4 (one file), IQ4_NL on the L4."""
+
+    def test_plan_and_fit(self):
+        from notebook_code import recommend
+        by = catalog.by_id(catalog.load())
+        plan = recommend._ENGINE_PREFETCH["llama"]
+        self.assertEqual((plan["g4"], plan["a100_80"], plan["l4"]),
+                         (["inkling-2-mini-q8"], ["inkling-2-mini-q8"], ["inkling-2-mini-iq4"]))
+        for runtime, rows in plan.items():
+            self.assertFalse({"nemotron-3.5-bolt-74b-iq2", "sage-a1.5-q4"} & set(rows), runtime)
+        self.assertIsNone(catalog.why_not(by["inkling-2-mini-q8"], 95.6, 167, 253, "120"))
+        self.assertIsNone(catalog.why_not(by["inkling-2-mini-q8"], 80, 167, 351, "80"))
+        self.assertIsNone(catalog.why_not(by["inkling-2-mini-iq4"], 22.5, 53, 200, "89"))
+        self.assertGreaterEqual(by["inkling-2-mini-q8"]["released"], "2026-06-01")
+
+    def test_llama_cpp_has_the_inkling_fixes(self):
+        # Inkling 2 Mini arrived in b12600; b12627 adds the NVFP4 expert-scale fix (llama.cpp #32704)
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
+        import engine_updates as u
+        self.assertGreaterEqual(u.vkey(install.VERSIONS["llama"]["label"]), u.vkey("b12627"))
+        self.assertTrue(u.is_older({"version": "x", "label": "b12627", "track": "tag:^b\\d+$"}, "b12600"))
+        self.assertFalse(u.is_older({"version": "x", "label": "b12627", "track": "tag:^b\\d+$"}, "b12700"))
+        self.assertFalse(u.is_older({"version": "abc", "label": "abc12345", "track": "head"}, "def67890"))

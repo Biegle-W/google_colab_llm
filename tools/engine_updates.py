@@ -266,6 +266,18 @@ def missing_assets(name, v, tag):
     return [u for u in urls if not http_ok(u)]
 
 
+def is_older(v, label):
+    """True when a candidate release is older than the pin (a pin set by hand ahead of the two-day wait, e.g. for a
+    model that needs that release): the updater never moves a pin backwards."""
+    current = v.get("label") or ""
+    if not v.get("version") or v.get("track") in ("head",) or not re.search(r"\d", current):
+        return False
+    try:
+        return vkey(label) < vkey(current)
+    except ValueError:
+        return False
+
+
 def regenerate_and_test():
     """Notebooks, README tables, notebook check and unit tests with the current pins; (ok, tail of the output)."""
     steps = [[sys.executable, "-m", "notebook_code.make_engine_notebooks"],
@@ -301,7 +313,7 @@ def main(argv=None):
             except Exception as e:
                 report.append((name, "error", f"could not list releases: {e}"))
                 continue
-            if not cand or cand[0] == v.get("version"):
+            if not cand or cand[0] == v.get("version") or is_older(v, cand[1]):
                 report.append((name, "current", v.get("label") or v.get("version")))
                 continue
             version, label, _ = cand

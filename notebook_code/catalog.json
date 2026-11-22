@@ -152,6 +152,61 @@
     ]
   },
   {
+    "id": "inkling-2-mini-q8",
+    "name": "Inkling 2 Mini Q8_0 (llama.cpp)",
+    "backend": "llama",
+    "repo": "ggml-org/Inkling-2-Mini-GGUF",
+    "released": "2026-11-17",
+    "extra_args": [
+      "--fit",
+      "on",
+      "--fit-target",
+      "384"
+    ],
+    "files": [
+      "Inkling-2-Mini-Q8_0.gguf"
+    ],
+    "model_file": "Inkling-2-Mini-Q8_0.gguf",
+    "size_gb": 27.82,
+    "contexts": [
+      [
+        36,
+        131072
+      ],
+      [
+        70,
+        262144
+      ]
+    ],
+    "notes": "Thinking Machines' 26B-A3.5B looped MoE (Apache 2.0). ggml-org's near-lossless Q8_0 for the A100 80 GB and the G4 (one copy on Drive). Needs llama.cpp b12627+ (Inkling 2 Mini support, NVFP4 expert-scale fix). The official NVFP4/MXFP8 checkpoint needs SGLang/vLLM builds not yet released."
+  },
+  {
+    "id": "inkling-2-mini-iq4",
+    "name": "Inkling 2 Mini IQ4_NL (llama.cpp; L4)",
+    "backend": "llama",
+    "repo": "ggml-org/Inkling-2-Mini-GGUF",
+    "released": "2026-11-17",
+    "extra_args": [
+      "--fit",
+      "on",
+      "--fit-target",
+      "384"
+    ],
+    "files": [
+      "Inkling-2-Mini-IQ4_NL.gguf"
+    ],
+    "model_file": "Inkling-2-Mini-IQ4_NL.gguf",
+    "size_gb": 17.63,
+    "contexts": [
+      [
+        22,
+        32768
+      ]
+    ],
+    "offload": true,
+    "notes": "Thinking Machines' 26B-A3.5B looped MoE. ggml-org's 4-bit IQ4_NL (17.6 GB) leaves the L4's 24 GB room for context. Needs llama.cpp b12627+."
+  },
+  {
     "id": "nemotron-3.5-super-120b-q3",
     "name": "Nemotron-3.5-Super-VL-120B-A12B UD-Q3_K_XL (llama.cpp, text)",
     "backend": "llama",

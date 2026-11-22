@@ -37,7 +37,6 @@ Measured with the notebooks' hub on real Colab runtimes, one request at a time; 
 
 | Engine | Model notebook | Prefill | Time to first token | Decode | Cold start |
 |---|---|---|---|---|---|
-| llama.cpp | `nemotron-3.5-bolt-74b-iq2` | next run | next run | 38 tok/s | 7.8 min |
 | SGLang | `qwen3.8-27b-w4a16-sglang` | next run | next run | 16 tok/s | 4.5 min |
 | Strata | `flash-next-gyro-s` | next run | next run | 68 tok/s | 24.3 min |
 | TensorFold | `qwen3.8-27b-exl3-2bpw` | next run | next run | 83 tok/s | 7.5 min |
@@ -55,8 +54,6 @@ Measured with the notebooks' hub on real Colab runtimes, one request at a time; 
 
 | Engine | Model notebook | Prefill | Time to first token | Decode | Cold start |
 |---|---|---|---|---|---|
-| llama.cpp | `nemotron-3.5-bolt-74b-iq2` | next run | next run | 79 tok/s | 7.4 min |
-| llama.cpp | `sage-a1.5-q4` | 3,558 tok/s | 1.00 s | 134 tok/s | 10.7 min |
 | SGLang | `qwen3.8-27b-w4a16-sglang` | 2,018 tok/s | 1.76 s | 74 tok/s | 17.6 min |
 | Strata | `flash-next-strata-iq3-s` | next run | next run | 167 tok/s | 29.6 min |
 | TensorFold | `qwen3.8-27b-exl3-2bpw` | next run | next run | 144 tok/s | 5.9 min |
@@ -78,7 +75,7 @@ Measured with the notebooks' hub on real Colab runtimes, one request at a time; 
 | Maya | `glm-maya-s` | next run | next run | 77 tok/s | 25 min |
 | SGLang | `qwen3.8-27b-w4a16-sglang` | next run | next run | 77 tok/s | not recorded |
 
-Tested, then removed from the notebooks (a faster engine or quant, or released before June 2026; kept in the CSV): L4 llama.cpp `qwen3.8-27b-q4` (15 tok/s), L4 Strata `flash-next-strata-q2` (46 tok/s), L4 Strata `flash-next-swift-iq2-xs` (55 tok/s), L4 Strata `qwen36-strata-q4` (55 tok/s), L4 vLLM `qwen3-14b-fp8` (17 tok/s), L4 vLLM `qwen3.8-27b-w4a16` (16 tok/s), A100 HyperQwen `hyperqwen-qwen3.8-27b-batch` (66 tok/s), G4 NInfer `ninfer-qwen3.8-27b-nvfp4` (187 tok/s), G4 NInfer `ninfer-qwen3.8-flash-next` (66 tok/s), G4 Strata NVFP4 `strata-nvfp4-flash-next-gptq` (187 tok/s), A100 Diffusers `qwen-image-2.1` (next run), A100 llama.cpp `qwen3.8-27b-q8` (39 tok/s), A100 vLLM `qwen3.8-27b-fp8` (48 tok/s).
+Tested, then removed from the notebooks (a faster engine or quant, or released before June 2026; kept in the CSV): L4 llama.cpp `nemotron-3.5-bolt-74b-iq2` (38 tok/s), L4 llama.cpp `qwen3.8-27b-q4` (15 tok/s), L4 Strata `flash-next-strata-q2` (46 tok/s), L4 Strata `flash-next-swift-iq2-xs` (55 tok/s), L4 Strata `qwen36-strata-q4` (55 tok/s), L4 vLLM `qwen3-14b-fp8` (17 tok/s), L4 vLLM `qwen3.8-27b-w4a16` (16 tok/s), A100 HyperQwen `hyperqwen-qwen3.8-27b-batch` (66 tok/s), A100 llama.cpp `nemotron-3.5-bolt-74b-iq2` (79 tok/s), G4 NInfer `ninfer-qwen3.8-27b-nvfp4` (187 tok/s), G4 NInfer `ninfer-qwen3.8-flash-next` (66 tok/s), G4 Strata NVFP4 `strata-nvfp4-flash-next-gptq` (187 tok/s), A100 Diffusers `qwen-image-2.1` (next run), A100 llama.cpp `sage-a1.5-q4` (134 tok/s), A100 llama.cpp `qwen3.8-27b-q8` (39 tok/s), A100 vLLM `qwen3.8-27b-fp8` (48 tok/s).
 
 <!-- RESULTS:END -->
 
