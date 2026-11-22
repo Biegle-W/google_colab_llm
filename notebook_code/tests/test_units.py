@@ -2844,6 +2844,33 @@ class Hy4FlashStrata(unittest.TestCase):
         self.assertEqual(args[args.index("--vision") + 1], "on")
 
 
+class Hy4FlashMaya(unittest.TestCase):
+    """Hy4-Flash Maya-L beside Strata SQ-128 on the G4 and the A100 80 GB, for a head-to-head test."""
+
+    def test_plan_and_fit(self):
+        from notebook_code import recommend
+        by = catalog.by_id(catalog.load())
+        e = by["hy4-flash-maya-l"]
+        plan = recommend._ENGINE_PREFETCH["maya"]
+        self.assertIn("hy4-flash-maya-l", plan["g4"])
+        self.assertIn("hy4-flash-maya-l", plan["a100_80"])
+        self.assertIsNone(catalog.why_not(e, 95.6, 167, 253, "120"))
+        self.assertIsNone(catalog.why_not(e, 80, 167, 351, "80"))
+        self.assertIn("mtp/*", e["files"])
+
+    def test_maya_runs_hy4_on_blackwell(self):
+        # v1.1.70 fixed Hy4-Flash on sm_120 cards (the G4's RTX PRO 6000) built with CUDA 12.9 / 13.0
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
+        import engine_updates as u
+        self.assertGreaterEqual(u.vkey(install.VERSIONS["maya"]["label"]), u.vkey("v1.1.70"))
+
+    def test_launch(self):
+        e = catalog.by_id(catalog.load())["hy4-flash-maya-l"]
+        args = backends.maya_command(e, "/tmp/missing", 131072, "/tmp/maya", port=30060)
+        self.assertEqual(args[args.index("--model") + 1], "hy4-flash-maya-l")
+        self.assertEqual(args[args.index("--drafting") + 1], "auto")
+
+
 class ConnectionChoice(unittest.TestCase):
     """Each notebook asks how to connect: the OpenAI API over Tailscale, the dsh web page over a Cloudflare quick
     tunnel, both, or the API over Cloudflare. Image and video notebooks offer only the API choices."""

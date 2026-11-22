@@ -1812,6 +1812,33 @@
     "notes": "Tencent Hy4-Flash (220B-A12B) in Strata's own .strata v1.0 format; needs Strata v0.2.18 or newer (engine strata-hy4). SQ-128 is the build closest to the full model: by Strata's fit rule (hy4_fit) it sits wholly in VRAM + RAM on the G4 (84 GB VRAM + 22 GB RAM at 128K) and the A100 80 GB (67 + 39 GB). The 67.6 GB Engram file is shared by every build and read in random 4 KiB pieces while it answers, so all files are copied to local disk each start. Always reasons; images on (Vision shard)."
   },
   {
+    "id": "hy4-flash-maya-l",
+    "name": "Tencent Hy4-Flash 220B Maya-L (Project Maya)",
+    "backend": "maya",
+    "repo": "peasantsmith/Hy4-Flash-Maya-GGUF",
+    "released": "2026-11-19",
+    "files": [
+      "Maya-L/*",
+      "mtp/*"
+    ],
+    "size_gb": 162.0,
+    "resident_gb": 98.7,
+    "contexts": [
+      [
+        70,
+        32768
+      ],
+      [
+        78,
+        131072
+      ]
+    ],
+    "offload": true,
+    "maya_model": "hy4-flash-maya-l",
+    "drafting": "auto",
+    "notes": "Maya's own IQ4_XS quant of Tencent Hy4-Flash (220B-A12B) on its maya-hy4 engine; needs Maya v1.1.70 or newer (the G4's Blackwell card). 89.5 GB model + the 63.4 GB n-gram table every Maya size shares (read from the SSD while it answers) + DFly2 drafter, vision reader and Tencent's MTP block (7.5 GB, Maya-L drafts with it). Maya's import finds the files by size and sha256 and copies them to local disk each start. Compared against Strata SQ-128 on the same runtimes."
+  },
+  {
     "id": "minimax-m3.1-flash-iq2-xs-d3",
     "name": "MiniMax-M3.1-Flash IQ2_XS-D3 (Sparsa)",
     "backend": "sparsa",

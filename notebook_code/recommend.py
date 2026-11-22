@@ -52,8 +52,8 @@ _ENGINE_PREFETCH = {
         "t4": [],
         "l4": [],                                  # GLM Maya needs 81+ GB VRAM+RAM; the L4 has 80
         "a100_40": ["glm-maya-s24", "glm-maya-s", "glm-maya-xs"],
-        "a100_80": ["glm-maya-s"],   # one quant (Maya-S: 77 tok/s on the G4); DeepSeek Maya-XS exceeds the disk
-        "g4": ["glm-maya-s"],        # DeepSeek Maya (282+ GB) exceeds the G4's 225 GB disk
+        "a100_80": ["glm-maya-s", "hy4-flash-maya-l"],   # one quant (Maya-S: 77 tok/s on the G4); DeepSeek Maya-XS exceeds the disk
+        "g4": ["glm-maya-s", "hy4-flash-maya-l"],        # DeepSeek Maya (282+ GB) exceeds the G4's 225 GB disk
     },
     "tensorfold": {
         "t4": [],

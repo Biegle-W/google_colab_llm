@@ -75,8 +75,8 @@
     "repo": "mw00/project-maya",
     "source": "git",
     "track": "tag:^v\\d+\\.\\d+\\.\\d+$",
-    "version": "v1.1.68",
-    "label": "v1.1.68",
+    "version": "v1.1.74",
+    "label": "v1.1.74",
     "tested": null,
     "updated": "2026-11-22"
   },
