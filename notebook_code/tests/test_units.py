@@ -15,6 +15,17 @@ from notebook_code.store import MARKER, ModelStore, StoreError, is_complete, wri
 from .helpers import entry, fake_downloader
 
 
+
+def roomy_disk(test, free=500e9):
+    """Pretend the machine has `free` bytes of disk for the test (the store picks its download path by free disk,
+    so tests must not depend on how full the machine running them is)."""
+    import collections
+    from notebook_code import store as store_mod
+    orig = store_mod.shutil.disk_usage
+    usage = collections.namedtuple("usage", "total used free")
+    store_mod.shutil.disk_usage = lambda path: usage(free * 2, free, free)
+    test.addCleanup(setattr, store_mod.shutil, "disk_usage", orig)
+
 class Catalog(unittest.TestCase):
     def test_shipped_catalog_is_valid(self):
         entries = catalog.load()
@@ -1432,6 +1443,7 @@ class PrepareOnCpu(unittest.TestCase):
         self.assertTrue(st.state(self.entry())["on_drive"])
 
     def test_failed_copy_leaves_drive_incomplete(self):
+        roomy_disk(self)
         def bad_copy(src, dst, on_bytes=None):
             raise OSError("Drive upload limit")
         with self.assertRaises(OSError):
@@ -2071,6 +2083,7 @@ class UploadPacing(unittest.TestCase):
 
 class TruncatedCopyNeverMarkedComplete(unittest.TestCase):
     def setUp(self):
+        roomy_disk(self)
         self.tmp = tempfile.mkdtemp()
         self.st = ModelStore(os.path.join(self.tmp, "d"), os.path.join(self.tmp, "l"), log=lambda *_: None)
         self.e = {"id": "m", "name": "m", "backend": "vllm", "repo": "o/m", "files": ["*"], "size_gb": 0,
