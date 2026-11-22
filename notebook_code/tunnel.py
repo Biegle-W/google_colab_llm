@@ -94,6 +94,23 @@ def probe_hub(url, api_key=None, opener=urllib.request.urlopen):
         return False
 
 
+def probe_reachable(url, api_key=None, opener=urllib.request.urlopen):
+    """True when anything behind the tunnel answers (a web page that wants a token answers 401 / 403);
+    Cloudflare's own errors while the tunnel registers or the origin is down are 5xx."""
+    try:
+        with opener(urllib.request.Request(url + "/"), timeout=5) as r:
+            return r.status < 500
+    except urllib.error.HTTPError as e:
+        return e.code < 500
+    except (OSError, ValueError):
+        return False
+
+
+def verify_public(url, wait=45, sleep=time.sleep, dns_check=None, probe=probe_reachable, log=print):
+    """Wait until a quick tunnel's URL resolves and its server answers (True), else log and return False."""
+    return _verify_public(url, None, time.monotonic() + wait, sleep, dns_check or dns_ready, probe, log)
+
+
 def _verify_public(url, api_key, deadline, sleep, dns_check, probe, log):
     host = url.split("//", 1)[1]
     sleep(3)                                                   # let the record exist before the first lookup
@@ -114,16 +131,18 @@ def _verify_public(url, api_key, deadline, sleep, dns_check, probe, log):
 
 def start_cloudflare_quick(port, drive_dir=None, api_key=None, protocol=None, binary=None,
                            popen=subprocess.Popen, sleep=time.sleep, url_wait=30, verify_wait=45,
-                           dns_check=dns_ready, probe=probe_hub, log=print):
-    """Open a Cloudflare quick tunnel to the hub. Returns (process, https base URL).
+                           dns_check=dns_ready, probe=probe_hub, log=print, verify=True):
+    """Open a Cloudflare quick tunnel to a local port (the hub's, or dsh's web page). Returns (process, URL).
 
-    Like Unsloth Studio's Colab start(): waits until the tunnel has registered with Cloudflare's edge and
-    the hub answers through it before returning the URL. If no URL appears it retries once over HTTP/2,
-    for networks that block cloudflared's default QUIC."""
+    Like Unsloth Studio's Colab start(): waits until the tunnel has registered with Cloudflare's edge and,
+    with `verify`, the server answers through it before returning the URL. If no URL appears it retries once
+    over HTTP/2, for networks that block cloudflared's default QUIC. Only a tunnel to the same port is
+    replaced, so the API's and dsh's tunnels run side by side."""
     binary = binary or ensure_cloudflared(drive_dir=drive_dir)
-    log_path = (os.path.join(drive_dir, "logs", "cloudflared.log") if drive_dir else "/content/cloudflared.log")
+    name = "cloudflared.log" if int(port) == 8000 else f"cloudflared-{int(port)}.log"
+    log_path = os.path.join(drive_dir, "logs", name) if drive_dir else os.path.join("/content", name)
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
-    stop_cloudflare()
+    stop_cloudflare(port)
     tail = ""
     for proto in ([protocol] if protocol else [None, "http2"]):
         cmd = [binary, "tunnel", "--url", f"http://127.0.0.1:{port}", "--no-autoupdate"]
@@ -141,7 +160,8 @@ def start_cloudflare_quick(port, drive_dir=None, api_key=None, protocol=None, bi
             sleep(1)
         tail = _read(log_path)[-2000:]
         if url and REGISTERED in _read(log_path):
-            _verify_public(url, api_key, time.monotonic() + verify_wait, sleep, dns_check, probe, log)
+            if verify:
+                _verify_public(url, api_key, time.monotonic() + verify_wait, sleep, dns_check, probe, log)
             return proc, url
         proc.terminate()
         log(f"[tunnel] cloudflared{' (' + proto + ')' if proto else ''} gave no working URL; "
@@ -210,10 +230,13 @@ def load_or_ask_secret(path, prompt, refresh=False, env_name=None, check=None, l
     return value
 
 
-def stop_cloudflare():
-    """Stop cloudflared tunnels started from this runtime. Anchored to the program name: an unanchored
-    pattern would also match any process whose arguments merely mention cloudflared (a shell, a test)."""
-    subprocess.run(["pkill", "-TERM", "-f", r"^[^ ]*cloudflared tunnel "], capture_output=True)
+def stop_cloudflare(port=None):
+    """Stop cloudflared tunnels started from this runtime: all of them, or only the quick tunnel to `port`.
+    Anchored to the program name: an unanchored pattern would also match any process whose arguments merely
+    mention cloudflared (a shell, a test)."""
+    pattern = (r"^[^ ]*cloudflared tunnel " if port is None else
+               rf"^[^ ]*cloudflared tunnel --url http://127\.0\.0\.1:{int(port)}( |$)")
+    subprocess.run(["pkill", "-TERM", "-f", pattern], capture_output=True)
 
 
 # ---- Tailscale ---------------------------------------------------------------------------
@@ -303,6 +326,54 @@ TUNNELS = (
                    "new every session (the API key still protects it)"),
     ("cloudflare-named", "Cloudflare named tunnel: your own tunnel token and a stable public hostname"),
 )
+
+
+# How each notebook connects: the OpenAI-compatible API for client harnesses on your machines, dsh's web page
+# in a browser, or both. (name, menu line, API tunnel or None, dsh web page)
+CONNECTIONS = (
+    ("both", "OpenAI API over Tailscale (for your client harnesses) + the dsh web page over a Cloudflare "
+             "quick tunnel (open it in any browser)", "tailscale", True),
+    ("api", "OpenAI API over Tailscale only", "tailscale", False),
+    ("dsh", "The dsh web page over a Cloudflare quick tunnel only (no API for other machines)", None, True),
+    ("cloudflare", "OpenAI API over a Cloudflare quick tunnel (public URL, new every session; the API key "
+                   "protects it)", "cloudflare", False),
+    ("cloudflare-named", "OpenAI API over your own named Cloudflare tunnel (stable hostname)",
+     "cloudflare-named", False),
+)
+API_ONLY = ("api", "cloudflare", "cloudflare-named")        # image / video notebooks: no dsh
+
+
+def choose_connection(last=None, chat=True, ask=input, log=print):
+    """Ask how to connect to this notebook's model. Returns (connection, api_tunnel or None, dsh, new_key).
+
+    Enter keeps `last` (an earlier answer, or an older notebook's tunnel name); a number or name picks one;
+    adding "new" (e.g. "1 new") asks for a new key / token even when one is saved."""
+    legacy = {"tailscale": "both" if chat else "api"}    # notebooks from before the dsh web page option
+    last = legacy.get(last, last)
+    options = [(n, a) for n, a, _, _ in CONNECTIONS if chat or n in API_ONLY]
+    if last not in [n for n, _ in options]:
+        last = options[0][0]
+    pick, new_key = _menu("How do you want to connect to this model?", options, last, ask, log)
+    _, _, api, dsh = next(c for c in CONNECTIONS if c[0] == pick)
+    return pick, api, dsh, new_key
+
+
+def _menu(title, options, last, ask, log):
+    names = [n for n, _ in options]
+    log(title)
+    for i, (name, about) in enumerate(options, 1):
+        log(f"  {i}. {about}" + ("   <- last used" if name == last else ""))
+    while True:
+        words = ask(f"Choice [1-{len(options)}, Enter = {names.index(last) + 1}; add 'new' to replace a saved key]: "
+                    ).strip().lower().split()
+        new_key = "new" in words
+        words = [w for w in words if w != "new"]
+        pick = last if not words else (names[int(words[0]) - 1] if words[0].isdigit()
+                                       and 1 <= int(words[0]) <= len(names) else
+                                       words[0] if words[0] in names else None)
+        if pick:
+            return pick, new_key
+        log(f"  {words[0]!r} is not one of the choices; type a number from 1 to {len(names)}.")
 
 
 def choose_tunnel(last=None, ask=input, log=print, choices=None, remember=None):

@@ -1157,7 +1157,7 @@ class SingleModelSelection(unittest.TestCase):
                        if make_engine_notebooks.PAYLOAD_TAG not in c.get("metadata", {}).get("tags", []))
         self.assertIn('args += ["--models", MODEL]', text)
         self.assertIn('TUNNEL = saved.get("tunnel") or "tailscale"', text)        # Tailscale stays the default
-        self.assertIn("tunnel.choose_tunnel(", text)                              # picked in a prompt, not code
+        self.assertIn("tunnel.choose_connection(", text)                          # picked in a prompt, not code
         self.assertNotIn("npx", text)                                    # dsh runs only when asked (cell 6b)
 
     def test_only_filter(self):
@@ -2454,7 +2454,7 @@ class TunnelPrompt(unittest.TestCase):
             self.assertNotIn('TUNNEL = \\"tailscale\\"  # @param', text, nb)
             self.assertNotIn('TUNNEL      = \\"tailscale\\"  # @param', text, nb)
             if "start_tailscale" in text:
-                self.assertIn("choose_tunnel", text, nb)
+                self.assertIn("choose_connection", text, nb)
 
 
 class SecretsOpenOnAPhone(unittest.TestCase):
@@ -2655,7 +2655,7 @@ class DshInNotebook(unittest.TestCase):
     def test_chat_notebooks_offer_it_image_ones_do_not(self):
         from notebook_code import make_engine_notebooks as m
         chat = "".join("".join(c["source"]) for c in m.build_notebook("hyperqwen")["cells"])
-        self.assertIn("dsh_web.ask_open(", chat)
+        self.assertIn("if OPEN_DSH:", chat)                     # cell 6's connection choice decides
         img = "".join("".join(c["source"]) for c in m.build_notebook("diffusers")["cells"])
         self.assertNotIn("dsh_web.ask_open(", img)
 
@@ -2788,3 +2788,74 @@ class Inkling2Mini(unittest.TestCase):
         self.assertTrue(u.is_older({"version": "x", "label": "b12627", "track": "tag:^b\\d+$"}, "b12600"))
         self.assertFalse(u.is_older({"version": "x", "label": "b12627", "track": "tag:^b\\d+$"}, "b12700"))
         self.assertFalse(u.is_older({"version": "abc", "label": "abc12345", "track": "head"}, "def67890"))
+
+
+class ConnectionChoice(unittest.TestCase):
+    """Each notebook asks how to connect: the OpenAI API over Tailscale, the dsh web page over a Cloudflare quick
+    tunnel, both, or the API over Cloudflare. Image and video notebooks offer only the API choices."""
+
+    def ask(self, *answers):
+        it = iter(answers)
+        return lambda prompt: next(it)
+
+    def test_menu(self):
+        pick = lambda last, chat, *a: tunnel.choose_connection(last, chat=chat, ask=self.ask(*a), log=lambda *x: None)
+        self.assertEqual(pick(None, True, ""), ("both", "tailscale", True, False))       # first run: both
+        self.assertEqual(pick("tailscale", True, ""), ("both", "tailscale", True, False))  # older notebooks
+        self.assertEqual(pick("both", True, "3"), ("dsh", None, True, False))
+        self.assertEqual(pick("both", True, "api new"), ("api", "tailscale", False, True))
+        self.assertEqual(pick(None, False, ""), ("api", "tailscale", False, False))      # image notebooks
+        self.assertEqual(pick("dsh", False, "9", "2"), ("cloudflare", "cloudflare", False, False))
+
+    def test_quick_tunnels_per_port(self):
+        calls = []
+        orig = subprocess.run
+        subprocess.run = lambda cmd, **k: calls.append(cmd)
+        try:
+            tunnel.stop_cloudflare(3080)
+            tunnel.stop_cloudflare()
+        finally:
+            subprocess.run = orig
+        import re
+        one, every = calls[0][-1], calls[1][-1]
+        self.assertTrue(re.search(one, "/c/cloudflared tunnel --url http://127.0.0.1:3080 --no-autoupdate"))
+        self.assertFalse(re.search(one, "/c/cloudflared tunnel --url http://127.0.0.1:8000 --no-autoupdate"))
+        self.assertTrue(re.search(every, "/c/cloudflared tunnel --url http://127.0.0.1:8000 --no-autoupdate"))
+
+    def test_dsh_tunnel_starts_unverified_with_its_own_log(self):
+        d = tempfile.mkdtemp(); self.addCleanup(shutil.rmtree, d, True)
+        seen = {}
+
+        class Proc:
+            def poll(self):
+                return None
+
+        def popen(cmd, stdout=None, **k):
+            seen["cmd"] = cmd
+            stdout.write("https://abc-def.trycloudflare.com\nRegistered tunnel connection\n"); stdout.flush()
+            return Proc()
+        orig = tunnel.stop_cloudflare
+        tunnel.stop_cloudflare = lambda port=None: seen.setdefault("stopped", port)
+        try:
+            proc, url = tunnel.start_cloudflare_quick(3080, drive_dir=d, binary="/bin/cf", popen=popen,
+                                                      sleep=lambda s: None, verify=False,
+                                                      probe=lambda *a: self.fail("verify=False probes nothing"))
+        finally:
+            tunnel.stop_cloudflare = orig
+        self.assertEqual(url, "https://abc-def.trycloudflare.com")
+        self.assertEqual(seen["stopped"], 3080)                       # the API's tunnel keeps running
+        self.assertIn("http://127.0.0.1:3080", seen["cmd"])
+        self.assertTrue(os.path.isfile(os.path.join(d, "logs", "cloudflared-3080.log")))
+
+    def test_notebooks_ask_and_open_dsh_over_cloudflare(self):
+        from notebook_code import make_engine_notebooks as m
+        text = lambda nb: "".join("".join(c["source"]) for c in nb["cells"])
+        chat = text(m.build_notebook("llama", runtime="g4", model="inkling-2-mini-q8"))
+        image = text(m.build_notebook("comfyui", runtime="g4", model="flux3-klein-comfy"))
+        self.assertIn("tunnel.choose_connection(", chat)
+        self.assertIn("chat=True)", chat)
+        self.assertIn("chat=False)", image)
+        self.assertIn("tunnel.start_cloudflare_quick(dsh_web.PORT", chat)
+        self.assertIn("public_url=DSH_URL", chat)
+        self.assertNotIn("dsh_web.ask_open(", chat)
+        self.assertNotIn("dsh_web.start(", image)
