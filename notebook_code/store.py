@@ -109,8 +109,11 @@ def is_complete(root, marker=MARKER):
         listed = json.loads((root / marker).read_text())["files"]
     except (OSError, ValueError, KeyError):
         return False
-    return bool(listed) and all((root / rel).is_file() and (root / rel).stat().st_size == size
-                                for rel, size in listed.items())
+    try:  # a file removed while this runs (an eviction, a cleanup) means not complete, not an error
+        return bool(listed) and all((root / rel).is_file() and (root / rel).stat().st_size == size
+                                    for rel, size in listed.items())
+    except OSError:
+        return False
 
 
 def write_marker(root, repo, marker=MARKER, only=None):

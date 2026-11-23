@@ -2835,12 +2835,17 @@ class Hy4FlashStrata(unittest.TestCase):
     def test_launch_uses_the_drive_files(self):
         e = catalog.by_id(catalog.load())["hy4-flash-sq-128"]
         with tempfile.TemporaryDirectory() as d:
+            Path(d, "m").mkdir()
             for name in e["files"]:
-                Path(d, name).write_bytes(b"")
-            args = backends.strata_command(e, d, 131072, port=30050)
+                Path(d, "m", name).write_bytes(b"")
+            data = Path(d, "strata_data")
+            args = backends.strata_command(e, Path(d, "m"), 131072, port=30050, data_dir=data)
+            linked = sorted(x.name for x in (data / "models" / "hy4-flash").iterdir())
+        self.assertEqual(linked, sorted(e["files"]))  # where Strata looks; --model-path takes only .gguf
         self.assertEqual(args[args.index("--family") + 1], "hy4-flash")
         self.assertEqual(args[args.index("--model") + 1], "SQ-128")
-        self.assertEqual(args[args.index("--model-path") + 1], d)
+        self.assertEqual(args[args.index("--data-dir") + 1], str(data))
+        self.assertNotIn("--model-path", args)
         self.assertEqual(args[args.index("--vision") + 1], "on")
 
 
@@ -2869,12 +2874,17 @@ class InklingStrata(unittest.TestCase):
     def test_launch_uses_the_drive_files(self):
         e = catalog.by_id(catalog.load())["inkling-2-mini-sq-20"]
         with tempfile.TemporaryDirectory() as d:
+            Path(d, "m").mkdir()
             for name in e["files"]:
-                Path(d, name).write_bytes(b"")
-            args = backends.strata_command(e, d, 131072, port=30050)
+                Path(d, "m", name).write_bytes(b"")
+            data = Path(d, "strata_data")
+            args = backends.strata_command(e, Path(d, "m"), 131072, port=30050, data_dir=data)
+            linked = sorted(x.name for x in (data / "models" / "inkling-2-mini").iterdir())
+        self.assertEqual(linked, sorted(e["files"]))  # where Strata looks; --model-path takes only .gguf
         self.assertEqual(args[args.index("--family") + 1], "inkling-2-mini")
         self.assertEqual(args[args.index("--model") + 1], "SQ-20")
-        self.assertEqual(args[args.index("--model-path") + 1], d)
+        self.assertEqual(args[args.index("--data-dir") + 1], str(data))
+        self.assertNotIn("--model-path", args)
         self.assertNotIn("--drafting", args)  # Strata's Auto: DSpark for Inkling, DFlash2 for Flash-Next IQ3_S on CUDA
 
 

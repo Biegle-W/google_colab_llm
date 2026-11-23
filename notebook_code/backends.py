@@ -166,13 +166,31 @@ def strata_command(entry, model_path, ctx, strata_bin="strata", port=None, data_
             "--port", str(port or PORTS["strata"]),
             "--vision", entry.get("vision", "off"),
             "--tune", "skip"]
+    have = _walk_names(model_path) if model_path and os.path.isdir(str(model_path)) else []
+    if any(p.endswith(".strata") for p in have):
+        # Native .strata families (Hy4-Flash, Inkling 2 Mini): --model-path takes only .gguf, so the files go where
+        # Strata looks for them itself, <data-dir>/models/<family> (checked by exact size; nothing is downloaded).
+        data_dir = data_dir or "/content/strata_data"
+        _link_into(have, os.path.join(str(data_dir), "models", str(family)))
     if data_dir:
         args += ["--data-dir", str(data_dir)]
-    # Prefer files already restored from Drive; otherwise Strata downloads into --data-dir.
-    if model_path and os.path.isdir(str(model_path)) and any(
-            p.endswith((".gguf", ".strata")) for p in _walk_names(model_path)):
+    # Prefer GGUF files already restored from Drive; otherwise Strata downloads into --data-dir.
+    if any(p.endswith(".gguf") for p in have):
         args += ["--model-path", str(model_path)]
     return args + list(entry.get("extra_args", []))
+
+
+def _link_into(paths, folder):
+    """Hard-link each file into folder (same disk: no copy), or symlink when that fails."""
+    os.makedirs(folder, exist_ok=True)
+    for src in paths:
+        dst = os.path.join(folder, os.path.basename(src))
+        if os.path.lexists(dst):
+            os.remove(dst)
+        try:
+            os.link(src, dst)
+        except OSError:
+            os.symlink(os.path.abspath(src), dst)
 
 
 def maya_command(entry, model_path, ctx, maya_root, port=None, models_dir=None):
