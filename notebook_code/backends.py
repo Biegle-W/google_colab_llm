@@ -94,6 +94,12 @@ def llama_command(entry, model_path, ctx, llama_bin, port=None):
             "--cache-ram", "0", "--ctx-checkpoints", "0"]
     if not entry.get("thinking", False):
         args += ["--reasoning", "off", "--chat-template-kwargs", json.dumps({"enable_thinking": False})]
+    elif entry.get("chat_template_kwargs"):
+        # Server default for the template (e.g. Inkling's reasoning_effort, 0.9 when unset); a request's own
+        # chat_template_kwargs still wins.
+        args += ["--chat-template-kwargs", json.dumps(entry["chat_template_kwargs"])]
+    if entry.get("temperature") is not None:
+        args += ["--temp", str(entry["temperature"])]   # default when a request names none
     if on_network_fs(model_path):
         # Read the GGUF from Drive in one sequential pass, not by page faults. llama.cpp replaced
         # --no-mmap with --load-mode (none = plain reads, no memory map).

@@ -2849,6 +2849,25 @@ class Hy4FlashStrata(unittest.TestCase):
         self.assertEqual(args[args.index("--vision") + 1], "on")
 
 
+class InklingReasoningEffort(unittest.TestCase):
+    """Inkling's template defaults to 'Thinking effort level: 0.9'; llama.cpp gets reasoning_effort none as the
+    server default (from Unsloth's Inkling notebook), and the model's own temperature 1.0."""
+
+    def test_llama_flags(self):
+        for mid in ("inkling-2-mini-q8", "inkling-2-mini-iq4"):
+            e = catalog.by_id(catalog.load())[mid]
+            args = backends.llama_command(e, "/content/models/x.gguf", 131072, "llama-server")
+            self.assertEqual(json.loads(args[args.index("--chat-template-kwargs") + 1]), {"reasoning_effort": "none"})
+            self.assertEqual(args[args.index("--temp") + 1], "1.0")
+            self.assertNotIn("--reasoning", args)
+
+    def test_qwen_keeps_thinking_off(self):
+        e = catalog.by_id(catalog.load())["qwen3.8-27b-q4"]
+        args = backends.llama_command(e, "/content/models/x.gguf", 32768, "llama-server")
+        self.assertEqual(json.loads(args[args.index("--chat-template-kwargs") + 1]), {"enable_thinking": False})
+        self.assertNotIn("--temp", args)
+
+
 class XetHighPerformance(unittest.TestCase):
     """hf_xet's high-performance downloads only where the RAM is there (from Unsloth Studio's download setup)."""
 

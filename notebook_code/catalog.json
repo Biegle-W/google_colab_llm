@@ -178,8 +178,12 @@
         262144
       ]
     ],
-    "notes": "Thinking Machines' 26B-A3.5B looped MoE (Apache 2.0). ggml-org's near-lossless Q8_0 for the A100 80 GB and the G4 (one copy on Drive). Needs llama.cpp b12627+ (Inkling 2 Mini support, NVFP4 expert-scale fix). The official NVFP4/MXFP8 checkpoint needs SGLang/vLLM builds not yet released. Always reasons (its card: the minimum effort does not fully disable it), so the thinking-off flags are not passed; a system message 'Thinking effort level: 0.0' keeps it short. CPU smoke test on b12627: loads, reasoning and tool calls parsed.",
-    "thinking": true
+    "notes": "Thinking Machines' 26B-A3.5B looped MoE (Apache 2.0). ggml-org's near-lossless Q8_0 for the A100 80 GB and the G4 (one copy on Drive). Needs llama.cpp b12627+ (Inkling 2 Mini support, NVFP4 expert-scale fix). The official NVFP4/MXFP8 checkpoint needs SGLang/vLLM builds not yet released. Always reasons (its card: the minimum effort does not fully disable it), so the thinking-off flags are not passed. Its chat template writes 'Thinking effort level: 0.9' unless told otherwise (a client system message does not replace it), so the server passes reasoning_effort \"none\" (0.0, as Strata serves it) and Inkling's own temperature 1.0; a request's chat_template_kwargs can still raise the effort (minimal, low, medium, high, xhigh). CPU smoke test on b12627: loads, reasoning and tool calls parsed.",
+    "thinking": true,
+    "chat_template_kwargs": {
+      "reasoning_effort": "none"
+    },
+    "temperature": 1.0
   },
   {
     "id": "inkling-2-mini-iq4",
@@ -205,8 +209,12 @@
       ]
     ],
     "offload": true,
-    "notes": "Thinking Machines' 26B-A3.5B looped MoE. ggml-org's 4-bit IQ4_NL (17.6 GB) leaves the L4's 24 GB room for context. Needs llama.cpp b12627+. Always reasons (its card: the minimum effort does not fully disable it), so the thinking-off flags are not passed; a system message 'Thinking effort level: 0.0' keeps it short. CPU smoke test on b12627: loads, reasoning and tool calls parsed.",
-    "thinking": true
+    "notes": "Thinking Machines' 26B-A3.5B looped MoE. ggml-org's 4-bit IQ4_NL (17.6 GB) leaves the L4's 24 GB room for context. Needs llama.cpp b12627+. Always reasons (its card: the minimum effort does not fully disable it), so the thinking-off flags are not passed. Its chat template writes 'Thinking effort level: 0.9' unless told otherwise (a client system message does not replace it), so the server passes reasoning_effort \"none\" (0.0, as Strata serves it) and Inkling's own temperature 1.0; a request's chat_template_kwargs can still raise the effort (minimal, low, medium, high, xhigh). CPU smoke test on b12627: loads, reasoning and tool calls parsed.",
+    "thinking": true,
+    "chat_template_kwargs": {
+      "reasoning_effort": "none"
+    },
+    "temperature": 1.0
   },
   {
     "id": "nemotron-3.5-super-120b-q3",
