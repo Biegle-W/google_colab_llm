@@ -2849,6 +2849,17 @@ class Hy4FlashStrata(unittest.TestCase):
         self.assertEqual(args[args.index("--vision") + 1], "on")
 
 
+class XetHighPerformance(unittest.TestCase):
+    """hf_xet's high-performance downloads only where the RAM is there (from Unsloth Studio's download setup)."""
+
+    def test_by_ram(self):
+        from notebook_code import store
+        self.assertEqual(store.tune_xet({}, ram_bytes=167 * 2**30), "1")      # G4 / A100 80 GB
+        self.assertIsNone(store.tune_xet({}, ram_bytes=53 * 2**30))          # L4
+        self.assertIsNone(store.tune_xet({}, ram_bytes=12 * 2**30))          # CPU runtime
+        self.assertEqual(store.tune_xet({"HF_XET_HIGH_PERFORMANCE": "0"}, ram_bytes=167 * 2**30), "0")
+
+
 class InklingStrata(unittest.TestCase):
     """Inkling 2 Mini SQ-20 on Strata v0.2.19+ (engine strata-inkling, DSpark drafter built in) on all three runtimes,
     plus Flash-Next IQ3_S back on the G4 for a re-test against Basalt on v0.2.19's Blackwell kernels."""

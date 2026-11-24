@@ -15,6 +15,25 @@ import time
 from pathlib import Path
 
 MARKER = ".complete.json"
+XET_HP_MIN_RAM = 64 * 2**30   # Xet's high-performance preset sizes its buffers for a big host (Unsloth: up to 64 GB)
+
+
+def tune_xet(env=os.environ, ram_bytes=None):
+    """Turn on hf_xet's high-performance downloads (more parallel streams and bigger buffers) on runtimes with the
+    RAM for it: the A100 80 GB and the G4 (167 GB), not the L4 or a CPU runtime. Read by hf_xet at import, so this
+    runs before any download; a value the user set is kept. Returns the value in effect."""
+    if "HF_XET_HIGH_PERFORMANCE" not in env:
+        if ram_bytes is None:
+            try:
+                ram_bytes = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+            except (ValueError, OSError, AttributeError):
+                ram_bytes = 0
+        if ram_bytes >= XET_HP_MIN_RAM:
+            env["HF_XET_HIGH_PERFORMANCE"] = "1"
+    return env.get("HF_XET_HIGH_PERFORMANCE")
+
+
+tune_xet()
 # Engines that memory-map their weights and read them in small scattered pieces, which the Drive mount serves at
 # a few MB/s: their models are read once, start to finish, before the engine starts (see warm_read).
 WARM_READ_BACKENDS = ("strata", "maya", "sparsa", "basalt", "strata_nvfp4")
