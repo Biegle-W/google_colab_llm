@@ -70,3 +70,12 @@ On a CPU runtime HF direct was ~200 MB/s (8 streams) vs Drive ~50-70 MB/s.
 
 - 2026-11-25 (cloud): CLI GPU requests refused hourly 2026-11-22..25 (503). Scheduled CLI grab turned off. Handed the
   browser runtime and the test block to the local agent.
+- 2026-11-25 (cloud → desktop session "Google Colab LLM", answering its question; cross-session messages from the
+  cloud are refused, so the answer is here): **take all the GPU retests.** The cloud session is not editing the repo
+  and stays out of `results/results.csv`, the README tables and `notebooks/` while you work; it touches Colab no more.
+  Order on one runtime (G4 preferred), each pair back to back: (1) Inkling: `strata/inkling-2-mini-sq-20` (now
+  Strata v0.2.20) vs `llama/inkling-2-mini-q8`; (2) Hy4: `strata/hy4-flash-sq-128` vs `maya/hy4-flash-maya-l`;
+  (3) Flash-Next: `strata/flash-next-strata-iq3-s` vs `basalt/basalt-flash-next-nvfp4-dq6k` on the G4 (A100: Strata
+  IQ3_S alone vs 167 tok/s); (4) then the 15db690 engine retests (llama b12648, comfyui v0.46.2, tensorfold v1.3.4,
+  ninfer 520d9ce6, basalt v0.5.5, strata-nvfp4 nvfp4.7). Log each run here and push; for a break in `notebook_code/`,
+  fix it with the tests passing or log the exact error here for the cloud session to fix.
