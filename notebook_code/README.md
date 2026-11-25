@@ -130,17 +130,17 @@ Engine versions the notebooks install (`notebook_code/engine_versions.json`, mov
 
 | Engine | Pinned | Since | GPU-tested with |
 | --- | --- | --- | --- |
-| basalt | v0.5.0 | 2026-11-22 | an older version: **retest on GPU** |
-| comfyui | v0.46.1 | 2026-11-22 | an older version: **retest on GPU** |
+| basalt | v0.5.5 | 2026-11-25 | an older version: **retest on GPU** |
+| comfyui | v0.46.2 | 2026-11-25 | an older version: **retest on GPU** |
 | diffusers | 0.43.0 | 2026-11-17 | not yet: **test on GPU** |
 | hyperqwen | 3d6c9543 | 2026-11-17 | an older version: **retest on GPU** |
-| llama | b12627 | 2026-11-22 | an older version: **retest on GPU** |
+| llama | b12648 | 2026-11-25 | an older version: **retest on GPU** |
 | maya | v1.1.74 | 2026-11-22 | not yet: **test on GPU** |
-| ninfer | ebdc67e5 | 2026-11-22 | an older version: **retest on GPU** |
+| ninfer | 520d9ce6 | 2026-11-25 | an older version: **retest on GPU** |
 | sglang | 0.5.23 | 2026-11-17 | not yet: **test on GPU** |
-| strata | v0.2.19 | 2026-11-22 | not yet: **test on GPU** |
-| strata_nvfp4 | v0.2.15-nvfp4.3 | 2026-11-22 | an older version: **retest on GPU** |
-| tensorfold | v1.3.0 | 2026-11-22 | an older version: **retest on GPU** |
+| strata | v0.2.20 | 2026-11-25 | not yet: **test on GPU** |
+| strata_nvfp4 | v0.2.15-nvfp4.7 | 2026-11-25 | an older version: **retest on GPU** |
+| tensorfold | v1.3.4 | 2026-11-25 | an older version: **retest on GPU** |
 | vllm | 0.34.0 | 2026-11-22 | not yet: **test on GPU** |
 
 <!-- ENGINES:END -->
