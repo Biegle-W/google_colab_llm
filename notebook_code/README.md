@@ -117,7 +117,7 @@ sessions (VRAM, RAM, disk, including the A100's 369 GB NVMe scratch disk) and is
 Notebooks not yet run on their GPU runtime (no row in `results/results.csv`):
 
 - **L4 (RTX 4070 Ti class, 24 GB):** `comfyui/minimax-h3-image-l4-comfy`, `llama/inkling-2-mini-iq4`, `strata/inkling-2-mini-sq-20`.
-- **A100 80 GB (High-RAM):** `comfyui/minimax-h3-image-comfy`, `diffusers/flux-schnell`, `llama/inkling-2-mini-q8`, `maya/glm-maya-s`, `maya/hy4-flash-maya-l`, `strata/deepseek-strata-ist-2.00`, `strata/hy4-flash-sq-128`, `strata/inkling-2-mini-sq-20`.
+- **A100 80 GB (High-RAM):** `comfyui/minimax-h3-image-comfy`, `diffusers/flux-schnell`, `maya/glm-maya-s`, `strata/deepseek-strata-ist-2.00`.
 - **G4 (RTX PRO 6000 Blackwell, 96 GB):** `comfyui/flux3-klein-comfy`, `comfyui/minimax-h3-g4-comfy`, `comfyui/minimax-h3-image-g4-comfy`, `comfyui/qwen-image-2.1-bf16-comfy`, `comfyui/qwen-image-2.1-turbo-bf16-comfy`, `comfyui/wan22-5b-comfy`, `diffusers/flux-schnell`, `llama/inkling-2-mini-q8`, `maya/hy4-flash-maya-l`, `strata/deepseek-strata-ist-1.75`, `strata/flash-next-strata-iq3-s`, `strata/hy4-flash-sq-128`, `strata/inkling-2-mini-sq-20`.
 
 <!-- UNTESTED:END -->

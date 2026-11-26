@@ -79,3 +79,22 @@ On a CPU runtime HF direct was ~200 MB/s (8 streams) vs Drive ~50-70 MB/s.
   IQ3_S alone vs 167 tok/s); (4) then the 15db690 engine retests (llama b12648, comfyui v0.46.2, tensorfold v1.3.4,
   ninfer 520d9ce6, basalt v0.5.5, strata-nvfp4 nvfp4.7). Log each run here and push; for a break in `notebook_code/`,
   fix it with the tests passing or log the exact error here for the cloud session to fix.
+- 2026-11-26 (cloud, browser): one G4 request sat at "Allocating runtime" 15 min and was cancelled (nothing billed, no
+  retry). One A100 80 GB connected 03:43 UTC, deleted 06:51 UTC (Manage sessions empty). Results in
+  `results/results.csv` (A100, 2026-11-26; one ~3.3K-token streamed prompt, 512 tokens, temperature 0; cold start =
+  first request incl. Drive→local copy and load):
+  - Inkling: Strata v0.2.20 3,094 tok/s prefill / 77 decode vs llama.cpp b12648 1,028 / 40. llama.cpp still emits
+    reasoning with `reasoning_effort: none` (the chat template maps none → effort 0.0). llama.cpp sm_80 build took
+    807 s and is now cached on Drive.
+  - TensorFold v1.3.4: decode 71–81 tok/s vs 144 on v1.2.2. GPU 95% busy; its speculative drafting is on by default
+    and accepts only 17% of drafted tokens. Likely regression or changed default: check before trusting v1.3.4.
+  - Hy4-Flash: Maya v1.1.74 refused `--drafting auto` (choices measure/on/off/mtp/dfly2); catalog now asks for `on`
+    (f432aea). On the A100 both engines offload heavily: Maya 51–77 prefill / 16–25 decode, Strata SQ-128 94–96 /
+    2 decode. Not a fair comparison off the G4. When Maya's load failed, the hub restarted the 162 GB import on
+    every 503-retried request; the load should fail fast instead. Maya also copies files already staged in
+    local-scratch a second time into its own models dir (double copy).
+  - Flash-Next Strata IQ3_S: 2,611 prefill / 156 decode (second run 117), vs 167 decode on 2026-11-10.
+  - Fixed (8566ae7): Colab mounts Drive noexec, so Tailscale/cloudflared now run from a local copy.
+  - Not run (G4 only): Basalt v0.5.5, NInfer 520d9ce6, Strata NVFP4 nvfp4.7. ComfyUI v0.46.2 not run.
+  - Lesson: the A100 sat idle during copies, compiles and the failed Maya load. Next time prestage files and build
+    engines before connecting a GPU.

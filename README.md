@@ -54,9 +54,13 @@ Measured with the notebooks' hub on real Colab runtimes, one request at a time; 
 
 | Engine | Model notebook | Prefill | Time to first token | Decode | Cold start |
 |---|---|---|---|---|---|
+| llama.cpp | `inkling-2-mini-q8` | 1,028 tok/s | 3.54 s | 40 tok/s | 5.2 min |
+| Maya | `hy4-flash-maya-l` | 51 tok/s | 63.42 s | 16 tok/s | 27 min |
 | SGLang | `qwen3.8-27b-w4a16-sglang` | 2,018 tok/s | 1.76 s | 74 tok/s | 17.6 min |
-| Strata | `flash-next-strata-iq3-s` | next run | next run | 167 tok/s | 29.6 min |
-| TensorFold | `qwen3.8-27b-exl3-2bpw` | next run | next run | 144 tok/s | 5.9 min |
+| Strata | `flash-next-strata-iq3-s` | 2,611 tok/s | 1.26 s | 156 tok/s | 3.4 min |
+| Strata | `hy4-flash-sq-128` | 94 tok/s | 31.18 s | 2 tok/s | 17.4 min |
+| Strata | `inkling-2-mini-sq-20` | 3,094 tok/s | 1.13 s | 77 tok/s | 7.1 min |
+| TensorFold | `qwen3.8-27b-exl3-2bpw` | 592 tok/s | 5.53 s | 71 tok/s | 3.7 min |
 
 | Engine | Model notebook | Per image / 5 s clip (after the first) | Cold start | Sample |
 |---|---|---|---|---|
