@@ -9,7 +9,8 @@
 - **Cloudflare named tunnel**: a tunnel created in the Cloudflare dashboard, run with its token; the stable
   public hostname is configured there.
 
-Binaries are cached under ``Drive/engines/tools/`` when ``drive_dir`` is set.
+Binaries are cached under ``Drive/engines/tools/`` when ``drive_dir`` is set, and run from a local copy:
+Colab mounts Drive noexec, so a binary started straight from Drive fails with ``Permission denied``.
 """
 import json
 import os
@@ -23,6 +24,29 @@ import urllib.request
 # Static combined binary works without apt root installs; userspace mode needs no TUN device.
 TAILSCALE_STATIC_URL = "https://pkgs.tailscale.com/stable/tailscale_latest_amd64.tgz"
 TS_URL_RE = re.compile(r"https://[a-z0-9._-]+\.ts\.net(?:/[^\s]*)?", re.I)
+
+
+# Where binaries cached on Drive are copied to run (Drive is mounted noexec).
+LOCAL_BIN_DIR = os.environ.get("COLAB_LLM_BIN_DIR", "/content/.colab-llm-bin")
+
+
+def local_exec(path, bin_dir=None):
+    """A runnable copy of ``path`` on local disk (refreshed when the cached file changes)."""
+    bin_dir = bin_dir or LOCAL_BIN_DIR
+    if os.path.dirname(os.path.abspath(path)) == os.path.abspath(bin_dir):
+        return path
+    os.makedirs(bin_dir, exist_ok=True)
+    dest = os.path.join(bin_dir, os.path.basename(path))
+    src = os.stat(path)
+    try:
+        same = os.path.getsize(dest) == src.st_size and int(os.path.getmtime(dest)) == int(src.st_mtime)
+    except OSError:
+        same = False
+    if not same:
+        shutil.copy2(path, dest + ".part")
+        os.replace(dest + ".part", dest)
+    os.chmod(dest, 0o755)
+    return dest
 
 
 # ---- Cloudflare ---------------------------------------------------------------------------
@@ -44,14 +68,12 @@ def ensure_cloudflared(drive_dir=None, fetch=urllib.request.urlretrieve, attempt
             else os.environ.get("COLAB_LLM_CLOUDFLARED", "/content/cloudflared"))
     os.makedirs(os.path.dirname(path), exist_ok=True)
     if os.path.isfile(path) and os.path.getsize(path) > 1_000_000:
-        os.chmod(path, 0o755)
-        return path
+        return local_exec(path)
     for attempt in range(1, attempts + 1):
         try:
             fetch(CLOUDFLARED_URL, path + ".part")
             os.replace(path + ".part", path)
-            os.chmod(path, 0o755)
-            return path
+            return local_exec(path)
         except OSError:
             if attempt == attempts:
                 raise
@@ -248,8 +270,8 @@ def ensure_tailscale(drive_dir=None, fetch=urllib.request.urlretrieve, run=subpr
     os.makedirs(tools, exist_ok=True)
     ts = os.path.join(tools, "tailscale")
     tsd = os.path.join(tools, "tailscaled")
-    if os.path.isfile(ts) and os.path.isfile(tsd) and os.access(ts, os.X_OK) and os.access(tsd, os.X_OK):
-        return ts, tsd
+    if os.path.isfile(ts) and os.path.isfile(tsd):
+        return local_exec(ts), local_exec(tsd)
     # Prefer a system install when present (apt / install.sh).
     which_ts = shutil.which("tailscale")
     which_tsd = shutil.which("tailscaled")
@@ -271,9 +293,7 @@ def ensure_tailscale(drive_dir=None, fetch=urllib.request.urlretrieve, run=subpr
     if found_ts != ts:
         shutil.copy2(found_ts, ts)
         shutil.copy2(found_tsd, tsd)
-    os.chmod(ts, 0o755)
-    os.chmod(tsd, 0o755)
-    return ts, tsd
+    return local_exec(ts), local_exec(tsd)
 
 
 def parse_tailscale_url(text):

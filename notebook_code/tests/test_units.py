@@ -490,6 +490,33 @@ class Misc(unittest.TestCase):
         self.assertEqual(p["models"][0]["name"], 'Model "One"')
         self.assertNotIn("img", [m["id"] for m in p["models"]])
 
+    def test_drive_cached_binaries_run_from_a_local_copy(self):
+        # Colab mounts Drive noexec: tailscaled started from Drive failed with "Permission denied".
+        root = tempfile.mkdtemp()
+        bin_dir = os.path.join(root, "bin")
+        tools = os.path.join(root, "drive", "engines", "tools", "tailscale")
+        os.makedirs(tools)
+        for name in ("tailscale", "tailscaled"):
+            with open(os.path.join(tools, name), "w") as f:
+                f.write("#!/bin/sh\necho " + name + "\n")
+            os.chmod(os.path.join(tools, name), 0o644)  # what Drive's noexec mount amounts to
+        old = tunnel.LOCAL_BIN_DIR
+        tunnel.LOCAL_BIN_DIR = bin_dir
+        try:
+            ts, tsd = tunnel.ensure_tailscale(drive_dir=os.path.join(root, "drive"),
+                                              fetch=lambda *a: self.fail("no download"))
+        finally:
+            tunnel.LOCAL_BIN_DIR = old
+        self.assertEqual((ts, tsd), (os.path.join(bin_dir, "tailscale"), os.path.join(bin_dir, "tailscaled")))
+        self.assertTrue(os.access(tsd, os.X_OK))
+        self.assertEqual(subprocess.run([tsd], capture_output=True, text=True).stdout.strip(), "tailscaled")
+        # A changed cache on Drive refreshes the local copy; an unchanged one is reused.
+        with open(os.path.join(tools, "tailscaled"), "w") as f:
+            f.write("#!/bin/sh\necho newer build\n")
+        self.assertEqual(tunnel.local_exec(os.path.join(tools, "tailscaled"), bin_dir=bin_dir), tsd)
+        self.assertEqual(subprocess.run([tsd], capture_output=True, text=True).stdout.strip(), "newer build")
+        self.assertEqual(tunnel.local_exec(tsd, bin_dir=bin_dir), tsd)
+
     def test_tailscale_url_parse_and_authkey_prompt(self):
         self.assertEqual(
             tunnel.parse_tailscale_url("Available on the tailnet:\nhttps://colab-vllm.tailnet.ts.net/\n"),
