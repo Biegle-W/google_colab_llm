@@ -1843,7 +1843,7 @@
     ],
     "offload": true,
     "maya_model": "hy4-flash-maya-l",
-    "drafting": "auto",
+    "drafting": "on",
     "notes": "Maya's own IQ4_XS quant of Tencent Hy4-Flash (220B-A12B) on its maya-hy4 engine; needs Maya v1.1.70 or newer (the G4's Blackwell card). 89.5 GB model + the 63.4 GB n-gram table every Maya size shares (read from the SSD while it answers) + DFly2 drafter, vision reader and Tencent's MTP block (7.5 GB, Maya-L drafts with it). Maya's import finds the files by size and sha256 and copies them to local disk each start. Compared against Strata SQ-128 on the same runtimes."
   },
   {

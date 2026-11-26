@@ -2969,7 +2969,8 @@ class Hy4FlashMaya(unittest.TestCase):
         e = catalog.by_id(catalog.load())["hy4-flash-maya-l"]
         args = backends.maya_command(e, "/tmp/missing", 131072, "/tmp/maya", port=30060)
         self.assertEqual(args[args.index("--model") + 1], "hy4-flash-maya-l")
-        self.assertEqual(args[args.index("--drafting") + 1], "auto")
+        # Maya v1.1.74 takes measure/on/off/mtp/dfly2 ("auto" was refused); on = MTP where it fits, else DFly2
+        self.assertEqual(args[args.index("--drafting") + 1], "on")
 
 
 class ConnectionChoice(unittest.TestCase):
