@@ -37,18 +37,21 @@ Measured with the notebooks' hub on real Colab runtimes, one request at a time; 
 
 | Engine | Model notebook | Prefill | Time to first token | Decode | Cold start |
 |---|---|---|---|---|---|
-| SGLang | `qwen3.8-27b-w4a16-sglang` | next run | next run | 16 tok/s | 4.5 min |
-| Strata | `flash-next-gyro-s` | next run | next run | 68 tok/s | 24.3 min |
-| TensorFold | `qwen3.8-27b-exl3-2bpw` | next run | next run | 83 tok/s | 7.5 min |
+| llama.cpp | `inkling-2-mini-iq4` | 567 tok/s | 6.36 s | 34 tok/s | 72 s |
+| SGLang | `qwen3.8-27b-w4a16-sglang` | 297 tok/s | 10.88 s | 16 tok/s | 14.8 min |
+| Strata | `flash-next-gyro-s` | 324 tok/s | 10.02 s | 38 tok/s | 14.8 min |
+| Strata | `inkling-2-mini-sq-20` | 1,103 tok/s | 3.27 s | 36 tok/s | 3 min |
+| TensorFold | `qwen3.8-27b-exl3-2bpw` | 366 tok/s | 9.18 s | 43 tok/s | 1.7 min |
 
 | Engine | Model notebook | Per image / 5 s clip (after the first) | Cold start | Sample |
 |---|---|---|---|---|
 | ComfyUI | `flux3-klein-comfy` | 8 s per image | 3.5 min | not saved |
-| ComfyUI | `minimax-h3-l4-comfy` | 124 s per clip | not recorded | [l4_minimax-h3-l4-comfy.mp4](results/samples/l4_minimax-h3-l4-comfy.mp4) |
-| ComfyUI | `qwen-image-2.1-turbo-comfy` | 8 s per image | not recorded | <a href="results/samples/l4_qwen-image-2.1-turbo-comfy.jpg"><img src="results/samples/l4_qwen-image-2.1-turbo-comfy.jpg" width="160"></a> |
-| Diffusers | `qwen-image-2.1-nf4` | 37 s per image | 12.7 min | not saved |
-| Diffusers | `sdxl-base` | 17 s per image | 6.1 min | not saved |
-| Diffusers | `sdxl-turbo` | 3 s per image | 7.4 min | not saved |
+| ComfyUI | `minimax-h3-image-l4-comfy` | 9 s per image | 2.9 min | not saved |
+| ComfyUI | `minimax-h3-l4-comfy` | 118 s per clip | 8.7 min | [l4_minimax-h3-l4-comfy.mp4](results/samples/l4_minimax-h3-l4-comfy.mp4) |
+| ComfyUI | `qwen-image-2.1-turbo-comfy` | 9 s per image | 1.7 min | <a href="results/samples/l4_qwen-image-2.1-turbo-comfy.jpg"><img src="results/samples/l4_qwen-image-2.1-turbo-comfy.jpg" width="160"></a> |
+| Diffusers | `qwen-image-2.1-nf4` | 35 s per image | 6.7 min | not saved |
+| Diffusers | `sdxl-base` | 18 s per image | 2.4 min | not saved |
+| Diffusers | `sdxl-turbo` | 3 s per image | 2.2 min | not saved |
 
 ### A100 80 GB (High-RAM)
 

@@ -98,3 +98,19 @@ On a CPU runtime HF direct was ~200 MB/s (8 streams) vs Drive ~50-70 MB/s.
   - Not run (G4 only): Basalt v0.5.5, NInfer 520d9ce6, Strata NVFP4 nvfp4.7. ComfyUI v0.46.2 not run.
   - Lesson: the A100 sat idle during copies, compiles and the failed Maya load. Next time prestage files and build
     engines before connecting a GPU.
+- 2026-11-26 (cloud, browser): G4 request substituted with an A100 (deleted in ~2 min); a later G4 request sat
+  allocating 16 min and was cancelled (no retry). L4 session ~18:28–20:44 UTC ran the user's L4 notebooks back to
+  back (no Drive mount: models came from HF to /content, so cold starts include the download). Results in
+  `results/results.csv` (l4, 2026-11-26), same method as the A100 rows:
+  - TensorFold 43 decode (Nov 10: 83). Clean A/B on the same L4: v1.2.2 and v1.3.4 both ~43 (50-token prompt) and
+    39–41 (3.3K prompt); drafting accepts 15–18% in both; GPU at its normal 72 W cap. Not an engine regression; the
+    Nov 10 method is not recorded. Removing `drafter_bits` from the catalog did not turn drafting off in v1.3.4.
+  - Strata gyro-s 38 decode (Nov 10: 68), unchanged on a clean rerun (no downloads/compiles), so not contention.
+    Older Strata build not retested. SGLang matched its Nov 10 number (16), so the L4 is comparable.
+  - Inkling 2 Mini: Strata SQ-20 1,103 prefill / 36 decode vs llama.cpp IQ4 567 / 34 (sm_89 build ~15 min, not on Drive).
+  - Images/video: ComfyUI v0.46.2 qwen-image turbo 9 s, MiniMax H3 image 9 s, MiniMax H3 video 118 s/clip;
+    Diffusers qwen-image nf4 35 s, SDXL 18 s, SDXL turbo 3 s.
+  - Not run: `comfyui/flux3-klein-comfy` (gated repo: needs Drive mounted or HF_TOKEN; the user must click the Drive
+    popup). G4-only tests (Basalt, NInfer, Strata NVFP4, Hy4) still need a G4.
+  - Hub note: without Drive the store does not pass HF_TOKEN to downloads; model dirs are named differently from
+    catalog ids (e.g. `comfy-minimax-h3`), so cleanup by id misses them.
